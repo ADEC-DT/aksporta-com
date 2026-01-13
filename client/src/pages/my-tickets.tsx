@@ -35,16 +35,27 @@ import {
   Loader2,
   ArrowLeft,
   Send,
-  MessageSquare
+  MessageSquare,
+  Search,
+  RefreshCw,
+  Bug,
+  ShieldAlert,
+  Database,
+  Zap,
+  HelpCircle,
+  ChevronRight,
+  FileText,
+  Bell,
+  Download
 } from "lucide-react";
 import type { Ticket as TicketType, TicketComment } from "@shared/schema";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  new: { label: "New", color: "bg-blue-500", icon: Clock },
-  in_progress: { label: "In Progress", color: "bg-yellow-500", icon: Loader2 },
-  resolved: { label: "Resolved", color: "bg-green-500", icon: CheckCircle },
-  closed: { label: "Closed", color: "bg-gray-500", icon: CheckCircle },
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
+  new: { label: "New", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: Clock },
+  in_progress: { label: "In Progress", color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", icon: RefreshCw },
+  resolved: { label: "Resolved", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle },
+  closed: { label: "Closed", color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30", icon: CheckCircle },
 };
 
 const severityConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -54,13 +65,13 @@ const severityConfig: Record<string, { label: string; variant: "default" | "seco
   critical: { label: "Critical", variant: "destructive" },
 };
 
-const categoryLabels: Record<string, string> = {
-  netsuite_sync: "NetSuite Sync Error",
-  ui_bug: "UI/UX Bug",
-  access_issue: "Access Issue",
-  data_error: "Data Error",
-  performance: "Performance",
-  other: "Other",
+const categoryConfig: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
+  netsuite_sync: { label: "NetSuite Sync", icon: RefreshCw, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  ui_bug: { label: "UI/UX Bug", icon: Bug, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  access_issue: { label: "Access Issue", icon: ShieldAlert, color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30" },
+  data_error: { label: "Data Error", icon: Database, color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900/30" },
+  performance: { label: "Performance", icon: Zap, color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30" },
+  other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
 };
 
 export default function MyTicketsPage() {
@@ -69,6 +80,8 @@ export default function MyTicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [newComment, setNewComment] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [newTicket, setNewTicket] = useState({
     subject: "",
     description: "",
@@ -134,6 +147,30 @@ export default function MyTicketsPage() {
     addCommentMutation.mutate(newComment);
   }
 
+  const filteredTickets = tickets.filter((ticket) => {
+    const matchesSearch = searchQuery === "" || 
+      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = categoryFilter === null || ticket.category === categoryFilter;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const ticketsByCategory = Object.keys(categoryConfig).reduce((acc, key) => {
+    acc[key] = tickets.filter(t => t.category === key).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const recentUpdates = [...tickets]
+    .sort((a, b) => {
+      const dateA = a.updatedAt || a.createdAt || new Date();
+      const dateB = b.updatedAt || b.createdAt || new Date();
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    })
+    .slice(0, 3);
+
   if (selectedTicket) {
     const status = statusConfig[selectedTicket.status] || statusConfig.new;
     const severity = severityConfig[selectedTicket.severity] || severityConfig.low;
@@ -151,9 +188,9 @@ export default function MyTicketsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-semibold">{selectedTicket.trackingId}</h1>
-              <Badge className={status.color}>{status.label}</Badge>
+              <Badge className={`${status.bgColor} ${status.color} border-0`}>{status.label}</Badge>
               <Badge variant={severity.variant}>{severity.label}</Badge>
             </div>
             <p className="text-muted-foreground">{selectedTicket.subject}</p>
@@ -174,7 +211,7 @@ export default function MyTicketsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="text-muted-foreground">Category</Label>
-                  <p className="mt-1">{categoryLabels[selectedTicket.category] || selectedTicket.category}</p>
+                  <p className="mt-1">{categoryConfig[selectedTicket.category]?.label || selectedTicket.category}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Created</Label>
@@ -209,7 +246,7 @@ export default function MyTicketsPage() {
                           key={comment.id} 
                           className={`rounded-lg p-3 ${comment.isAdmin ? "bg-primary/10" : "bg-muted"}`}
                         >
-                          <div className="mb-1 flex items-center justify-between">
+                          <div className="mb-1 flex items-center justify-between flex-wrap gap-2">
                             <span className="text-sm font-medium">
                               {comment.userName || comment.userEmail}
                               {comment.isAdmin && (
@@ -303,78 +340,235 @@ export default function MyTicketsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">My Tickets</h1>
-          <p className="text-muted-foreground">
-            View and manage your support tickets
-          </p>
+      <div className="rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white">
+        <h1 className="mb-2 text-3xl font-bold">Support Tickets</h1>
+        <p className="mb-6 text-blue-100">
+          Track your support requests, submit new tickets, and get help from our team.
+        </p>
+        <div className="relative max-w-2xl">
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search tickets by ID, subject, or description..."
+            className="h-12 w-full rounded-lg border-0 bg-white pl-12 text-gray-900 placeholder:text-gray-500"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            data-testid="input-search-tickets"
+          />
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-new-ticket">
-          <Plus className="mr-2 h-4 w-4" />
-          New Ticket
-        </Button>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : tickets.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Ticket className="mb-4 h-16 w-16 text-muted-foreground" />
-            <h2 className="mb-2 text-xl font-semibold">No tickets yet</h2>
-            <p className="mb-4 text-muted-foreground">
-              Submit a ticket when you need help with the portal
-            </p>
-            <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-first-ticket">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Your First Ticket
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {tickets.map((ticket) => {
-            const status = statusConfig[ticket.status] || statusConfig.new;
-            const severity = severityConfig[ticket.severity] || severityConfig.low;
-            const StatusIcon = status.icon;
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <div>
+            <div className="mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">Browse Categories</h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {Object.entries(categoryConfig).map(([key, config]) => {
+                const IconComponent = config.icon;
+                const count = ticketsByCategory[key] || 0;
+                const isActive = categoryFilter === key;
+                
+                return (
+                  <Card 
+                    key={key}
+                    className={`cursor-pointer hover-elevate ${isActive ? 'ring-2 ring-primary' : ''}`}
+                    onClick={() => setCategoryFilter(isActive ? null : key)}
+                    data-testid={`card-category-${key}`}
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${config.bgColor}`}>
+                          <IconComponent className={`h-5 w-5 ${config.color}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">{config.label}</p>
+                          <p className="text-sm text-muted-foreground">{count} ticket{count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
 
-            return (
-              <Card 
-                key={ticket.id} 
-                className="cursor-pointer hover-elevate"
-                onClick={() => setSelectedTicket(ticket)}
-                data-testid={`card-ticket-${ticket.id}`}
-              >
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${status.color}`}>
-                    <StatusIcon className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-muted-foreground">
-                        {ticket.trackingId}
-                      </span>
-                      <Badge className={status.color}>{status.label}</Badge>
-                      <Badge variant={severity.variant}>{severity.label}</Badge>
-                    </div>
-                    <h3 className="font-medium">{ticket.subject}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {categoryLabels[ticket.category] || ticket.category} - Created{" "}
-                      {ticket.createdAt 
-                        ? format(new Date(ticket.createdAt), "PP")
-                        : "Unknown"
-                      }
-                    </p>
-                  </div>
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Ticket className="h-5 w-5" />
+                <h2 className="text-lg font-semibold">
+                  {categoryFilter ? `${categoryConfig[categoryFilter]?.label} Tickets` : 'All Tickets'}
+                </h2>
+                {categoryFilter && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setCategoryFilter(null)}
+                    className="text-muted-foreground"
+                  >
+                    Clear filter
+                  </Button>
+                )}
+              </div>
+              <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-new-ticket">
+                <Plus className="mr-2 h-4 w-4" />
+                New Ticket
+              </Button>
+            </div>
+
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Ticket className="mb-4 h-16 w-16 text-muted-foreground" />
+                  <h2 className="mb-2 text-xl font-semibold">
+                    {searchQuery || categoryFilter ? "No tickets found" : "No tickets yet"}
+                  </h2>
+                  <p className="mb-4 text-center text-muted-foreground">
+                    {searchQuery || categoryFilter 
+                      ? "Try adjusting your search or filter criteria"
+                      : "Submit a ticket when you need help with the portal"
+                    }
+                  </p>
+                  {!searchQuery && !categoryFilter && (
+                    <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-first-ticket">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Your First Ticket
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
-            );
-          })}
+            ) : (
+              <div className="space-y-3">
+                {filteredTickets.map((ticket) => {
+                  const status = statusConfig[ticket.status] || statusConfig.new;
+                  const severity = severityConfig[ticket.severity] || severityConfig.low;
+                  const category = categoryConfig[ticket.category] || categoryConfig.other;
+
+                  return (
+                    <Card 
+                      key={ticket.id} 
+                      className="cursor-pointer hover-elevate"
+                      onClick={() => setSelectedTicket(ticket)}
+                      data-testid={`card-ticket-${ticket.id}`}
+                    >
+                      <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${status.bgColor}`}>
+                            <status.icon className={`h-6 w-6 ${status.color}`} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-medium">{ticket.subject}</h3>
+                              <Badge className={`${status.bgColor} ${status.color} border-0`}>{status.label}</Badge>
+                              <Badge variant={severity.variant}>{severity.label}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {ticket.trackingId} - {category.label} - {ticket.createdAt 
+                                ? format(new Date(ticket.createdAt), "MMM d, yyyy")
+                                : "Unknown"
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Recent Updates</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recentUpdates.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-4">
+                  No recent updates
+                </p>
+              ) : (
+                recentUpdates.map((ticket) => {
+                  const status = statusConfig[ticket.status] || statusConfig.new;
+                  return (
+                    <div 
+                      key={ticket.id} 
+                      className="cursor-pointer"
+                      onClick={() => setSelectedTicket(ticket)}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className={`mt-1.5 h-2 w-2 rounded-full ${status.color.replace('text-', 'bg-')}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">
+                            {ticket.updatedAt 
+                              ? formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })
+                              : ticket.createdAt 
+                                ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })
+                                : "Unknown"
+                            }
+                          </p>
+                          <p className="text-sm font-medium truncate">{ticket.subject}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Status: {status.label}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              {tickets.length > 3 && (
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => {
+                    setCategoryFilter(null);
+                    setSearchQuery("");
+                  }}
+                >
+                  View All Tickets
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
+                  <HelpCircle className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Need Help?</h3>
+                  <p className="text-xs text-muted-foreground">Create a new support ticket</p>
+                </div>
+              </div>
+              <Button 
+                className="w-full" 
+                onClick={() => setCreateDialogOpen(true)}
+                data-testid="button-quick-new-ticket"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Submit Ticket
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -389,7 +583,7 @@ export default function MyTicketsPage() {
               <Label htmlFor="subject">Subject</Label>
               <Input
                 id="subject"
-                placeholder="Brief summary of the issue"
+                placeholder="Brief summary of the issue (min 5 characters)"
                 value={newTicket.subject}
                 onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
                 required
@@ -408,12 +602,9 @@ export default function MyTicketsPage() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="netsuite_sync">NetSuite Sync Error</SelectItem>
-                    <SelectItem value="ui_bug">UI/UX Bug</SelectItem>
-                    <SelectItem value="access_issue">Access Issue</SelectItem>
-                    <SelectItem value="data_error">Data Error</SelectItem>
-                    <SelectItem value="performance">Performance</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {Object.entries(categoryConfig).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -441,7 +632,7 @@ export default function MyTicketsPage() {
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Provide detailed information about the issue..."
+                placeholder="Provide detailed information about the issue (min 10 characters)..."
                 value={newTicket.description}
                 onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
                 rows={5}
