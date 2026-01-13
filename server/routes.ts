@@ -812,6 +812,47 @@ export async function registerRoutes(
 
   // ===== HELP CENTER & TICKETS =====
 
+  // Seed initial help center content
+  async function seedHelpCenterContent() {
+    const existingFaq = await storage.getAllFaqEntries();
+    if (existingFaq.length === 0) {
+      const faqEntries = [
+        { category: "general", question: "What is the Data Integration Portal?", answer: "The Data Integration Portal is a centralized dashboard that brings together data from multiple business systems including NetSuite (financial data), HR (employee management), and Livery (delivery tracking) into one unified interface.", order: 1, isPublished: true },
+        { category: "general", question: "How often is data synchronized?", answer: "Data is synchronized in near real-time. Each dashboard displays the last sync time in the header. Typically, data is refreshed every 5-15 minutes depending on the source system.", order: 2, isPublished: true },
+        { category: "netsuite", question: "Why can't I see certain transactions?", answer: "Transaction visibility depends on your role permissions. Viewers can see summary data, Editors can see detailed transactions, and Admins have full access. Contact your administrator if you need expanded access.", order: 1, isPublished: true },
+        { category: "netsuite", question: "How do I export financial data?", answer: "To export data, navigate to the NetSuite dashboard, use the filters to select your date range, then click the Export button in the top right corner. Data can be exported as CSV or Excel format.", order: 2, isPublished: true },
+        { category: "hr", question: "Can I update employee information?", answer: "Employee information is read-only in this portal. To update employee records, please use the primary HR system directly or contact your HR administrator.", order: 1, isPublished: true },
+        { category: "livery", question: "Why is a delivery showing as delayed?", answer: "Deliveries are marked as delayed when they exceed their estimated delivery time. The status is updated automatically based on driver GPS data and route calculations.", order: 1, isPublished: true },
+        { category: "account", question: "How do I reset my password?", answer: "Go to Settings > Profile, then click 'Change Password'. You'll need to enter your current password and then your new password twice for confirmation.", order: 1, isPublished: true },
+        { category: "account", question: "How do I enable Multi-Factor Authentication (MFA)?", answer: "Navigate to Settings > Security tab, then click 'Enable MFA'. You'll need an authenticator app like Google Authenticator or Authy to scan the QR code and complete setup.", order: 2, isPublished: true },
+        { category: "troubleshooting", question: "The dashboard is loading slowly. What can I do?", answer: "Try refreshing the page, clearing your browser cache, or using a different browser. If issues persist, check your internet connection or submit a support ticket.", order: 1, isPublished: true },
+        { category: "troubleshooting", question: "I'm seeing outdated data. How do I refresh?", answer: "Each dashboard has a refresh button near the sync status indicator. Click it to force a data refresh. If the issue persists, there may be a sync issue - please submit a support ticket.", order: 2, isPublished: true },
+      ];
+      for (const entry of faqEntries) {
+        await storage.createFaqEntry(entry);
+      }
+      console.log("Seeded FAQ entries");
+    }
+
+    const existingManuals = await storage.getAllUserManuals();
+    if (existingManuals.length === 0) {
+      const manuals = [
+        { category: "general", title: "Getting Started Guide", description: "Learn the basics of navigating the Data Integration Portal and accessing your dashboards.", content: "# Getting Started\n\nWelcome to the Data Integration Portal. This guide will help you get started with the system.\n\n## Logging In\n\n1. Navigate to the portal URL\n2. Enter your username and password\n3. Click 'Sign In'\n\n## Navigation\n\nUse the sidebar to navigate between different dashboards:\n- NetSuite: Financial data and transactions\n- HR: Employee information\n- Livery: Delivery tracking", order: 1, isPublished: true },
+        { category: "netsuite", title: "NetSuite Dashboard Manual", description: "Complete guide to using the NetSuite financial dashboard including metrics, transactions, and reporting.", content: "# NetSuite Dashboard\n\n## Overview\n\nThe NetSuite dashboard provides real-time financial data including:\n- Revenue metrics\n- Transaction history\n- Customer information\n\n## Features\n\n### Metrics Cards\nTop-level KPIs showing current performance vs. previous periods.\n\n### Transaction Table\nSearchable, filterable list of all transactions.\n\n### Charts\nVisual representations of financial trends over time.", order: 1, isPublished: true },
+        { category: "hr", title: "HR Dashboard Manual", description: "Guide to viewing employee data, department statistics, and organizational metrics.", content: "# HR Dashboard\n\n## Overview\n\nThe HR dashboard displays employee-related information:\n- Total employee count\n- Department breakdown\n- Leave status\n- Hiring metrics", order: 1, isPublished: true },
+        { category: "livery", title: "Livery Tracking Manual", description: "How to track deliveries, monitor fleet performance, and understand delivery statuses.", content: "# Livery Tracking\n\n## Overview\n\nMonitor your delivery fleet in real-time:\n- Active deliveries\n- Driver locations\n- Delivery status updates\n\n## Status Codes\n\n- **In Transit**: Package is on the way\n- **Delivered**: Successfully delivered\n- **Delayed**: Behind schedule", order: 1, isPublished: true },
+        { category: "account", title: "Account Security Guide", description: "Best practices for keeping your account secure including MFA setup and password management.", content: "# Account Security\n\n## Password Requirements\n\n- Minimum 8 characters\n- Mix of uppercase and lowercase\n- At least one number\n\n## Multi-Factor Authentication\n\nWe strongly recommend enabling MFA for added security. Go to Settings > Security to enable.", order: 1, isPublished: true },
+      ];
+      for (const manual of manuals) {
+        await storage.createUserManual(manual);
+      }
+      console.log("Seeded User Manuals");
+    }
+  }
+
+  // Run seeding in background
+  seedHelpCenterContent().catch(console.error);
+
   // Get FAQ entries
   app.get("/api/help/faq", async (_req, res) => {
     try {
@@ -1024,6 +1065,24 @@ export async function registerRoutes(
       const parsed = updateTicketSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      // Validate status transitions
+      const statusOrder: Record<string, number> = {
+        new: 0,
+        in_progress: 1,
+        resolved: 2,
+        closed: 3,
+      };
+      
+      if (parsed.data.status) {
+        const currentOrder = statusOrder[ticket.status];
+        const newOrder = statusOrder[parsed.data.status];
+        
+        // Allow reopening from resolved to in_progress, but not from closed
+        if (ticket.status === "closed" && parsed.data.status !== "closed") {
+          return res.status(400).json({ message: "Cannot reopen a closed ticket" });
+        }
       }
 
       const updateData: any = { ...parsed.data };
