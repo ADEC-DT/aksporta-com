@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -64,14 +64,16 @@ export default function SettingsPage() {
   });
 
   // Initialize form when profile loads
-  if (profile && !profileForm.email) {
-    setProfileForm({
-      displayName: profile.displayName || "",
-      email: profile.email,
-      firstName: profile.firstName || "",
-      lastName: profile.lastName || "",
-    });
-  }
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        displayName: profile.displayName || "",
+        email: profile.email,
+        firstName: profile.firstName || "",
+        lastName: profile.lastName || "",
+      });
+    }
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: Partial<ProfileData>) => {

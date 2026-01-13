@@ -5,7 +5,7 @@ import { isAuthenticated } from "./auth";
 import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { generateSecret, generate, verify, generateURI } from "otplib";
+import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
 
 // Middleware to check if user is admin
