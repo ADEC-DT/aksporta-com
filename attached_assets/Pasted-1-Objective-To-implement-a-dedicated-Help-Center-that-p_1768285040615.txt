@@ -1,0 +1,49 @@
+1. Objective
+To implement a dedicated Help Center that provides users with essential portal information and a functional Incident Ticketing System to report, track, and manage technical issues.
+
+2. Help Center & Knowledge Base
+2.1 Educational Content
+Portal Overview: A landing section within the Help page providing a high-level summary of the portal’s purpose, its integration with NetSuite, and core functionalities.
+
+FAQ Section: A searchable and categorized list of frequently asked questions regarding data synchronization, common error messages, and account access.
+
+User Manuals: A repository for viewing or downloading step-by-step guides and documentation for specific application workflows.
+
+3. Incident Ticketing & Tracking System
+3.1 Ticket Submission (User View)
+Incident Reporting Form: A user-friendly form featuring the following mandatory fields:
+
+Subject: A concise title for the issue.
+
+Category: A dropdown menu to classify the problem (e.g., NetSuite Sync Error, UI/UX Bug, Access Issue).
+
+Severity: A priority scale (Low, Medium, High, Critical) to help support prioritize tasks.
+
+Description: A detailed text area for the user to describe the incident.
+
+Automated Tracking ID: Upon submission, the system must generate a unique reference number (e.g., INC-2026-001) and store it in the Azure SQL database.
+
+3.2 Ticket Management Dashboard ("My Tickets")
+User Archive: A secure personal dashboard where users can see a chronological list of all tickets they have submitted.
+
+Real-Time Status Tracking: Each ticket must display its current state in the lifecycle:
+
+New: Submitted but not yet reviewed.
+
+In Progress: Currently being handled by an administrator.
+
+Resolved: The technical issue has been fixed.
+
+Closed: Final state after the user confirms the solution.
+
+Interactive Detail View: Users must be able to click on any ticket to view the full communication thread and post additional comments or updates for the Admin.
+
+4. Administrative Controls & Notifications
+Admin Dashboard Integration: All submitted tickets must appear in a specialized "Ticket Management" view within the Admin Panel for administrative response.
+
+Email Notifications: The system should trigger automated email alerts to the user whenever an administrator updates the status or leaves a comment on their ticket.
+
+5. Technical Constraints
+Data Persistence: All ticket data, including categories and message history, must be hosted on the Azure SQL database to ensure availability across Replit deployments.
+
+Security: Role-Based Access Control (RBAC) must ensure that users can only view their own tickets, while Admins have visibility over all system incidents.

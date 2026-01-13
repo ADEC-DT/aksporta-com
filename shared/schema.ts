@@ -158,3 +158,113 @@ export type IntegrationHealth = {
   responseTime?: number;
   error?: string;
 };
+
+// Ticket categories and severity enums
+export const ticketCategories = ["netsuite_sync", "ui_bug", "access_issue", "data_error", "performance", "other"] as const;
+export type TicketCategory = typeof ticketCategories[number];
+
+export const ticketSeverities = ["low", "medium", "high", "critical"] as const;
+export type TicketSeverity = typeof ticketSeverities[number];
+
+export const ticketStatuses = ["new", "in_progress", "resolved", "closed"] as const;
+export type TicketStatus = typeof ticketStatuses[number];
+
+// Support tickets table
+export const tickets = pgTable("tickets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trackingId: varchar("tracking_id").notNull().unique(),
+  subject: varchar("subject").notNull(),
+  description: text("description").notNull(),
+  category: varchar("category").notNull(),
+  severity: varchar("severity").notNull(),
+  status: varchar("status").notNull().default("new"),
+  userId: varchar("user_id").notNull(),
+  userEmail: varchar("user_email").notNull(),
+  assignedTo: varchar("assigned_to"),
+  resolvedAt: timestamp("resolved_at"),
+  closedAt: timestamp("closed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  statusIdx: index("tickets_status_idx").on(table.status),
+  userIdx: index("tickets_user_idx").on(table.userId),
+  createdAtIdx: index("tickets_created_at_idx").on(table.createdAt),
+}));
+
+export const insertTicketSchema = createInsertSchema(tickets).omit({
+  id: true,
+  trackingId: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedAt: true,
+  closedAt: true,
+});
+
+export type InsertTicket = z.infer<typeof insertTicketSchema>;
+export type Ticket = typeof tickets.$inferSelect;
+
+// Ticket comments table
+export const ticketComments = pgTable("ticket_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  userEmail: varchar("user_email").notNull(),
+  userName: varchar("user_name"),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  ticketIdx: index("ticket_comments_ticket_idx").on(table.ticketId),
+}));
+
+export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;
+export type TicketComment = typeof ticketComments.$inferSelect;
+
+// FAQ entries table
+export const faqEntries = pgTable("faq_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  question: varchar("question").notNull(),
+  answer: text("answer").notNull(),
+  category: varchar("category").notNull(),
+  order: varchar("display_order").notNull().default("0"),
+  isPublished: boolean("is_published").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertFaqEntrySchema = createInsertSchema(faqEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFaqEntry = z.infer<typeof insertFaqEntrySchema>;
+export type FaqEntry = typeof faqEntries.$inferSelect;
+
+// User manuals table
+export const userManuals = pgTable("user_manuals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  content: text("content"),
+  fileUrl: varchar("file_url"),
+  category: varchar("category").notNull(),
+  order: varchar("display_order").notNull().default("0"),
+  isPublished: boolean("is_published").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserManualSchema = createInsertSchema(userManuals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserManual = z.infer<typeof insertUserManualSchema>;
+export type UserManual = typeof userManuals.$inferSelect;

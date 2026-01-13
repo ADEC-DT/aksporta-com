@@ -1,10 +1,14 @@
 import { 
   managedUsers, type ManagedUser, type InsertManagedUser,
   systemSettings, type SystemSetting, type InsertSystemSetting,
-  auditLogs, type AuditLog, type InsertAuditLog
+  auditLogs, type AuditLog, type InsertAuditLog,
+  tickets, type Ticket, type InsertTicket,
+  ticketComments, type TicketComment, type InsertTicketComment,
+  faqEntries, type FaqEntry, type InsertFaqEntry,
+  userManuals, type UserManual, type InsertUserManual
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, count, desc, and, ilike, or } from "drizzle-orm";
+import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Managed users CRUD
@@ -35,6 +39,33 @@ export interface IStorage {
     action?: string;
     search?: string;
   }): Promise<{ logs: AuditLog[]; total: number }>;
+  
+  // Tickets CRUD
+  createTicket(ticket: InsertTicket): Promise<Ticket>;
+  getTicket(id: string): Promise<Ticket | undefined>;
+  getTicketByTrackingId(trackingId: string): Promise<Ticket | undefined>;
+  getTicketsByUser(userId: string): Promise<Ticket[]>;
+  getAllTickets(options?: { status?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }>;
+  updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | undefined>;
+  
+  // Ticket comments
+  createTicketComment(comment: InsertTicketComment): Promise<TicketComment>;
+  getTicketComments(ticketId: string): Promise<TicketComment[]>;
+  
+  // FAQ entries
+  getAllFaqEntries(): Promise<FaqEntry[]>;
+  getFaqEntriesByCategory(category: string): Promise<FaqEntry[]>;
+  createFaqEntry(entry: InsertFaqEntry): Promise<FaqEntry>;
+  updateFaqEntry(id: string, data: Partial<InsertFaqEntry>): Promise<FaqEntry | undefined>;
+  deleteFaqEntry(id: string): Promise<boolean>;
+  
+  // User manuals
+  getAllUserManuals(): Promise<UserManual[]>;
+  getUserManualsByCategory(category: string): Promise<UserManual[]>;
+  getUserManual(id: string): Promise<UserManual | undefined>;
+  createUserManual(manual: InsertUserManual): Promise<UserManual>;
+  updateUserManual(id: string, data: Partial<InsertUserManual>): Promise<UserManual | undefined>;
+  deleteUserManual(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -173,6 +204,145 @@ export class DatabaseStorage implements IStorage {
     const [{ count: total }] = await countQuery;
     
     return { logs, total: Number(total) };
+  }
+
+  // Ticket methods
+  async createTicket(ticketData: InsertTicket): Promise<Ticket> {
+    // Generate tracking ID (INC-YYYY-NNN format)
+    const year = new Date().getFullYear();
+    const existingTickets = await db.select().from(tickets);
+    const ticketNumber = (existingTickets.length + 1).toString().padStart(3, '0');
+    const trackingId = `INC-${year}-${ticketNumber}`;
+    
+    const [ticket] = await db.insert(tickets).values({
+      ...ticketData,
+      trackingId,
+    }).returning();
+    return ticket;
+  }
+
+  async getTicket(id: string): Promise<Ticket | undefined> {
+    const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id));
+    return ticket;
+  }
+
+  async getTicketByTrackingId(trackingId: string): Promise<Ticket | undefined> {
+    const [ticket] = await db.select().from(tickets).where(eq(tickets.trackingId, trackingId));
+    return ticket;
+  }
+
+  async getTicketsByUser(userId: string): Promise<Ticket[]> {
+    return await db.select().from(tickets)
+      .where(eq(tickets.userId, userId))
+      .orderBy(desc(tickets.createdAt));
+  }
+
+  async getAllTickets(options?: { status?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }> {
+    const limit = options?.limit || 50;
+    const offset = options?.offset || 0;
+    
+    let query = db.select().from(tickets);
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(tickets);
+    
+    if (options?.status) {
+      query = query.where(eq(tickets.status, options.status)) as typeof query;
+      countQuery = countQuery.where(eq(tickets.status, options.status)) as typeof countQuery;
+    }
+    
+    const ticketList = await query.orderBy(desc(tickets.createdAt)).limit(limit).offset(offset);
+    const [{ count: total }] = await countQuery;
+    
+    return { tickets: ticketList, total: Number(total) };
+  }
+
+  async updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | undefined> {
+    const [ticket] = await db
+      .update(tickets)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tickets.id, id))
+      .returning();
+    return ticket;
+  }
+
+  // Ticket comment methods
+  async createTicketComment(comment: InsertTicketComment): Promise<TicketComment> {
+    const [created] = await db.insert(ticketComments).values(comment).returning();
+    return created;
+  }
+
+  async getTicketComments(ticketId: string): Promise<TicketComment[]> {
+    return await db.select().from(ticketComments)
+      .where(eq(ticketComments.ticketId, ticketId))
+      .orderBy(asc(ticketComments.createdAt));
+  }
+
+  // FAQ methods
+  async getAllFaqEntries(): Promise<FaqEntry[]> {
+    return await db.select().from(faqEntries)
+      .where(eq(faqEntries.isPublished, true))
+      .orderBy(faqEntries.category, faqEntries.order);
+  }
+
+  async getFaqEntriesByCategory(category: string): Promise<FaqEntry[]> {
+    return await db.select().from(faqEntries)
+      .where(and(eq(faqEntries.category, category), eq(faqEntries.isPublished, true)))
+      .orderBy(faqEntries.order);
+  }
+
+  async createFaqEntry(entry: InsertFaqEntry): Promise<FaqEntry> {
+    const [created] = await db.insert(faqEntries).values(entry).returning();
+    return created;
+  }
+
+  async updateFaqEntry(id: string, data: Partial<InsertFaqEntry>): Promise<FaqEntry | undefined> {
+    const [updated] = await db
+      .update(faqEntries)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(faqEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteFaqEntry(id: string): Promise<boolean> {
+    const result = await db.delete(faqEntries).where(eq(faqEntries.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // User manual methods
+  async getAllUserManuals(): Promise<UserManual[]> {
+    return await db.select().from(userManuals)
+      .where(eq(userManuals.isPublished, true))
+      .orderBy(userManuals.category, userManuals.order);
+  }
+
+  async getUserManualsByCategory(category: string): Promise<UserManual[]> {
+    return await db.select().from(userManuals)
+      .where(and(eq(userManuals.category, category), eq(userManuals.isPublished, true)))
+      .orderBy(userManuals.order);
+  }
+
+  async getUserManual(id: string): Promise<UserManual | undefined> {
+    const [manual] = await db.select().from(userManuals).where(eq(userManuals.id, id));
+    return manual;
+  }
+
+  async createUserManual(manual: InsertUserManual): Promise<UserManual> {
+    const [created] = await db.insert(userManuals).values(manual).returning();
+    return created;
+  }
+
+  async updateUserManual(id: string, data: Partial<InsertUserManual>): Promise<UserManual | undefined> {
+    const [updated] = await db
+      .update(userManuals)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userManuals.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteUserManual(id: string): Promise<boolean> {
+    const result = await db.delete(userManuals).where(eq(userManuals.id, id)).returning();
+    return result.length > 0;
   }
 }
 

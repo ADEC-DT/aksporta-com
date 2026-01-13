@@ -810,5 +810,251 @@ export async function registerRoutes(
     }
   });
 
+  // ===== HELP CENTER & TICKETS =====
+
+  // Get FAQ entries
+  app.get("/api/help/faq", async (_req, res) => {
+    try {
+      const entries = await storage.getAllFaqEntries();
+      res.json(entries);
+    } catch (error) {
+      console.error("Error fetching FAQ entries:", error);
+      res.status(500).json({ message: "Failed to fetch FAQ entries" });
+    }
+  });
+
+  // Get user manuals
+  app.get("/api/help/manuals", async (_req, res) => {
+    try {
+      const manuals = await storage.getAllUserManuals();
+      res.json(manuals);
+    } catch (error) {
+      console.error("Error fetching user manuals:", error);
+      res.status(500).json({ message: "Failed to fetch user manuals" });
+    }
+  });
+
+  // Get user manual by ID
+  app.get("/api/help/manuals/:id", async (req, res) => {
+    try {
+      const manual = await storage.getUserManual(req.params.id);
+      if (!manual) {
+        return res.status(404).json({ message: "Manual not found" });
+      }
+      res.json(manual);
+    } catch (error) {
+      console.error("Error fetching user manual:", error);
+      res.status(500).json({ message: "Failed to fetch user manual" });
+    }
+  });
+
+  // ===== TICKET MANAGEMENT =====
+
+  // Create a new ticket
+  const createTicketSchema = z.object({
+    subject: z.string().min(5, "Subject must be at least 5 characters"),
+    description: z.string().min(10, "Description must be at least 10 characters"),
+    category: z.enum(["netsuite_sync", "ui_bug", "access_issue", "data_error", "performance", "other"]),
+    severity: z.enum(["low", "medium", "high", "critical"]),
+  });
+
+  app.post("/api/tickets", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const parsed = createTicketSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      const ticket = await storage.createTicket({
+        ...parsed.data,
+        userId: user.id,
+        userEmail: user.email,
+        status: "new",
+      });
+
+      await storage.createAuditLog({
+        action: "ticket_created",
+        category: "support",
+        userId: user.id,
+        userEmail: user.email,
+        details: { ticketId: ticket.id, trackingId: ticket.trackingId, subject: ticket.subject },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.status(201).json(ticket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ message: "Failed to create ticket" });
+    }
+  });
+
+  // Get current user's tickets
+  app.get("/api/tickets/my", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const tickets = await storage.getTicketsByUser(user.id);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching user tickets:", error);
+      res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  // Get ticket by ID (user can only view their own, admin can view all)
+  app.get("/api/tickets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Users can only view their own tickets, admins can view all
+      if (ticket.userId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ message: "You can only view your own tickets" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      res.status(500).json({ message: "Failed to fetch ticket" });
+    }
+  });
+
+  // Get ticket comments
+  app.get("/api/tickets/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Users can only view their own tickets, admins can view all
+      if (ticket.userId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ message: "You can only view your own tickets" });
+      }
+
+      const comments = await storage.getTicketComments(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching ticket comments:", error);
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+
+  // Add comment to ticket
+  const addCommentSchema = z.object({
+    message: z.string().min(1, "Message is required"),
+  });
+
+  app.post("/api/tickets/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Users can only comment on their own tickets, admins can comment on all
+      if (ticket.userId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ message: "You can only comment on your own tickets" });
+      }
+
+      const parsed = addCommentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      const comment = await storage.createTicketComment({
+        ticketId: req.params.id,
+        userId: user.id,
+        userEmail: user.email,
+        userName: user.displayName || user.username,
+        isAdmin: user.role === "admin",
+        message: parsed.data.message,
+      });
+
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      res.status(500).json({ message: "Failed to add comment" });
+    }
+  });
+
+  // ===== ADMIN TICKET MANAGEMENT =====
+
+  // Get all tickets (admin only)
+  app.get("/api/admin/tickets", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const status = req.query.status as string | undefined;
+
+      const result = await storage.getAllTickets({ limit, offset, status });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching all tickets:", error);
+      res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  // Update ticket status (admin only)
+  const updateTicketSchema = z.object({
+    status: z.enum(["new", "in_progress", "resolved", "closed"]).optional(),
+    assignedTo: z.string().optional(),
+  });
+
+  app.patch("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      const parsed = updateTicketSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      const updateData: any = { ...parsed.data };
+      
+      // Set resolved/closed timestamps
+      if (parsed.data.status === "resolved" && ticket.status !== "resolved") {
+        updateData.resolvedAt = new Date();
+      }
+      if (parsed.data.status === "closed" && ticket.status !== "closed") {
+        updateData.closedAt = new Date();
+      }
+
+      const updated = await storage.updateTicket(req.params.id, updateData);
+
+      await storage.createAuditLog({
+        action: "ticket_updated",
+        category: "support",
+        userId: user.id,
+        userEmail: user.email,
+        details: { ticketId: ticket.id, trackingId: ticket.trackingId, changes: parsed.data },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating ticket:", error);
+      res.status(500).json({ message: "Failed to update ticket" });
+    }
+  });
+
   return httpServer;
 }
