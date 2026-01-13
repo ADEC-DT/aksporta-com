@@ -326,8 +326,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Prevent demoting yourself if you're the only admin
-      if (currentUser.id === targetUser.id && parsed.data.role && parsed.data.role !== "admin") {
+      // Prevent demoting an admin if they're the only admin
+      if (targetUser.role === "admin" && parsed.data.role && parsed.data.role !== "admin") {
         const stats = await storage.getUserStats();
         const adminCount = stats.roleDistribution.find(r => r.role === "admin")?.count || 0;
         if (adminCount <= 1) {

@@ -11,6 +11,7 @@ import NotFound from "@/pages/not-found";
 import NetSuiteDashboard from "@/pages/netsuite-dashboard";
 import HRDashboard from "@/pages/hr-dashboard";
 import LiveryDashboard from "@/pages/livery-dashboard";
+import AdminDashboard from "@/pages/admin-dashboard";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/netsuite" component={NetSuiteDashboard} />
       <Route path="/hr" component={HRDashboard} />
       <Route path="/livery" component={LiveryDashboard} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

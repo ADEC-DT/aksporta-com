@@ -1,5 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import type { ManagedUser } from "@shared/schema";
+import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogIn, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +15,9 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const mainNavItems = [
   {
@@ -49,6 +55,24 @@ const secondaryNavItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user: authUser, isLoading: authLoading, logout, isLoggingOut } = useAuth();
+  
+  const { data: managedUser } = useQuery<ManagedUser>({
+    queryKey: ["/api/me"],
+    enabled: !!authUser,
+  });
+
+  const isAdmin = managedUser?.role === "admin";
+
+  const getInitials = () => {
+    if (managedUser?.firstName && managedUser?.lastName) {
+      return `${managedUser.firstName[0]}${managedUser.lastName[0]}`.toUpperCase();
+    }
+    if (managedUser?.username) {
+      return managedUser.username.slice(0, 2).toUpperCase();
+    }
+    return "U";
+  };
 
   return (
     <Sidebar>
@@ -95,6 +119,31 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Administration
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin"}
+                    className="px-4"
+                    data-testid="nav-item-admin"
+                  >
+                    <Link href="/admin">
+                      <Shield className="h-4 w-4" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             System
@@ -121,15 +170,43 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-            <span className="text-xs font-medium">AD</span>
+        {authLoading ? (
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-28" />
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">Admin User</span>
-            <span className="text-xs text-muted-foreground">admin@company.com</span>
+        ) : authUser && managedUser ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs">{getInitials()}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{managedUser.username}</span>
+                <span className="text-xs text-muted-foreground capitalize">{managedUser.role}</span>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
+        ) : (
+          <Button asChild variant="outline" className="w-full" data-testid="button-login-sidebar">
+            <a href="/api/login">
+              <LogIn className="mr-2 h-4 w-4" />
+              Log in
+            </a>
+          </Button>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
