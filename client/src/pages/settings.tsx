@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { User, Lock, Bell, Palette, Shield, Loader2, Check, AlertCircle } from "lucide-react";
+import { User, Lock, Palette, Shield, Loader2, AlertCircle, Copy, Check } from "lucide-react";
 import type { ManagedUser } from "@shared/schema";
 
 type ProfileData = Omit<ManagedUser, "password" | "mfaSecret" | "mfaBackupCodes">;
@@ -49,6 +49,14 @@ export default function SettingsPage() {
   });
   
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [mfaSetupDialogOpen, setMfaSetupDialogOpen] = useState(false);
+  const [mfaDisableDialogOpen, setMfaDisableDialogOpen] = useState(false);
+  const [mfaSetupData, setMfaSetupData] = useState<{ secret: string; qrCode: string } | null>(null);
+  const [mfaToken, setMfaToken] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery<ProfileData>({
     queryKey: ["/api/settings/profile"],
@@ -105,6 +113,54 @@ export default function SettingsPage() {
     },
   });
 
+  const setupMfaMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/settings/mfa/setup", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setMfaSetupData(data);
+      setMfaSetupDialogOpen(true);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to setup MFA", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const enableMfaMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest("POST", "/api/settings/mfa/enable", { token });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBackupCodes(data.backupCodes);
+      setShowBackupCodes(true);
+      setMfaSetupDialogOpen(false);
+      setMfaToken("");
+      setMfaSetupData(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/profile"] });
+      toast({ title: "MFA enabled successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to enable MFA", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const disableMfaMutation = useMutation({
+    mutationFn: async (password: string) => {
+      return apiRequest("POST", "/api/settings/mfa/disable", { password });
+    },
+    onSuccess: () => {
+      setMfaDisableDialogOpen(false);
+      setDisablePassword("");
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/profile"] });
+      toast({ title: "MFA disabled successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to disable MFA", description: error.message, variant: "destructive" });
+    },
+  });
+
   function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
     updateProfileMutation.mutate(profileForm);
@@ -129,13 +185,11 @@ export default function SettingsPage() {
   function handleThemeChange(theme: string) {
     updatePreferencesMutation.mutate({ theme });
     
-    // Apply theme immediately
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else if (theme === "light") {
       document.documentElement.classList.remove("dark");
     } else {
-      // System preference
       if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
         document.documentElement.classList.add("dark");
       } else {
@@ -146,6 +200,36 @@ export default function SettingsPage() {
 
   function handleNotificationsChange(enabled: boolean) {
     updatePreferencesMutation.mutate({ emailNotifications: enabled });
+  }
+
+  function handleMfaToggle() {
+    if (profile?.mfaEnabled) {
+      setMfaDisableDialogOpen(true);
+    } else {
+      setupMfaMutation.mutate();
+    }
+  }
+
+  function handleEnableMfa(e: React.FormEvent) {
+    e.preventDefault();
+    if (mfaToken.length !== 6) {
+      toast({ title: "Please enter a 6-digit code", variant: "destructive" });
+      return;
+    }
+    enableMfaMutation.mutate(mfaToken);
+  }
+
+  function handleDisableMfa(e: React.FormEvent) {
+    e.preventDefault();
+    disableMfaMutation.mutate(disablePassword);
+  }
+
+  function copySecret() {
+    if (mfaSetupData?.secret) {
+      navigator.clipboard.writeText(mfaSetupData.secret);
+      setCopiedSecret(true);
+      setTimeout(() => setCopiedSecret(false), 2000);
+    }
   }
 
   if (authLoading || profileLoading) {
@@ -324,9 +408,11 @@ export default function SettingsPage() {
                 </div>
                 <Button 
                   variant={profile.mfaEnabled ? "destructive" : "default"}
+                  onClick={handleMfaToggle}
+                  disabled={setupMfaMutation.isPending}
                   data-testid="button-toggle-mfa"
-                  disabled
                 >
+                  {setupMfaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {profile.mfaEnabled ? "Disable MFA" : "Enable MFA"}
                 </Button>
               </div>
@@ -393,6 +479,7 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Password Change Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -446,6 +533,162 @@ export default function SettingsPage() {
               >
                 {changePasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Change Password
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MFA Setup Dialog */}
+      <Dialog open={mfaSetupDialogOpen} onOpenChange={setMfaSetupDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enable Multi-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              Scan the QR code with your authenticator app, then enter the code to verify
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEnableMfa} className="space-y-4">
+            {mfaSetupData && (
+              <>
+                <div className="flex justify-center">
+                  <img 
+                    src={mfaSetupData.qrCode} 
+                    alt="MFA QR Code" 
+                    className="rounded-lg border"
+                    data-testid="img-mfa-qrcode"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Manual Entry Key</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono">
+                      {mfaSetupData.secret}
+                    </code>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      onClick={copySecret}
+                      data-testid="button-copy-secret"
+                    >
+                      {copiedSecret ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="mfaToken">Verification Code</Label>
+              <Input
+                id="mfaToken"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={mfaToken}
+                onChange={(e) => setMfaToken(e.target.value.replace(/\D/g, ""))}
+                placeholder="Enter 6-digit code"
+                required
+                data-testid="input-mfa-token"
+              />
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setMfaSetupDialogOpen(false);
+                  setMfaToken("");
+                  setMfaSetupData(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={enableMfaMutation.isPending || mfaToken.length !== 6}
+                data-testid="button-verify-mfa"
+              >
+                {enableMfaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Verify & Enable
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Backup Codes Dialog */}
+      <Dialog open={showBackupCodes} onOpenChange={setShowBackupCodes}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Your Backup Codes</DialogTitle>
+            <DialogDescription>
+              Store these codes in a safe place. You can use them to access your account if you lose your authenticator device.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            {backupCodes.map((code, index) => (
+              <code 
+                key={index} 
+                className="rounded bg-muted px-3 py-2 text-center font-mono text-sm"
+                data-testid={`text-backup-code-${index}`}
+              >
+                {code}
+              </code>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowBackupCodes(false)} data-testid="button-close-backup-codes">
+              I've Saved My Codes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MFA Disable Dialog */}
+      <Dialog open={mfaDisableDialogOpen} onOpenChange={setMfaDisableDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disable Multi-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              Enter your password to confirm disabling MFA. This will make your account less secure.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDisableMfa} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="disablePassword">Password</Label>
+              <Input
+                id="disablePassword"
+                type="password"
+                value={disablePassword}
+                onChange={(e) => setDisablePassword(e.target.value)}
+                required
+                data-testid="input-disable-mfa-password"
+              />
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setMfaDisableDialogOpen(false);
+                  setDisablePassword("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                variant="destructive"
+                disabled={disableMfaMutation.isPending}
+                data-testid="button-confirm-disable-mfa"
+              >
+                {disableMfaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Disable MFA
               </Button>
             </DialogFooter>
           </form>

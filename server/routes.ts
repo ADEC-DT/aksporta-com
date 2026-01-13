@@ -5,6 +5,8 @@ import { isAuthenticated } from "./auth";
 import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { generateSecret, generate, verify, generateURI } from "otplib";
+import * as QRCode from "qrcode";
 
 // Middleware to check if user is admin
 const isAdmin: RequestHandler = async (req, res, next) => {
@@ -458,6 +460,180 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error changing password:", error);
       res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // ===== MFA (Multi-Factor Authentication) =====
+
+  // Generate MFA setup data (secret + QR code)
+  app.post("/api/settings/mfa/setup", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      
+      if (user.mfaEnabled) {
+        return res.status(400).json({ message: "MFA is already enabled" });
+      }
+
+      // Generate a new secret
+      const secret = generateSecret();
+      
+      // Store the secret temporarily (not enabled yet)
+      await storage.updateManagedUser(user.id, { mfaSecret: secret });
+      
+      // Generate the otpauth URL for QR code
+      const otpauthUrl = generateURI({
+        issuer: "Data Portal",
+        label: user.email,
+        secret,
+      });
+      
+      // Generate QR code as data URL
+      const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+      
+      res.json({
+        secret,
+        qrCode: qrCodeDataUrl,
+      });
+    } catch (error) {
+      console.error("Error setting up MFA:", error);
+      res.status(500).json({ message: "Failed to setup MFA" });
+    }
+  });
+
+  // Verify and enable MFA
+  const verifyMfaSchema = z.object({
+    token: z.string().length(6),
+  });
+
+  app.post("/api/settings/mfa/enable", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const parsed = verifyMfaSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid token format" });
+      }
+
+      // Get the user with secret
+      const fullUser = await storage.getManagedUser(user.id);
+      if (!fullUser || !fullUser.mfaSecret) {
+        return res.status(400).json({ message: "MFA setup not initiated. Please start setup first." });
+      }
+
+      // Verify the token
+      const verifyResult = await verify({
+        token: parsed.data.token,
+        secret: fullUser.mfaSecret,
+      });
+      const isValid = verifyResult.valid;
+
+      if (!isValid) {
+        await storage.createAuditLog({
+          action: "mfa_enable_failed",
+          category: "security",
+          userId: user.id,
+          userEmail: user.email,
+          details: { reason: "invalid_token" },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "failure",
+        });
+        return res.status(401).json({ message: "Invalid verification code" });
+      }
+
+      // Generate backup codes
+      const backupCodes = Array.from({ length: 8 }, () => 
+        Math.random().toString(36).substring(2, 8).toUpperCase()
+      );
+
+      // Enable MFA
+      await storage.updateManagedUser(user.id, {
+        mfaEnabled: true,
+        mfaBackupCodes: backupCodes,
+      });
+
+      await storage.createAuditLog({
+        action: "mfa_enabled",
+        category: "security",
+        userId: user.id,
+        userEmail: user.email,
+        details: {},
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+
+      res.json({
+        message: "MFA enabled successfully",
+        backupCodes,
+      });
+    } catch (error) {
+      console.error("Error enabling MFA:", error);
+      res.status(500).json({ message: "Failed to enable MFA" });
+    }
+  });
+
+  // Disable MFA
+  const disableMfaSchema = z.object({
+    password: z.string().min(1),
+  });
+
+  app.post("/api/settings/mfa/disable", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const parsed = disableMfaSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Password is required" });
+      }
+
+      const fullUser = await storage.getManagedUser(user.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!fullUser.mfaEnabled) {
+        return res.status(400).json({ message: "MFA is not enabled" });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(parsed.data.password, fullUser.password);
+      if (!isValidPassword) {
+        await storage.createAuditLog({
+          action: "mfa_disable_failed",
+          category: "security",
+          userId: user.id,
+          userEmail: user.email,
+          details: { reason: "invalid_password" },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "failure",
+        });
+        return res.status(401).json({ message: "Invalid password" });
+      }
+
+      // Disable MFA
+      await storage.updateManagedUser(user.id, {
+        mfaEnabled: false,
+        mfaSecret: null,
+        mfaBackupCodes: null,
+      });
+
+      await storage.createAuditLog({
+        action: "mfa_disabled",
+        category: "security",
+        userId: user.id,
+        userEmail: user.email,
+        details: {},
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+
+      res.json({ message: "MFA disabled successfully" });
+    } catch (error) {
+      console.error("Error disabling MFA:", error);
+      res.status(500).json({ message: "Failed to disable MFA" });
     }
   });
 
