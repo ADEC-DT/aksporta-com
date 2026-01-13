@@ -1,6 +1,10 @@
-import { managedUsers, type ManagedUser, type InsertManagedUser } from "@shared/schema";
+import { 
+  managedUsers, type ManagedUser, type InsertManagedUser,
+  systemSettings, type SystemSetting, type InsertSystemSetting,
+  auditLogs, type AuditLog, type InsertAuditLog
+} from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, count } from "drizzle-orm";
+import { eq, sql, count, desc, and, ilike, or } from "drizzle-orm";
 
 export interface IStorage {
   // Managed users CRUD
@@ -14,6 +18,23 @@ export interface IStorage {
   
   // Stats
   getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }>;
+  
+  // System settings CRUD
+  getAllSystemSettings(): Promise<SystemSetting[]>;
+  getSystemSetting(key: string): Promise<SystemSetting | undefined>;
+  getSystemSettingsByCategory(category: string): Promise<SystemSetting[]>;
+  upsertSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+  deleteSystemSetting(key: string): Promise<boolean>;
+  
+  // Audit logs
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(options?: { 
+    limit?: number; 
+    offset?: number; 
+    category?: string; 
+    action?: string;
+    search?: string;
+  }): Promise<{ logs: AuditLog[]; total: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -71,6 +92,87 @@ export class DatabaseStorage implements IStorage {
     const roleDistribution = Array.from(roleMap.entries()).map(([role, count]) => ({ role, count }));
     
     return { totalUsers, activeUsers, roleDistribution };
+  }
+
+  // System settings methods
+  async getAllSystemSettings(): Promise<SystemSetting[]> {
+    return await db.select().from(systemSettings).orderBy(systemSettings.category, systemSettings.key);
+  }
+
+  async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    return setting;
+  }
+
+  async getSystemSettingsByCategory(category: string): Promise<SystemSetting[]> {
+    return await db.select().from(systemSettings).where(eq(systemSettings.category, category));
+  }
+
+  async upsertSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting> {
+    const existing = await this.getSystemSetting(setting.key);
+    if (existing) {
+      const [updated] = await db
+        .update(systemSettings)
+        .set({ ...setting, updatedAt: new Date() })
+        .where(eq(systemSettings.key, setting.key))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(systemSettings).values(setting).returning();
+      return created;
+    }
+  }
+
+  async deleteSystemSetting(key: string): Promise<boolean> {
+    const result = await db.delete(systemSettings).where(eq(systemSettings.key, key)).returning();
+    return result.length > 0;
+  }
+
+  // Audit log methods
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [created] = await db.insert(auditLogs).values(log).returning();
+    return created;
+  }
+
+  async getAuditLogs(options?: { 
+    limit?: number; 
+    offset?: number; 
+    category?: string; 
+    action?: string;
+    search?: string;
+  }): Promise<{ logs: AuditLog[]; total: number }> {
+    const limit = options?.limit || 50;
+    const offset = options?.offset || 0;
+    
+    let query = db.select().from(auditLogs);
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+    
+    const conditions = [];
+    if (options?.category) {
+      conditions.push(eq(auditLogs.category, options.category));
+    }
+    if (options?.action) {
+      conditions.push(eq(auditLogs.action, options.action));
+    }
+    if (options?.search) {
+      conditions.push(
+        or(
+          ilike(auditLogs.action, `%${options.search}%`),
+          ilike(auditLogs.userEmail || '', `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (conditions.length > 0) {
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+      query = query.where(whereClause!) as typeof query;
+      countQuery = countQuery.where(whereClause!) as typeof countQuery;
+    }
+    
+    const logs = await query.orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset);
+    const [{ count: total }] = await countQuery;
+    
+    return { logs, total: Number(total) };
   }
 }
 
