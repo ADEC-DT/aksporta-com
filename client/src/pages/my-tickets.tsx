@@ -74,6 +74,45 @@ const categoryConfig: Record<string, { label: string; icon: any; color: string; 
   other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
 };
 
+const supportDocuments = [
+  { 
+    id: "doc-1", 
+    title: "Portal User Guide", 
+    type: "PDF", 
+    size: "2.4 MB", 
+    date: "Jan 10, 2026",
+    color: "text-red-600",
+    bgColor: "bg-red-100 dark:bg-red-900/30"
+  },
+  { 
+    id: "doc-2", 
+    title: "Ticket Submission Guidelines", 
+    type: "PDF", 
+    size: "1.1 MB", 
+    date: "Jan 8, 2026",
+    color: "text-red-600",
+    bgColor: "bg-red-100 dark:bg-red-900/30"
+  },
+  { 
+    id: "doc-3", 
+    title: "NetSuite Integration FAQ", 
+    type: "DOC", 
+    size: "856 KB", 
+    date: "Jan 5, 2026",
+    color: "text-blue-600",
+    bgColor: "bg-blue-100 dark:bg-blue-900/30"
+  },
+  { 
+    id: "doc-4", 
+    title: "Troubleshooting Common Issues", 
+    type: "PDF", 
+    size: "1.8 MB", 
+    date: "Dec 20, 2025",
+    color: "text-red-600",
+    bgColor: "bg-red-100 dark:bg-red-900/30"
+  },
+];
+
 export default function MyTicketsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -485,6 +524,47 @@ export default function MyTicketsPage() {
                 })}
               </div>
             )}
+          </div>
+
+          <div>
+            <div className="mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">Documents</h2>
+            </div>
+            <div className="space-y-3">
+              {supportDocuments.map((doc) => (
+                <Card 
+                  key={doc.id} 
+                  className="hover-elevate"
+                  data-testid={`card-document-${doc.id}`}
+                >
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${doc.bgColor}`}>
+                        <span className={`text-xs font-bold ${doc.color}`}>{doc.type}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{doc.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {doc.size} - {doc.date}
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toast({ title: "Download started", description: `Downloading ${doc.title}...` });
+                      }}
+                      data-testid={`button-download-${doc.id}`}
+                    >
+                      <Download className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
 
