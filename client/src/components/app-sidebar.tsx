@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogOut, Ticket } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -39,6 +39,11 @@ const mainNavItems = [
 ];
 
 const secondaryNavItems = [
+  {
+    title: "My Tickets",
+    url: "/tickets",
+    icon: Ticket,
+  },
   {
     title: "Settings",
     url: "/settings",
@@ -142,6 +147,19 @@ export function AppSidebar() {
                     <Link href="/system-settings">
                       <Database className="h-4 w-4" />
                       <span>System Settings</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/tickets"}
+                    className="px-4"
+                    data-testid="nav-item-admin-tickets"
+                  >
+                    <Link href="/admin/tickets">
+                      <Ticket className="h-4 w-4" />
+                      <span>Ticket Management</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

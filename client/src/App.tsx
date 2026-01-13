@@ -15,6 +15,9 @@ import LiveryDashboard from "@/pages/livery-dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
 import SettingsPage from "@/pages/settings";
 import SystemSettingsPage from "@/pages/system-settings";
+import HelpCenterPage from "@/pages/help-center";
+import MyTicketsPage from "@/pages/my-tickets";
+import AdminTicketsPage from "@/pages/admin-tickets";
 import LoginPage from "@/pages/login";
 import { Loader2 } from "lucide-react";
 
@@ -57,8 +60,12 @@ function ProtectedRoutes() {
               <Route path="/hr" component={HRDashboard} />
               <Route path="/livery" component={LiveryDashboard} />
               <Route path="/admin" component={AdminDashboard} />
+              <Route path="/admin/tickets" component={AdminTicketsPage} />
               <Route path="/settings" component={SettingsPage} />
               <Route path="/system-settings" component={SystemSettingsPage} />
+              <Route path="/help" component={HelpCenterPage} />
+              <Route path="/tickets" component={MyTicketsPage} />
+              <Route path="/tickets/new" component={MyTicketsPage} />
               <Route component={NotFound} />
             </Switch>
           </main>
