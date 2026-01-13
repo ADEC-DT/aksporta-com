@@ -1,0 +1,51 @@
+1. Objective
+To expand the APPLICATIONS section of the Data Portal by adding an "Other Systems" hub. This page will serve as a gateway to two specialized sub-modules: Veterinary Services (internal medical records) and Projects (external integration with Monday.com-style functionality).
+
+2. Navigation & UI Structure
+New Sidebar Entry: Add a navigation link titled "Other Systems" under the "APPLICATIONS" category in the sidebar.
+
+Hub Page Layout: Upon clicking "Other Systems," the user should see a landing page with two prominent, high-visibility action buttons/cards:
+
+Veterinary
+
+Projects (Monday)
+
+3. Sub-Module Functional Specifications
+A. Veterinary Module (Equine Medical Records)
+This page will serve as a digital health record system for the club's horses.
+
+Core Data Displays:
+
+Medical History: A chronological log of all past treatments and illnesses.
+
+Vaccination Tracker: A dedicated section for mandatory and optional vaccines, including "Date Administered" and "Next Due Date."
+
+Service Records: Details of veterinary services rendered, including practitioner notes and costs.
+
+Search & Filter: Ability to search for specific records by Horse Name or ID.
+
+B. Projects Module (Monday.com Integration)
+This page will provide a project management interface mirroring the style of Monday.com.
+
+Project Dashboard: A list-view or board-view of active club projects.
+
+Feature Set:
+
+Status Tracking: Visual indicators for project stages (e.g., Working on it, Stuck, Done).
+
+Timeline Management: Display of start and end dates.
+
+Task Ownership: Identification of assigned team members for each project.
+
+API Integration: Connect to the Monday.com API to pull real-time updates directly into the portal.
+
+4. Technical Constraints & Data Flow
+Data Sourcing:
+
+Veterinary data should be queried from the existing Azure SQL database (adec_netsuite).
+
+Project data should be fetched via REST API from Monday.com.
+
+Access Control: Ensure that these pages adhere to the existing RBAC (Role-Based Access Control) settings, allowing only authorized personnel (e.g., Veterinary Staff or Project Managers) to view sensitive data.
+
+Responsive Design: The new pages must match the existing styling of the NetSuite Dashboard.

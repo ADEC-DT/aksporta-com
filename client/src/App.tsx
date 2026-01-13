@@ -18,6 +18,9 @@ import SystemSettingsPage from "@/pages/system-settings";
 import HelpCenterPage from "@/pages/help-center";
 import MyTicketsPage from "@/pages/my-tickets";
 import AdminTicketsPage from "@/pages/admin-tickets";
+import OtherSystemsPage from "@/pages/other-systems";
+import VeterinaryPage from "@/pages/veterinary";
+import ProjectsPage from "@/pages/projects";
 import LoginPage from "@/pages/login";
 import { Loader2 } from "lucide-react";
 
@@ -66,6 +69,9 @@ function ProtectedRoutes() {
               <Route path="/help" component={HelpCenterPage} />
               <Route path="/tickets" component={MyTicketsPage} />
               <Route path="/tickets/new" component={MyTicketsPage} />
+              <Route path="/other-systems" component={OtherSystemsPage} />
+              <Route path="/veterinary" component={VeterinaryPage} />
+              <Route path="/projects" component={ProjectsPage} />
               <Route component={NotFound} />
             </Switch>
           </main>
