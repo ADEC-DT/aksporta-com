@@ -77,6 +77,14 @@ export default function AdminTicketsPage() {
 
   const { data: ticketsData, isLoading } = useQuery<{ tickets: TicketType[]; total: number }>({
     queryKey: ["/api/admin/tickets", statusFilter],
+    queryFn: async () => {
+      const url = statusFilter === "all" 
+        ? "/api/admin/tickets" 
+        : `/api/admin/tickets?status=${statusFilter}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch tickets");
+      return res.json();
+    },
   });
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery<TicketComment[]>({
