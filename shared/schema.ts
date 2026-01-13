@@ -1,22 +1,46 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
+// Re-export auth models
+export * from "./models/auth";
+
+// User roles enum
+export const userRoles = ["admin", "editor", "viewer"] as const;
+export type UserRole = typeof userRoles[number];
+
+// Extended user with roles (managed users for admin panel)
+export const managedUsers = pgTable("managed_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: varchar("email").notNull().unique(),
+  username: varchar("username").notNull().unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  role: varchar("role").notNull().default("viewer"),
+  isActive: boolean("is_active").notNull().default(true),
+  lastActiveAt: timestamp("last_active_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertManagedUserSchema = createInsertSchema(managedUsers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertManagedUser = z.infer<typeof insertManagedUserSchema>;
+export type ManagedUser = typeof managedUsers.$inferSelect;
 
+// Admin dashboard statistics type
+export type AdminStats = {
+  totalUsers: number;
+  activeUsers: number;
+  roleDistribution: { role: string; count: number }[];
+};
+
+// Types for dashboard data
 export type MetricCard = {
   id: string;
   title: string;

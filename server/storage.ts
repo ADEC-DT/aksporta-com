@@ -1,38 +1,77 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { managedUsers, type ManagedUser, type InsertManagedUser } from "@shared/schema";
+import { db } from "./db";
+import { eq, sql, count } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Managed users CRUD
+  getAllManagedUsers(): Promise<ManagedUser[]>;
+  getManagedUser(id: string): Promise<ManagedUser | undefined>;
+  getManagedUserByEmail(email: string): Promise<ManagedUser | undefined>;
+  getManagedUserByReplitId(replitUserId: string): Promise<ManagedUser | undefined>;
+  createManagedUser(user: InsertManagedUser): Promise<ManagedUser>;
+  updateManagedUser(id: string, data: Partial<InsertManagedUser>): Promise<ManagedUser | undefined>;
+  deleteManagedUser(id: string): Promise<boolean>;
+  
+  // Stats
+  getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getAllManagedUsers(): Promise<ManagedUser[]> {
+    return await db.select().from(managedUsers).orderBy(managedUsers.createdAt);
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+  async getManagedUser(id: string): Promise<ManagedUser | undefined> {
+    const [user] = await db.select().from(managedUsers).where(eq(managedUsers.id, id));
     return user;
   }
+
+  async getManagedUserByEmail(email: string): Promise<ManagedUser | undefined> {
+    const [user] = await db.select().from(managedUsers).where(eq(managedUsers.email, email));
+    return user;
+  }
+
+  async getManagedUserByReplitId(replitUserId: string): Promise<ManagedUser | undefined> {
+    const [user] = await db.select().from(managedUsers).where(eq(managedUsers.id, replitUserId));
+    return user;
+  }
+
+  async createManagedUser(userData: InsertManagedUser): Promise<ManagedUser> {
+    const [user] = await db.insert(managedUsers).values(userData).returning();
+    return user;
+  }
+
+  async updateManagedUser(id: string, data: Partial<InsertManagedUser>): Promise<ManagedUser | undefined> {
+    const [user] = await db
+      .update(managedUsers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(managedUsers.id, id))
+      .returning();
+    return user;
+  }
+
+  async deleteManagedUser(id: string): Promise<boolean> {
+    const result = await db.delete(managedUsers).where(eq(managedUsers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }> {
+    const allUsers = await db.select().from(managedUsers);
+    const totalUsers = allUsers.length;
+    
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const activeUsers = allUsers.filter(u => u.lastActiveAt && u.lastActiveAt > oneDayAgo).length;
+    
+    const roleMap = new Map<string, number>();
+    allUsers.forEach(u => {
+      const role = u.role || 'viewer';
+      roleMap.set(role, (roleMap.get(role) || 0) + 1);
+    });
+    
+    const roleDistribution = Array.from(roleMap.entries()).map(([role, count]) => ({ role, count }));
+    
+    return { totalUsers, activeUsers, roleDistribution };
+  }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

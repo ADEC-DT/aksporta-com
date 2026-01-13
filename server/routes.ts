@@ -1,7 +1,102 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import type { NetSuiteData, HRData, LiveryData } from "@shared/schema";
+import { isAuthenticated } from "./replit_integrations/auth";
+import { insertManagedUserSchema, type NetSuiteData, type HRData, type LiveryData, type ManagedUser } from "@shared/schema";
+import { z } from "zod";
+
+// Extend Express Request to include user claims
+declare global {
+  namespace Express {
+    interface User {
+      claims?: {
+        sub: string;
+        email?: string;
+        first_name?: string;
+        last_name?: string;
+      };
+    }
+  }
+}
+
+// Middleware to check if user is admin
+const isAdmin: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+  if (!user?.claims?.sub) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const email = user.claims.email;
+  if (!email) {
+    return res.status(403).json({ message: "No email associated with account" });
+  }
+
+  // Check if user exists in managed users and has admin role
+  let managedUser = await storage.getManagedUserByEmail(email);
+  
+  // If no managed user exists, create one (first user becomes admin)
+  if (!managedUser) {
+    const stats = await storage.getUserStats();
+    const role = stats.totalUsers === 0 ? "admin" : "viewer";
+    
+    managedUser = await storage.createManagedUser({
+      email,
+      username: email.split("@")[0],
+      firstName: user.claims.first_name || null,
+      lastName: user.claims.last_name || null,
+      role,
+      isActive: true,
+      lastActiveAt: new Date(),
+    });
+  } else {
+    // Update last active
+    await storage.updateManagedUser(managedUser.id, { lastActiveAt: new Date() });
+  }
+
+  // Store managed user in request for later use
+  (req as any).managedUser = managedUser;
+
+  if (managedUser.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden: Admin access required" });
+  }
+
+  next();
+};
+
+// Middleware to ensure user is managed (and update last active)
+const ensureManagedUser: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+  if (!user?.claims?.sub) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const email = user.claims.email;
+  if (!email) {
+    return res.status(403).json({ message: "No email associated with account" });
+  }
+
+  let managedUser = await storage.getManagedUserByEmail(email);
+  
+  if (!managedUser) {
+    const stats = await storage.getUserStats();
+    const role = stats.totalUsers === 0 ? "admin" : "viewer";
+    
+    managedUser = await storage.createManagedUser({
+      email,
+      username: email.split("@")[0],
+      firstName: user.claims.first_name || null,
+      lastName: user.claims.last_name || null,
+      role,
+      isActive: true,
+      lastActiveAt: new Date(),
+    });
+  } else {
+    await storage.updateManagedUser(managedUser.id, { lastActiveAt: new Date() });
+  }
+
+  (req as any).managedUser = managedUser;
+  next();
+};
 
 function generateNetSuiteData(): NetSuiteData {
   const now = new Date();
@@ -118,6 +213,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Dashboard data endpoints (public for now, can be protected)
   app.get("/api/netsuite", (_req, res) => {
     const data = generateNetSuiteData();
     res.json(data);
@@ -131,6 +227,151 @@ export async function registerRoutes(
   app.get("/api/livery", (_req, res) => {
     const data = generateLiveryData();
     res.json(data);
+  });
+
+  // Get current user's managed profile
+  app.get("/api/me", isAuthenticated, ensureManagedUser, async (req, res) => {
+    const managedUser = (req as any).managedUser as ManagedUser;
+    res.json(managedUser);
+  });
+
+  // Admin routes
+  app.get("/api/admin/stats", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getUserStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllManagedUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getManagedUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  const createUserSchema = z.object({
+    email: z.string().email(),
+    username: z.string().min(3).max(50),
+    firstName: z.string().optional().nullable(),
+    lastName: z.string().optional().nullable(),
+    role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
+  });
+
+  app.post("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const parsed = createUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      // Check if email or username already exists
+      const existingUser = await storage.getManagedUserByEmail(parsed.data.email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User with this email already exists" });
+      }
+
+      const user = await storage.createManagedUser({
+        ...parsed.data,
+        isActive: true,
+        lastActiveAt: null,
+      });
+
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  const updateUserSchema = z.object({
+    email: z.string().email().optional(),
+    username: z.string().min(3).max(50).optional(),
+    firstName: z.string().optional().nullable(),
+    lastName: z.string().optional().nullable(),
+    role: z.enum(["admin", "editor", "viewer"]).optional(),
+    isActive: z.boolean().optional(),
+  });
+
+  app.patch("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const parsed = updateUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      const currentUser = (req as any).managedUser as ManagedUser;
+      const targetUser = await storage.getManagedUser(req.params.id);
+      
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent demoting yourself if you're the only admin
+      if (currentUser.id === targetUser.id && parsed.data.role && parsed.data.role !== "admin") {
+        const stats = await storage.getUserStats();
+        const adminCount = stats.roleDistribution.find(r => r.role === "admin")?.count || 0;
+        if (adminCount <= 1) {
+          return res.status(400).json({ message: "Cannot demote the only admin" });
+        }
+      }
+
+      const user = await storage.updateManagedUser(req.params.id, parsed.data);
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser as ManagedUser;
+      
+      // Prevent self-deletion
+      if (currentUser.id === req.params.id) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      const targetUser = await storage.getManagedUser(req.params.id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent deleting the only admin
+      if (targetUser.role === "admin") {
+        const stats = await storage.getUserStats();
+        const adminCount = stats.roleDistribution.find(r => r.role === "admin")?.count || 0;
+        if (adminCount <= 1) {
+          return res.status(400).json({ message: "Cannot delete the only admin" });
+        }
+      }
+
+      await storage.deleteManagedUser(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
   });
 
   return httpServer;
