@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
 
@@ -170,7 +170,9 @@ function AdminDashboard() {
     if (formMode === "create") {
       createUserMutation.mutate(formData);
     } else if (editingUser) {
-      updateUserMutation.mutate({ id: editingUser.id, data: formData });
+      const { password, ...rest } = formData;
+      const updateData = password ? formData : rest;
+      updateUserMutation.mutate({ id: editingUser.id, data: updateData });
     }
   }
 
@@ -211,7 +213,7 @@ function AdminDashboard() {
         <h1 className="text-2xl font-semibold">Authentication Required</h1>
         <p className="text-muted-foreground">Please log in to access the admin panel.</p>
         <Button asChild data-testid="button-login">
-          <a href="/api/login">Log in with Replit</a>
+          <Link href="/login">Log In</Link>
         </Button>
       </div>
     );
