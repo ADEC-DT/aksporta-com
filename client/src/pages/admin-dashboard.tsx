@@ -51,6 +51,7 @@ type FormMode = "create" | "edit";
 interface UserFormData {
   email: string;
   username: string;
+  password: string;
   firstName: string;
   lastName: string;
   role: "admin" | "editor" | "viewer";
@@ -67,6 +68,7 @@ function AdminDashboard() {
   const [formData, setFormData] = useState<UserFormData>({
     email: "",
     username: "",
+    password: "",
     firstName: "",
     lastName: "",
     role: "viewer",
@@ -138,7 +140,7 @@ function AdminDashboard() {
   });
 
   function resetForm() {
-    setFormData({ email: "", username: "", firstName: "", lastName: "", role: "viewer" });
+    setFormData({ email: "", username: "", password: "", firstName: "", lastName: "", role: "viewer" });
     setEditingUser(null);
     setFormMode("create");
   }
@@ -154,6 +156,7 @@ function AdminDashboard() {
     setFormData({
       email: user.email,
       username: user.username,
+      password: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
       role: (user.role as "admin" | "editor" | "viewer") || "viewer",
@@ -395,6 +398,20 @@ function AdminDashboard() {
                 placeholder="johndoe"
                 required
                 data-testid="input-user-username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                Password {formMode === "edit" && "(leave blank to keep current)"}
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder={formMode === "create" ? "Enter password" : "New password (optional)"}
+                required={formMode === "create"}
+                data-testid="input-user-password"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

@@ -7,7 +7,7 @@ export interface IStorage {
   getAllManagedUsers(): Promise<ManagedUser[]>;
   getManagedUser(id: string): Promise<ManagedUser | undefined>;
   getManagedUserByEmail(email: string): Promise<ManagedUser | undefined>;
-  getManagedUserByReplitId(replitUserId: string): Promise<ManagedUser | undefined>;
+  getManagedUserByUsername(username: string): Promise<ManagedUser | undefined>;
   createManagedUser(user: InsertManagedUser): Promise<ManagedUser>;
   updateManagedUser(id: string, data: Partial<InsertManagedUser>): Promise<ManagedUser | undefined>;
   deleteManagedUser(id: string): Promise<boolean>;
@@ -31,8 +31,8 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getManagedUserByReplitId(replitUserId: string): Promise<ManagedUser | undefined> {
-    const [user] = await db.select().from(managedUsers).where(eq(managedUsers.id, replitUserId));
+  async getManagedUserByUsername(username: string): Promise<ManagedUser | undefined> {
+    const [user] = await db.select().from(managedUsers).where(eq(managedUsers.username, username));
     return user;
   }
 

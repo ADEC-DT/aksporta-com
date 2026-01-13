@@ -1,8 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import type { ManagedUser } from "@shared/schema";
-import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogIn, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -55,21 +53,16 @@ const secondaryNavItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user: authUser, isLoading: authLoading, logout, isLoggingOut } = useAuth();
-  
-  const { data: managedUser } = useQuery<ManagedUser>({
-    queryKey: ["/api/me"],
-    enabled: !!authUser,
-  });
+  const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
 
-  const isAdmin = managedUser?.role === "admin";
+  const isAdmin = user?.role === "admin";
 
   const getInitials = () => {
-    if (managedUser?.firstName && managedUser?.lastName) {
-      return `${managedUser.firstName[0]}${managedUser.lastName[0]}`.toUpperCase();
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
     }
-    if (managedUser?.username) {
-      return managedUser.username.slice(0, 2).toUpperCase();
+    if (user?.username) {
+      return user.username.slice(0, 2).toUpperCase();
     }
     return "U";
   };
@@ -178,15 +171,15 @@ export function AppSidebar() {
               <Skeleton className="h-3 w-28" />
             </div>
           </div>
-        ) : authUser && managedUser ? (
+        ) : user ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="text-xs">{getInitials()}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="text-sm font-medium">{managedUser.username}</span>
-                <span className="text-xs text-muted-foreground capitalize">{managedUser.role}</span>
+                <span className="text-sm font-medium">{user.username}</span>
+                <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
               </div>
             </div>
             <Button
@@ -199,14 +192,7 @@ export function AppSidebar() {
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-        ) : (
-          <Button asChild variant="outline" className="w-full" data-testid="button-login-sidebar">
-            <a href="/api/login">
-              <LogIn className="mr-2 h-4 w-4" />
-              Log in
-            </a>
-          </Button>
-        )}
+        ) : null}
       </SidebarFooter>
     </Sidebar>
   );

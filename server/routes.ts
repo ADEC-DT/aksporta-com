@@ -1,100 +1,23 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { isAuthenticated } from "./replit_integrations/auth";
-import { insertManagedUserSchema, type NetSuiteData, type HRData, type LiveryData, type ManagedUser } from "@shared/schema";
+import { isAuthenticated } from "./auth";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser } from "@shared/schema";
 import { z } from "zod";
-
-// Extend Express Request to include user claims
-declare global {
-  namespace Express {
-    interface User {
-      claims?: {
-        sub: string;
-        email?: string;
-        first_name?: string;
-        last_name?: string;
-      };
-    }
-  }
-}
+import bcrypt from "bcryptjs";
 
 // Middleware to check if user is admin
 const isAdmin: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
-  if (!user?.claims?.sub) {
+  const managedUser = (req as any).managedUser as ManagedUser;
+  
+  if (!managedUser) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-
-  const email = user.claims.email;
-  if (!email) {
-    return res.status(403).json({ message: "No email associated with account" });
-  }
-
-  // Check if user exists in managed users and has admin role
-  let managedUser = await storage.getManagedUserByEmail(email);
-  
-  // If no managed user exists, create one (first user becomes admin)
-  if (!managedUser) {
-    const stats = await storage.getUserStats();
-    const role = stats.totalUsers === 0 ? "admin" : "viewer";
-    
-    managedUser = await storage.createManagedUser({
-      email,
-      username: email.split("@")[0],
-      firstName: user.claims.first_name || null,
-      lastName: user.claims.last_name || null,
-      role,
-      isActive: true,
-      lastActiveAt: new Date(),
-    });
-  } else {
-    // Update last active
-    await storage.updateManagedUser(managedUser.id, { lastActiveAt: new Date() });
-  }
-
-  // Store managed user in request for later use
-  (req as any).managedUser = managedUser;
 
   if (managedUser.role !== "admin") {
     return res.status(403).json({ message: "Forbidden: Admin access required" });
   }
 
-  next();
-};
-
-// Middleware to ensure user is managed (and update last active)
-const ensureManagedUser: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
-  if (!user?.claims?.sub) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const email = user.claims.email;
-  if (!email) {
-    return res.status(403).json({ message: "No email associated with account" });
-  }
-
-  let managedUser = await storage.getManagedUserByEmail(email);
-  
-  if (!managedUser) {
-    const stats = await storage.getUserStats();
-    const role = stats.totalUsers === 0 ? "admin" : "viewer";
-    
-    managedUser = await storage.createManagedUser({
-      email,
-      username: email.split("@")[0],
-      firstName: user.claims.first_name || null,
-      lastName: user.claims.last_name || null,
-      role,
-      isActive: true,
-      lastActiveAt: new Date(),
-    });
-  } else {
-    await storage.updateManagedUser(managedUser.id, { lastActiveAt: new Date() });
-  }
-
-  (req as any).managedUser = managedUser;
   next();
 };
 
@@ -230,9 +153,10 @@ export async function registerRoutes(
   });
 
   // Get current user's managed profile
-  app.get("/api/me", isAuthenticated, ensureManagedUser, async (req, res) => {
+  app.get("/api/me", isAuthenticated, async (req, res) => {
     const managedUser = (req as any).managedUser as ManagedUser;
-    res.json(managedUser);
+    const { password: _, ...userWithoutPassword } = managedUser;
+    res.json(userWithoutPassword);
   });
 
   // Admin routes
@@ -272,6 +196,7 @@ export async function registerRoutes(
   const createUserSchema = z.object({
     email: z.string().email(),
     username: z.string().min(3).max(50),
+    password: z.string().min(4),
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
     role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
@@ -290,13 +215,24 @@ export async function registerRoutes(
         return res.status(409).json({ message: "User with this email already exists" });
       }
 
+      const existingUsername = await storage.getManagedUserByUsername(parsed.data.username);
+      if (existingUsername) {
+        return res.status(409).json({ message: "Username already taken" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(parsed.data.password, 10);
+
       const user = await storage.createManagedUser({
         ...parsed.data,
+        password: hashedPassword,
         isActive: true,
         lastActiveAt: null,
       });
 
-      res.status(201).json(user);
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
     } catch (error) {
       console.error("Error creating user:", error);
       res.status(500).json({ message: "Failed to create user" });
@@ -306,6 +242,7 @@ export async function registerRoutes(
   const updateUserSchema = z.object({
     email: z.string().email().optional(),
     username: z.string().min(3).max(50).optional(),
+    password: z.string().min(4).optional(),
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
     role: z.enum(["admin", "editor", "viewer"]).optional(),
@@ -335,8 +272,21 @@ export async function registerRoutes(
         }
       }
 
-      const user = await storage.updateManagedUser(req.params.id, parsed.data);
-      res.json(user);
+      // Hash password if provided
+      const updateData = { ...parsed.data };
+      if (updateData.password) {
+        updateData.password = await bcrypt.hash(updateData.password, 10);
+      } else {
+        delete updateData.password;
+      }
+
+      const user = await storage.updateManagedUser(req.params.id, updateData);
+      if (user) {
+        const { password: _, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
