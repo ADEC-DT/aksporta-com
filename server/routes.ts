@@ -317,10 +317,320 @@ export async function registerRoutes(
       }
 
       await storage.deleteManagedUser(req.params.id);
+      
+      // Log the action
+      await storage.createAuditLog({
+        action: "user_deleted",
+        category: "admin",
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        details: { deletedUserId: req.params.id, deletedUserEmail: targetUser.email },
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // ===== USER PROFILE SETTINGS =====
+  
+  // Get current user's profile
+  app.get("/api/settings/profile", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const { password, mfaSecret, mfaBackupCodes, ...profile } = user;
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  const updateProfileSchema = z.object({
+    displayName: z.string().min(1).max(100).optional(),
+    email: z.string().email().optional(),
+    firstName: z.string().max(50).optional().nullable(),
+    lastName: z.string().max(50).optional().nullable(),
+    profilePicture: z.string().url().optional().nullable(),
+    theme: z.enum(["light", "dark", "system"]).optional(),
+    emailNotifications: z.boolean().optional(),
+  });
+
+  app.patch("/api/settings/profile", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const parsed = updateProfileSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      // Check if email is being changed and already exists
+      if (parsed.data.email && parsed.data.email !== user.email) {
+        const existing = await storage.getManagedUserByEmail(parsed.data.email);
+        if (existing) {
+          return res.status(409).json({ message: "Email already in use" });
+        }
+      }
+
+      const updated = await storage.updateManagedUser(user.id, parsed.data);
+      if (updated) {
+        const { password, mfaSecret, mfaBackupCodes, ...profile } = updated;
+        
+        await storage.createAuditLog({
+          action: "profile_updated",
+          category: "user",
+          userId: user.id,
+          userEmail: user.email,
+          details: { updatedFields: Object.keys(parsed.data) },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "success",
+        });
+        
+        res.json(profile);
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Password change
+  const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(4),
+  });
+
+  app.post("/api/settings/change-password", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const parsed = changePasswordSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      // Verify current password
+      const fullUser = await storage.getManagedUser(user.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isValidPassword = await bcrypt.compare(parsed.data.currentPassword, fullUser.password);
+      if (!isValidPassword) {
+        await storage.createAuditLog({
+          action: "password_change_failed",
+          category: "security",
+          userId: user.id,
+          userEmail: user.email,
+          details: { reason: "invalid_current_password" },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "failure",
+        });
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash and update new password
+      const hashedPassword = await bcrypt.hash(parsed.data.newPassword, 10);
+      await storage.updateManagedUser(user.id, { password: hashedPassword });
+
+      await storage.createAuditLog({
+        action: "password_changed",
+        category: "security",
+        userId: user.id,
+        userEmail: user.email,
+        details: {},
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // ===== ADMIN SYSTEM SETTINGS =====
+
+  app.get("/api/admin/settings", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getAllSystemSettings();
+      // Mask encrypted values
+      const masked = settings.map(s => ({
+        ...s,
+        value: s.isEncrypted ? "********" : s.value,
+      }));
+      res.json(masked);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  const upsertSettingSchema = z.object({
+    key: z.string().min(1).max(100),
+    value: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    category: z.enum(["general", "integration", "security"]).default("general"),
+    isEncrypted: z.boolean().default(false),
+  });
+
+  // Validation functions for different setting types
+  const validateNetSuiteUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "https:" && url.includes("restlet");
+    } catch {
+      return false;
+    }
+  };
+
+  const validateConnectionString = (connStr: string): boolean => {
+    // Basic validation for Azure SQL connection string format
+    const requiredParts = ["Server=", "Database="];
+    return requiredParts.every(part => connStr.includes(part));
+  };
+
+  app.post("/api/admin/settings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser as ManagedUser;
+      const parsed = upsertSettingSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      // Validate specific setting formats
+      if (parsed.data.key.includes("netsuite") && parsed.data.key.includes("url") && parsed.data.value) {
+        if (!validateNetSuiteUrl(parsed.data.value)) {
+          return res.status(400).json({ message: "Invalid NetSuite RESTlet URL format. Must be a valid HTTPS URL." });
+        }
+      }
+
+      if (parsed.data.key.includes("azure") && parsed.data.key.includes("connection") && parsed.data.value) {
+        if (!validateConnectionString(parsed.data.value)) {
+          return res.status(400).json({ message: "Invalid Azure SQL connection string format. Must include Server= and Database=." });
+        }
+      }
+
+      const setting = await storage.upsertSystemSetting({
+        ...parsed.data,
+        updatedBy: currentUser.id,
+      });
+
+      await storage.createAuditLog({
+        action: "setting_updated",
+        category: "admin",
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        details: { settingKey: parsed.data.key, isEncrypted: parsed.data.isEncrypted },
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+
+      // Mask encrypted values in response
+      res.json({
+        ...setting,
+        value: setting.isEncrypted ? "********" : setting.value,
+      });
+    } catch (error) {
+      console.error("Error updating setting:", error);
+      res.status(500).json({ message: "Failed to update setting" });
+    }
+  });
+
+  app.delete("/api/admin/settings/:key", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser as ManagedUser;
+      const deleted = await storage.deleteSystemSetting(req.params.key);
+      
+      if (deleted) {
+        await storage.createAuditLog({
+          action: "setting_deleted",
+          category: "admin",
+          userId: currentUser.id,
+          userEmail: currentUser.email,
+          details: { settingKey: req.params.key },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "success",
+        });
+        res.status(204).send();
+      } else {
+        res.status(404).json({ message: "Setting not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting setting:", error);
+      res.status(500).json({ message: "Failed to delete setting" });
+    }
+  });
+
+  // ===== INTEGRATION HEALTH CHECK =====
+  
+  app.get("/api/admin/integrations/health", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      // Simulate health checks for integrations
+      const healthStatus = [
+        {
+          name: "NetSuite API",
+          status: "healthy" as const,
+          lastChecked: new Date().toISOString(),
+          responseTime: Math.floor(Math.random() * 200) + 50,
+        },
+        {
+          name: "Azure SQL",
+          status: "healthy" as const,
+          lastChecked: new Date().toISOString(),
+          responseTime: Math.floor(Math.random() * 100) + 20,
+        },
+        {
+          name: "HR System",
+          status: Math.random() > 0.1 ? "healthy" as const : "degraded" as const,
+          lastChecked: new Date().toISOString(),
+          responseTime: Math.floor(Math.random() * 300) + 100,
+        },
+        {
+          name: "Livery Tracking",
+          status: "healthy" as const,
+          lastChecked: new Date().toISOString(),
+          responseTime: Math.floor(Math.random() * 150) + 30,
+        },
+      ];
+      
+      res.json(healthStatus);
+    } catch (error) {
+      console.error("Error checking integration health:", error);
+      res.status(500).json({ message: "Failed to check integration health" });
+    }
+  });
+
+  // ===== AUDIT LOGS =====
+  
+  app.get("/api/admin/audit-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const category = req.query.category as string | undefined;
+      const action = req.query.action as string | undefined;
+      const search = req.query.search as string | undefined;
+
+      const result = await storage.getAuditLogs({ limit, offset, category, action, search });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

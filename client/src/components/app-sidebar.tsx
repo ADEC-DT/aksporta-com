@@ -128,7 +128,20 @@ export function AppSidebar() {
                   >
                     <Link href="/admin">
                       <Shield className="h-4 w-4" />
-                      <span>Admin Panel</span>
+                      <span>User Management</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/system-settings"}
+                    className="px-4"
+                    data-testid="nav-item-system-settings"
+                  >
+                    <Link href="/system-settings">
+                      <Database className="h-4 w-4" />
+                      <span>System Settings</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -13,6 +13,8 @@ import NetSuiteDashboard from "@/pages/netsuite-dashboard";
 import HRDashboard from "@/pages/hr-dashboard";
 import LiveryDashboard from "@/pages/livery-dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
+import SettingsPage from "@/pages/settings";
+import SystemSettingsPage from "@/pages/system-settings";
 import LoginPage from "@/pages/login";
 import { Loader2 } from "lucide-react";
 
@@ -55,6 +57,8 @@ function ProtectedRoutes() {
               <Route path="/hr" component={HRDashboard} />
               <Route path="/livery" component={LiveryDashboard} />
               <Route path="/admin" component={AdminDashboard} />
+              <Route path="/settings" component={SettingsPage} />
+              <Route path="/system-settings" component={SystemSettingsPage} />
               <Route component={NotFound} />
             </Switch>
           </main>
