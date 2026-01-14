@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -13,14 +14,43 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, FileText, Users, Building2, User } from "lucide-react";
+import { Search, Download, FileText, Users, Building2, User, Plus } from "lucide-react";
 
-const customers = [
+type Customer = {
+  id: string;
+  name: string;
+  type: string;
+  primaryUnit: string;
+  contact: string;
+  email: string;
+  dob: string;
+  gender: string;
+  nationality: string;
+  occupation: string;
+};
+
+const initialCustomers: Customer[] = [
   { id: "C001", name: "John Anderson", type: "Individual", primaryUnit: "Unit 101A", contact: "+1 555-0101", email: "john.anderson@email.com", dob: "15/03/1985", gender: "Male", nationality: "United States", occupation: "Software Engineer" },
   { id: "C002", name: "Sarah Mitchell", type: "Individual", primaryUnit: "Unit 205B", contact: "+1 555-0102", email: "sarah.mitchell@email.com", dob: "22/07/1990", gender: "Female", nationality: "Canada", occupation: "Marketing Manager" },
   { id: "C003", name: "Apex Industries Ltd", type: "Corporate", primaryUnit: "Suite 300", contact: "+1 555-0103", email: "info@apexindustries.com", dob: "N/A", gender: "N/A", nationality: "United Kingdom", occupation: "Manufacturing" },
@@ -33,8 +63,42 @@ const customers = [
   { id: "C010", name: "Robert Williams", type: "Individual", primaryUnit: "Unit 505E", contact: "+1 555-0110", email: "r.williams@email.com", dob: "18/06/1975", gender: "Male", nationality: "United States", occupation: "Lawyer" },
 ];
 
+const emptyForm = {
+  name: "",
+  type: "Individual",
+  primaryUnit: "",
+  contact: "",
+  email: "",
+  dob: "",
+  gender: "",
+  nationality: "",
+  occupation: "",
+};
+
 export default function CustomerDBPage() {
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState(emptyForm);
+
+  const handleAddCustomer = () => {
+    const newId = `C${String(customers.length + 1).padStart(3, "0")}`;
+    const newCustomer: Customer = {
+      id: newId,
+      name: formData.name,
+      type: formData.type,
+      primaryUnit: formData.primaryUnit,
+      contact: formData.contact,
+      email: formData.email,
+      dob: formData.dob || "N/A",
+      gender: formData.gender || "N/A",
+      nationality: formData.nationality,
+      occupation: formData.occupation,
+    };
+    setCustomers([...customers, newCustomer]);
+    setFormData(emptyForm);
+    setDialogOpen(false);
+  };
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -151,6 +215,146 @@ export default function CustomerDBPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-customer">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Customer
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add New Customer</DialogTitle>
+                <DialogDescription>
+                  Enter the customer details below to add them to the database.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="John Doe"
+                      data-testid="input-customer-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Type *</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) => setFormData({ ...formData, type: value })}
+                    >
+                      <SelectTrigger data-testid="select-customer-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Individual">Individual</SelectItem>
+                        <SelectItem value="Corporate">Corporate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="john@example.com"
+                      data-testid="input-customer-email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact">Phone *</Label>
+                    <Input
+                      id="contact"
+                      value={formData.contact}
+                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                      placeholder="+1 555-0100"
+                      data-testid="input-customer-contact"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="primaryUnit">Primary Unit *</Label>
+                    <Input
+                      id="primaryUnit"
+                      value={formData.primaryUnit}
+                      onChange={(e) => setFormData({ ...formData, primaryUnit: e.target.value })}
+                      placeholder="Unit 100A"
+                      data-testid="input-customer-unit"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dob">Date of Birth</Label>
+                    <Input
+                      id="dob"
+                      value={formData.dob}
+                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                      placeholder="DD/MM/YYYY"
+                      data-testid="input-customer-dob"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select
+                      value={formData.gender}
+                      onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    >
+                      <SelectTrigger data-testid="select-customer-gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nationality">Nationality *</Label>
+                    <Input
+                      id="nationality"
+                      value={formData.nationality}
+                      onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                      placeholder="United States"
+                      data-testid="input-customer-nationality"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="occupation">Occupation *</Label>
+                  <Input
+                    id="occupation"
+                    value={formData.occupation}
+                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                    placeholder="Software Engineer"
+                    data-testid="input-customer-occupation"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-add">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAddCustomer}
+                  disabled={!formData.name || !formData.email || !formData.contact || !formData.primaryUnit || !formData.nationality || !formData.occupation}
+                  data-testid="button-submit-customer"
+                >
+                  Add Customer
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
