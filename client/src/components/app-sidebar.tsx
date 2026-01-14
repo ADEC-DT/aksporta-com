@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogOut, Ticket, Layers } from "lucide-react";
+import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogOut, Ticket, Layers, Contact } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -41,6 +41,12 @@ const mainNavItems = [
     url: "/other-systems",
     icon: Layers,
     description: "Veterinary & Projects",
+  },
+  {
+    title: "Customer DB",
+    url: "/applications/customer-db",
+    icon: Contact,
+    description: "Master customer database",
   },
 ];
 
@@ -101,7 +107,8 @@ export function AppSidebar() {
               {mainNavItems.map((item) => {
                 const isActive = location === item.url || 
                   (location === "/" && item.url === "/netsuite") ||
-                  (item.url === "/other-systems" && (location.startsWith("/veterinary") || location.startsWith("/projects")));
+                  (item.url === "/other-systems" && (location.startsWith("/veterinary") || location.startsWith("/projects"))) ||
+                  (item.url === "/applications/customer-db" && location.startsWith("/applications/customer-db"));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
