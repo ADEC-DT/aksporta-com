@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -35,33 +37,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, FileText, Users, Building2, User, Plus } from "lucide-react";
-
-type Customer = {
-  id: string;
-  name: string;
-  type: string;
-  primaryUnit: string;
-  contact: string;
-  email: string;
-  dob: string;
-  gender: string;
-  nationality: string;
-  occupation: string;
-};
-
-const initialCustomers: Customer[] = [
-  { id: "C001", name: "John Anderson", type: "Individual", primaryUnit: "Unit 101A", contact: "+1 555-0101", email: "john.anderson@email.com", dob: "15/03/1985", gender: "Male", nationality: "United States", occupation: "Software Engineer" },
-  { id: "C002", name: "Sarah Mitchell", type: "Individual", primaryUnit: "Unit 205B", contact: "+1 555-0102", email: "sarah.mitchell@email.com", dob: "22/07/1990", gender: "Female", nationality: "Canada", occupation: "Marketing Manager" },
-  { id: "C003", name: "Apex Industries Ltd", type: "Corporate", primaryUnit: "Suite 300", contact: "+1 555-0103", email: "info@apexindustries.com", dob: "N/A", gender: "N/A", nationality: "United Kingdom", occupation: "Manufacturing" },
-  { id: "C004", name: "Michael Chen", type: "Individual", primaryUnit: "Unit 412C", contact: "+1 555-0104", email: "m.chen@email.com", dob: "08/11/1978", gender: "Male", nationality: "Singapore", occupation: "Financial Analyst" },
-  { id: "C005", name: "Global Solutions Inc", type: "Corporate", primaryUnit: "Floor 5", contact: "+1 555-0105", email: "contact@globalsolutions.com", dob: "N/A", gender: "N/A", nationality: "Germany", occupation: "Consulting" },
-  { id: "C006", name: "Emily Rodriguez", type: "Individual", primaryUnit: "Unit 108D", contact: "+1 555-0106", email: "emily.r@email.com", dob: "30/05/1992", gender: "Female", nationality: "Mexico", occupation: "Architect" },
-  { id: "C007", name: "David Thompson", type: "Individual", primaryUnit: "Unit 315A", contact: "+1 555-0107", email: "d.thompson@email.com", dob: "12/09/1982", gender: "Male", nationality: "Australia", occupation: "Doctor" },
-  { id: "C008", name: "TechStart Corp", type: "Corporate", primaryUnit: "Suite 450", contact: "+1 555-0108", email: "hello@techstart.io", dob: "N/A", gender: "N/A", nationality: "United States", occupation: "Technology" },
-  { id: "C009", name: "Lisa Park", type: "Individual", primaryUnit: "Unit 220B", contact: "+1 555-0109", email: "lisa.park@email.com", dob: "25/01/1988", gender: "Female", nationality: "South Korea", occupation: "Designer" },
-  { id: "C010", name: "Robert Williams", type: "Individual", primaryUnit: "Unit 505E", contact: "+1 555-0110", email: "r.williams@email.com", dob: "18/06/1975", gender: "Male", nationality: "United States", occupation: "Lawyer" },
-];
+import { Search, Download, FileText, Users, Building2, User, Plus, Loader2 } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Customer, CustomerWithProfile } from "@shared/schema";
 
 const emptyForm = {
   name: "",
@@ -69,45 +48,63 @@ const emptyForm = {
   primaryUnit: "",
   contact: "",
   email: "",
-  dob: "",
+  externalCode: "",
+  dateOfBirth: "",
   gender: "",
   nationality: "",
   occupation: "",
 };
 
 export default function CustomerDBPage() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const { toast } = useToast();
+
+  const { data, isLoading } = useQuery<{ customers: Customer[]; total: number }>({
+    queryKey: ["/api/customers", searchQuery],
+    queryFn: async () => {
+      const url = searchQuery 
+        ? `/api/customers?search=${encodeURIComponent(searchQuery)}`
+        : "/api/customers";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch customers");
+      return res.json();
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (newCustomer: typeof formData) => {
+      return apiRequest("POST", "/api/customers", newCustomer);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"], refetchType: "all" });
+      setFormData(emptyForm);
+      setDialogOpen(false);
+      toast({
+        title: "Customer created",
+        description: "The customer has been added successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create customer",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleAddCustomer = () => {
-    const newId = `C${String(customers.length + 1).padStart(3, "0")}`;
-    const newCustomer: Customer = {
-      id: newId,
-      name: formData.name,
-      type: formData.type,
-      primaryUnit: formData.primaryUnit,
-      contact: formData.contact,
-      email: formData.email,
-      dob: formData.dob || "N/A",
-      gender: formData.gender || "N/A",
-      nationality: formData.nationality,
-      occupation: formData.occupation,
-    };
-    setCustomers([...customers, newCustomer]);
-    setFormData(emptyForm);
-    setDialogOpen(false);
+    const code = `C${String(Date.now()).slice(-6)}`;
+    createMutation.mutate({
+      ...formData,
+      externalCode: code,
+    });
   };
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const totalCustomers = customers.length;
+  const customers = data?.customers || [];
+  const totalCustomers = data?.total || 0;
   const individualCount = customers.filter((c) => c.type === "Individual").length;
   const corporateCount = customers.filter((c) => c.type === "Corporate").length;
 
@@ -115,8 +112,8 @@ export default function CustomerDBPage() {
     const headers = ["ID", "Name", "Type", "Primary Unit", "Contact", "Email"];
     const csvContent = [
       headers.join(","),
-      ...filteredCustomers.map((c) =>
-        [c.id, `"${c.name}"`, c.type, `"${c.primaryUnit}"`, c.contact, c.email].join(",")
+      ...customers.map((c) =>
+        [c.externalCode, `"${c.name}"`, c.type, `"${c.primaryUnit}"`, c.contact, c.email].join(",")
       ),
     ].join("\n");
 
@@ -157,7 +154,7 @@ export default function CustomerDBPage() {
                 </tr>
               </thead>
               <tbody>
-                ${filteredCustomers
+                ${customers
                   .map(
                     (c) => `
                   <tr>
@@ -181,12 +178,12 @@ export default function CustomerDBPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Master Customer Database</h1>
           <p className="text-muted-foreground">View and manage all customer records</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -295,8 +292,8 @@ export default function CustomerDBPage() {
                     <Label htmlFor="dob">Date of Birth</Label>
                     <Input
                       id="dob"
-                      value={formData.dob}
-                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                      value={formData.dateOfBirth}
+                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                       placeholder="DD/MM/YYYY"
                       data-testid="input-customer-dob"
                     />
@@ -347,9 +344,10 @@ export default function CustomerDBPage() {
                 </Button>
                 <Button
                   onClick={handleAddCustomer}
-                  disabled={!formData.name || !formData.email || !formData.contact || !formData.primaryUnit || !formData.nationality || !formData.occupation}
+                  disabled={!formData.name || !formData.email || !formData.contact || !formData.primaryUnit || !formData.nationality || !formData.occupation || createMutation.isPending}
                   data-testid="button-submit-customer"
                 >
+                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Add Customer
                 </Button>
               </DialogFooter>
@@ -365,7 +363,11 @@ export default function CustomerDBPage() {
               <Users className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{totalCustomers}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{totalCustomers}</p>
+              )}
               <p className="text-sm text-muted-foreground">Total Customers</p>
             </div>
           </CardContent>
@@ -376,7 +378,11 @@ export default function CustomerDBPage() {
               <User className="h-6 w-6 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{individualCount}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{individualCount}</p>
+              )}
               <p className="text-sm text-muted-foreground">Individual</p>
             </div>
           </CardContent>
@@ -387,7 +393,11 @@ export default function CustomerDBPage() {
               <Building2 className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{corporateCount}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{corporateCount}</p>
+              )}
               <p className="text-sm text-muted-foreground">Corporate</p>
             </div>
           </CardContent>
@@ -409,14 +419,23 @@ export default function CustomerDBPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCustomers.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                  </TableRow>
+                ))
+              ) : customers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                    No customers found matching your search
+                    {searchQuery ? "No customers found matching your search" : "No customers yet. Add your first customer to get started."}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCustomers.map((customer) => (
+                customers.map((customer) => (
                   <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                     <TableCell>
                       <Link

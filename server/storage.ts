@@ -5,7 +5,10 @@ import {
   tickets, type Ticket, type InsertTicket,
   ticketComments, type TicketComment, type InsertTicketComment,
   faqEntries, type FaqEntry, type InsertFaqEntry,
-  userManuals, type UserManual, type InsertUserManual
+  userManuals, type UserManual, type InsertUserManual,
+  customers, type Customer, type InsertCustomer,
+  customerProfiles, type CustomerProfile, type InsertCustomerProfile,
+  type CustomerWithProfile
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -66,6 +69,22 @@ export interface IStorage {
   createUserManual(manual: InsertUserManual): Promise<UserManual>;
   updateUserManual(id: string, data: Partial<InsertUserManual>): Promise<UserManual | undefined>;
   deleteUserManual(id: string): Promise<boolean>;
+  
+  // Customers CRUD
+  getAllCustomers(options?: { search?: string; type?: string; limit?: number; offset?: number }): Promise<{ customers: Customer[]; total: number }>;
+  getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByExternalCode(code: string): Promise<Customer | undefined>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
+  deleteCustomer(id: string): Promise<boolean>;
+  
+  // Customer profiles CRUD
+  getCustomerProfile(customerId: string): Promise<CustomerProfile | undefined>;
+  upsertCustomerProfile(profile: InsertCustomerProfile): Promise<CustomerProfile>;
+  deleteCustomerProfile(customerId: string): Promise<boolean>;
+  
+  // Combined customer with profile
+  getCustomerWithProfile(id: string): Promise<CustomerWithProfile | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -343,6 +362,107 @@ export class DatabaseStorage implements IStorage {
   async deleteUserManual(id: string): Promise<boolean> {
     const result = await db.delete(userManuals).where(eq(userManuals.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Customer methods
+  async getAllCustomers(options?: { search?: string; type?: string; limit?: number; offset?: number }): Promise<{ customers: Customer[]; total: number }> {
+    const { search, type, limit = 50, offset = 0 } = options || {};
+    
+    let conditions = [];
+    if (search) {
+      conditions.push(
+        or(
+          ilike(customers.name, `%${search}%`),
+          ilike(customers.email, `%${search}%`),
+          ilike(customers.contact, `%${search}%`)
+        )
+      );
+    }
+    if (type) {
+      conditions.push(eq(customers.type, type));
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(customers)
+      .where(whereClause);
+    
+    const result = await db
+      .select()
+      .from(customers)
+      .where(whereClause)
+      .orderBy(desc(customers.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return { customers: result, total: countResult?.count || 0 };
+  }
+
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
+  }
+
+  async getCustomerByExternalCode(code: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.externalCode, code));
+    return customer;
+  }
+
+  async createCustomer(customerData: InsertCustomer): Promise<Customer> {
+    const [customer] = await db.insert(customers).values(customerData).returning();
+    return customer;
+  }
+
+  async updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [customer] = await db
+      .update(customers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return customer;
+  }
+
+  async deleteCustomer(id: string): Promise<boolean> {
+    await db.delete(customerProfiles).where(eq(customerProfiles.customerId, id));
+    const result = await db.delete(customers).where(eq(customers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Customer profile methods
+  async getCustomerProfile(customerId: string): Promise<CustomerProfile | undefined> {
+    const [profile] = await db.select().from(customerProfiles).where(eq(customerProfiles.customerId, customerId));
+    return profile;
+  }
+
+  async upsertCustomerProfile(profile: InsertCustomerProfile): Promise<CustomerProfile> {
+    const existing = await this.getCustomerProfile(profile.customerId);
+    if (existing) {
+      const [updated] = await db
+        .update(customerProfiles)
+        .set({ ...profile, updatedAt: new Date() })
+        .where(eq(customerProfiles.customerId, profile.customerId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(customerProfiles).values(profile).returning();
+      return created;
+    }
+  }
+
+  async deleteCustomerProfile(customerId: string): Promise<boolean> {
+    const result = await db.delete(customerProfiles).where(eq(customerProfiles.customerId, customerId)).returning();
+    return result.length > 0;
+  }
+
+  // Combined customer with profile
+  async getCustomerWithProfile(id: string): Promise<CustomerWithProfile | undefined> {
+    const customer = await this.getCustomer(id);
+    if (!customer) return undefined;
+    
+    const profile = await this.getCustomerProfile(id);
+    return { ...customer, profile: profile || undefined };
   }
 }
 

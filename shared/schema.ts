@@ -268,3 +268,67 @@ export const insertUserManualSchema = createInsertSchema(userManuals).omit({
 
 export type InsertUserManual = z.infer<typeof insertUserManualSchema>;
 export type UserManual = typeof userManuals.$inferSelect;
+
+// Customer type and gender enums
+export const customerTypes = ["Individual", "Corporate"] as const;
+export type CustomerType = typeof customerTypes[number];
+
+export const customerGenders = ["Male", "Female", "Other"] as const;
+export type CustomerGender = typeof customerGenders[number];
+
+// Customers table (main customer records)
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  externalCode: varchar("external_code").notNull().unique(),
+  name: varchar("name").notNull(),
+  type: varchar("type").notNull().default("Individual"),
+  primaryUnit: varchar("primary_unit").notNull(),
+  email: varchar("email").notNull().unique(),
+  contact: varchar("contact").notNull(),
+  status: varchar("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  emailIdx: index("customers_email_idx").on(table.email),
+  typeIdx: index("customers_type_idx").on(table.type),
+  externalCodeIdx: index("customers_external_code_idx").on(table.externalCode),
+}));
+
+export const insertCustomerSchema = createInsertSchema(customers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type Customer = typeof customers.$inferSelect;
+
+// Customer profiles table (extended profile data)
+export const customerProfiles = pgTable("customer_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().unique(),
+  dateOfBirth: varchar("date_of_birth"),
+  gender: varchar("gender"),
+  nationality: varchar("nationality"),
+  occupation: varchar("occupation"),
+  address: jsonb("address"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  customerIdIdx: index("customer_profiles_customer_id_idx").on(table.customerId),
+}));
+
+export const insertCustomerProfileSchema = createInsertSchema(customerProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCustomerProfile = z.infer<typeof insertCustomerProfileSchema>;
+export type CustomerProfile = typeof customerProfiles.$inferSelect;
+
+// Combined customer with profile for API responses
+export type CustomerWithProfile = Customer & {
+  profile?: CustomerProfile;
+};

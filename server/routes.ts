@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1112,6 +1112,188 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating ticket:", error);
       res.status(500).json({ message: "Failed to update ticket" });
+    }
+  });
+
+  // Customer DB API Routes
+  
+  // Get all customers with optional search and type filter
+  app.get("/api/customers", isAuthenticated, async (req, res) => {
+    try {
+      const { search, type, limit, offset } = req.query;
+      const result = await storage.getAllCustomers({
+        search: search as string,
+        type: type as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  // Get single customer with profile
+  app.get("/api/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const customer = await storage.getCustomerWithProfile(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Error fetching customer:", error);
+      res.status(500).json({ message: "Failed to fetch customer" });
+    }
+  });
+
+  // Create new customer with profile
+  app.post("/api/customers", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      
+      const customerSchema = insertCustomerSchema.extend({
+        dateOfBirth: z.string().optional(),
+        gender: z.string().optional(),
+        nationality: z.string().optional(),
+        occupation: z.string().optional(),
+      });
+      
+      const parsed = customerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      const { dateOfBirth, gender, nationality, occupation, ...customerData } = parsed.data;
+
+      // Check for duplicate email
+      const existingCustomers = await storage.getAllCustomers({ search: customerData.email });
+      const emailExists = existingCustomers.customers.some(c => c.email === customerData.email);
+      if (emailExists) {
+        return res.status(400).json({ message: "A customer with this email already exists" });
+      }
+
+      // Create the customer
+      const customer = await storage.createCustomer(customerData);
+
+      // Create the profile
+      if (dateOfBirth || gender || nationality || occupation) {
+        await storage.upsertCustomerProfile({
+          customerId: customer.id,
+          dateOfBirth,
+          gender,
+          nationality,
+          occupation,
+        });
+      }
+
+      // Log the action
+      await storage.createAuditLog({
+        action: "customer_created",
+        category: "customer_db",
+        userId: user.id,
+        userEmail: user.email,
+        details: { customerId: customer.id, customerName: customer.name },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      const result = await storage.getCustomerWithProfile(customer.id);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      res.status(500).json({ message: "Failed to create customer" });
+    }
+  });
+
+  // Update customer
+  app.patch("/api/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const existing = await storage.getCustomer(req.params.id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      const customerSchema = insertCustomerSchema.partial().extend({
+        dateOfBirth: z.string().optional(),
+        gender: z.string().optional(),
+        nationality: z.string().optional(),
+        occupation: z.string().optional(),
+      });
+
+      const parsed = customerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      const { dateOfBirth, gender, nationality, occupation, ...customerData } = parsed.data;
+
+      // Update customer if there are changes
+      if (Object.keys(customerData).length > 0) {
+        await storage.updateCustomer(req.params.id, customerData);
+      }
+
+      // Update profile
+      if (dateOfBirth !== undefined || gender !== undefined || nationality !== undefined || occupation !== undefined) {
+        await storage.upsertCustomerProfile({
+          customerId: req.params.id,
+          dateOfBirth,
+          gender,
+          nationality,
+          occupation,
+        });
+      }
+
+      await storage.createAuditLog({
+        action: "customer_updated",
+        category: "customer_db",
+        userId: user.id,
+        userEmail: user.email,
+        details: { customerId: req.params.id },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      const result = await storage.getCustomerWithProfile(req.params.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      res.status(500).json({ message: "Failed to update customer" });
+    }
+  });
+
+  // Delete customer
+  app.delete("/api/customers/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const existing = await storage.getCustomer(req.params.id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      await storage.deleteCustomer(req.params.id);
+
+      await storage.createAuditLog({
+        action: "customer_deleted",
+        category: "customer_db",
+        userId: user.id,
+        userEmail: user.email,
+        details: { customerId: req.params.id, customerName: existing.name },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.json({ message: "Customer deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      res.status(500).json({ message: "Failed to delete customer" });
     }
   });
 

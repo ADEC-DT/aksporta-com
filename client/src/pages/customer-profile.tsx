@@ -1,30 +1,66 @@
 import { Link, useParams } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, User, Phone, Mail, Calendar, Users, Globe, Briefcase, Building2 } from "lucide-react";
-
-const customers = [
-  { id: "C001", name: "John Anderson", type: "Individual", primaryUnit: "Unit 101A", contact: "+1 555-0101", email: "john.anderson@email.com", dob: "15/03/1985", gender: "Male", nationality: "United States", occupation: "Software Engineer" },
-  { id: "C002", name: "Sarah Mitchell", type: "Individual", primaryUnit: "Unit 205B", contact: "+1 555-0102", email: "sarah.mitchell@email.com", dob: "22/07/1990", gender: "Female", nationality: "Canada", occupation: "Marketing Manager" },
-  { id: "C003", name: "Apex Industries Ltd", type: "Corporate", primaryUnit: "Suite 300", contact: "+1 555-0103", email: "info@apexindustries.com", dob: "N/A", gender: "N/A", nationality: "United Kingdom", occupation: "Manufacturing" },
-  { id: "C004", name: "Michael Chen", type: "Individual", primaryUnit: "Unit 412C", contact: "+1 555-0104", email: "m.chen@email.com", dob: "08/11/1978", gender: "Male", nationality: "Singapore", occupation: "Financial Analyst" },
-  { id: "C005", name: "Global Solutions Inc", type: "Corporate", primaryUnit: "Floor 5", contact: "+1 555-0105", email: "contact@globalsolutions.com", dob: "N/A", gender: "N/A", nationality: "Germany", occupation: "Consulting" },
-  { id: "C006", name: "Emily Rodriguez", type: "Individual", primaryUnit: "Unit 108D", contact: "+1 555-0106", email: "emily.r@email.com", dob: "30/05/1992", gender: "Female", nationality: "Mexico", occupation: "Architect" },
-  { id: "C007", name: "David Thompson", type: "Individual", primaryUnit: "Unit 315A", contact: "+1 555-0107", email: "d.thompson@email.com", dob: "12/09/1982", gender: "Male", nationality: "Australia", occupation: "Doctor" },
-  { id: "C008", name: "TechStart Corp", type: "Corporate", primaryUnit: "Suite 450", contact: "+1 555-0108", email: "hello@techstart.io", dob: "N/A", gender: "N/A", nationality: "United States", occupation: "Technology" },
-  { id: "C009", name: "Lisa Park", type: "Individual", primaryUnit: "Unit 220B", contact: "+1 555-0109", email: "lisa.park@email.com", dob: "25/01/1988", gender: "Female", nationality: "South Korea", occupation: "Designer" },
-  { id: "C010", name: "Robert Williams", type: "Individual", primaryUnit: "Unit 505E", contact: "+1 555-0110", email: "r.williams@email.com", dob: "18/06/1975", gender: "Male", nationality: "United States", occupation: "Lawyer" },
-];
+import type { CustomerWithProfile } from "@shared/schema";
 
 export default function CustomerProfilePage() {
   const params = useParams();
   const customerId = params.id;
 
-  const customer = customers.find((c) => c.id === customerId);
+  const { data: customer, isLoading, error } = useQuery<CustomerWithProfile>({
+    queryKey: ["/api/customers", customerId],
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${customerId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Customer not found");
+      return res.json();
+    },
+    enabled: !!customerId,
+  });
 
-  if (!customer) {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-60" />
+          </div>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-1">
+            <CardContent className="flex flex-col items-center gap-4 pt-6">
+              <Skeleton className="h-24 w-24 rounded-full" />
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-5 w-20" />
+            </CardContent>
+          </Card>
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-5 w-32" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !customer) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-6 h-[50vh]">
         <h2 className="text-xl font-semibold">Customer Not Found</h2>
@@ -126,7 +162,7 @@ export default function CustomerProfilePage() {
                   <Calendar className="h-4 w-4" />
                   <span>Date of Birth</span>
                 </div>
-                <p className="font-medium" data-testid="text-customer-dob">{customer.dob}</p>
+                <p className="font-medium" data-testid="text-customer-dob">{customer.profile?.dateOfBirth || "N/A"}</p>
               </div>
 
               <div className="space-y-1">
@@ -134,7 +170,7 @@ export default function CustomerProfilePage() {
                   <Users className="h-4 w-4" />
                   <span>Gender</span>
                 </div>
-                <p className="font-medium" data-testid="text-customer-gender">{customer.gender}</p>
+                <p className="font-medium" data-testid="text-customer-gender">{customer.profile?.gender || "N/A"}</p>
               </div>
 
               <div className="space-y-1">
@@ -142,7 +178,7 @@ export default function CustomerProfilePage() {
                   <Globe className="h-4 w-4" />
                   <span>Country of Nationality</span>
                 </div>
-                <p className="font-medium" data-testid="text-customer-nationality">{customer.nationality}</p>
+                <p className="font-medium" data-testid="text-customer-nationality">{customer.profile?.nationality || "N/A"}</p>
               </div>
 
               <div className="space-y-1">
@@ -150,7 +186,7 @@ export default function CustomerProfilePage() {
                   <Briefcase className="h-4 w-4" />
                   <span>Occupation</span>
                 </div>
-                <p className="font-medium" data-testid="text-customer-occupation">{customer.occupation}</p>
+                <p className="font-medium" data-testid="text-customer-occupation">{customer.profile?.occupation || "N/A"}</p>
               </div>
 
               <div className="space-y-1">
