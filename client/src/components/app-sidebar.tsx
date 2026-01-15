@@ -51,7 +51,7 @@ const mainNavItems = [
     icon: Contact,
   },
   {
-    title: "Projects (Monday)",
+    title: "Projects",
     url: "/projects",
     icon: FolderKanban,
   },
