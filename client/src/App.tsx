@@ -106,8 +106,7 @@ function ProtectedRoutes() {
               <Route path="/events" component={EventsPage} />
               <Route path="/media-marketing" component={MediaMarketingPage} />
               <Route path="/intranet" component={IntranetPage} />
-              <Route path="/veterinary" component={VeterinaryPage} />
-              <Route path="/projects" component={ProjectsPage} />
+                            <Route path="/projects" component={ProjectsPage} />
               <Route path="/applications/customer-db" component={CustomerDBPage} />
               <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />
               <Route component={NotFound} />

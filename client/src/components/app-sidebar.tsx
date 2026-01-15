@@ -14,7 +14,6 @@ import {
   DollarSign,
   Store,
   CircleDot,
-  Stethoscope,
   Headphones,
   PartyPopper,
   Megaphone
@@ -75,11 +74,6 @@ const mainNavItems = [
     title: "Equestrian",
     url: "/equestrian",
     icon: CircleDot,
-  },
-  {
-    title: "Veterinary",
-    url: "/veterinary",
-    icon: Stethoscope,
   },
   {
     title: "Events & Entertainment",
