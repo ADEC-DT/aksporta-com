@@ -332,3 +332,30 @@ export type CustomerProfile = typeof customerProfiles.$inferSelect;
 export type CustomerWithProfile = Customer & {
   profile?: CustomerProfile;
 };
+
+// Blueprint status enum
+export const blueprintStatuses = ["in_development", "review", "live", "enhancement_needed"] as const;
+export type BlueprintStatus = typeof blueprintStatuses[number];
+
+// Collaboration Blueprints table for tracking project collaboration status
+export const collaborationBlueprints = pgTable("collaboration_blueprints", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectionName: varchar("section_name").notNull(),
+  sectionTitle: varchar("section_title").notNull(),
+  status: varchar("status").notNull().default("in_development"),
+  etaDate: varchar("eta_date"),
+  notes: text("notes"),
+  missingItems: text("missing_items").array(),
+  ideas: text("ideas").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBlueprintSchema = createInsertSchema(collaborationBlueprints).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBlueprint = z.infer<typeof insertBlueprintSchema>;
+export type CollaborationBlueprint = typeof collaborationBlueprints.$inferSelect;

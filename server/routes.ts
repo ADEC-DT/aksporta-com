@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1294,6 +1294,92 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting customer:", error);
       res.status(500).json({ message: "Failed to delete customer" });
+    }
+  });
+
+  // ==================== Collaboration Blueprints Routes ====================
+  
+  // Get all blueprints
+  app.get("/api/blueprints", isAuthenticated, async (req, res) => {
+    try {
+      const blueprints = await storage.getAllBlueprints();
+      res.json(blueprints);
+    } catch (error) {
+      console.error("Error fetching blueprints:", error);
+      res.status(500).json({ message: "Failed to fetch blueprints" });
+    }
+  });
+
+  // Get blueprint by section name
+  app.get("/api/blueprints/section/:sectionName", isAuthenticated, async (req, res) => {
+    try {
+      const blueprint = await storage.getBlueprintBySectionName(req.params.sectionName);
+      if (!blueprint) {
+        return res.status(404).json({ message: "Blueprint not found" });
+      }
+      res.json(blueprint);
+    } catch (error) {
+      console.error("Error fetching blueprint:", error);
+      res.status(500).json({ message: "Failed to fetch blueprint" });
+    }
+  });
+
+  // Get single blueprint
+  app.get("/api/blueprints/:id", isAuthenticated, async (req, res) => {
+    try {
+      const blueprint = await storage.getBlueprint(req.params.id);
+      if (!blueprint) {
+        return res.status(404).json({ message: "Blueprint not found" });
+      }
+      res.json(blueprint);
+    } catch (error) {
+      console.error("Error fetching blueprint:", error);
+      res.status(500).json({ message: "Failed to fetch blueprint" });
+    }
+  });
+
+  // Create blueprint
+  app.post("/api/blueprints", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertBlueprintSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid blueprint data", errors: parsed.error.errors });
+      }
+      const blueprint = await storage.createBlueprint(parsed.data);
+      res.status(201).json(blueprint);
+    } catch (error) {
+      console.error("Error creating blueprint:", error);
+      res.status(500).json({ message: "Failed to create blueprint" });
+    }
+  });
+
+  // Update blueprint
+  app.patch("/api/blueprints/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getBlueprint(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Blueprint not found" });
+      }
+      const blueprint = await storage.updateBlueprint(req.params.id, req.body);
+      res.json(blueprint);
+    } catch (error) {
+      console.error("Error updating blueprint:", error);
+      res.status(500).json({ message: "Failed to update blueprint" });
+    }
+  });
+
+  // Delete blueprint
+  app.delete("/api/blueprints/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getBlueprint(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Blueprint not found" });
+      }
+      await storage.deleteBlueprint(req.params.id);
+      res.json({ message: "Blueprint deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blueprint:", error);
+      res.status(500).json({ message: "Failed to delete blueprint" });
     }
   });
 

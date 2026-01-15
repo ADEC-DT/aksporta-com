@@ -8,7 +8,8 @@ import {
   userManuals, type UserManual, type InsertUserManual,
   customers, type Customer, type InsertCustomer,
   customerProfiles, type CustomerProfile, type InsertCustomerProfile,
-  type CustomerWithProfile
+  type CustomerWithProfile,
+  collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -85,6 +86,14 @@ export interface IStorage {
   
   // Combined customer with profile
   getCustomerWithProfile(id: string): Promise<CustomerWithProfile | undefined>;
+  
+  // Collaboration blueprints CRUD
+  getAllBlueprints(): Promise<CollaborationBlueprint[]>;
+  getBlueprint(id: string): Promise<CollaborationBlueprint | undefined>;
+  getBlueprintBySectionName(sectionName: string): Promise<CollaborationBlueprint | undefined>;
+  createBlueprint(blueprint: InsertBlueprint): Promise<CollaborationBlueprint>;
+  updateBlueprint(id: string, data: Partial<InsertBlueprint>): Promise<CollaborationBlueprint | undefined>;
+  deleteBlueprint(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -463,6 +472,40 @@ export class DatabaseStorage implements IStorage {
     
     const profile = await this.getCustomerProfile(id);
     return { ...customer, profile: profile || undefined };
+  }
+
+  // Collaboration blueprints methods
+  async getAllBlueprints(): Promise<CollaborationBlueprint[]> {
+    return await db.select().from(collaborationBlueprints).orderBy(collaborationBlueprints.sectionName);
+  }
+
+  async getBlueprint(id: string): Promise<CollaborationBlueprint | undefined> {
+    const [blueprint] = await db.select().from(collaborationBlueprints).where(eq(collaborationBlueprints.id, id));
+    return blueprint;
+  }
+
+  async getBlueprintBySectionName(sectionName: string): Promise<CollaborationBlueprint | undefined> {
+    const [blueprint] = await db.select().from(collaborationBlueprints).where(eq(collaborationBlueprints.sectionName, sectionName));
+    return blueprint;
+  }
+
+  async createBlueprint(blueprint: InsertBlueprint): Promise<CollaborationBlueprint> {
+    const [created] = await db.insert(collaborationBlueprints).values(blueprint).returning();
+    return created;
+  }
+
+  async updateBlueprint(id: string, data: Partial<InsertBlueprint>): Promise<CollaborationBlueprint | undefined> {
+    const [updated] = await db
+      .update(collaborationBlueprints)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(collaborationBlueprints.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBlueprint(id: string): Promise<boolean> {
+    const result = await db.delete(collaborationBlueprints).where(eq(collaborationBlueprints.id, id)).returning();
+    return result.length > 0;
   }
 }
 
