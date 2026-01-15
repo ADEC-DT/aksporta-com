@@ -1,6 +1,22 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { LayoutDashboard, Users, Truck, Database, Settings, HelpCircle, Shield, LogOut, Ticket, Layers, Contact } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Building2,
+  Contact, 
+  Settings, 
+  HelpCircle, 
+  Shield, 
+  LogOut, 
+  Ticket,
+  FolderKanban,
+  DollarSign,
+  Store,
+  CircleDot,
+  Stethoscope,
+  Headphones
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,52 +35,62 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const mainNavItems = [
   {
-    title: "NetSuite",
-    url: "/netsuite",
-    icon: Database,
-    description: "Financial data & transactions",
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
   },
   {
-    title: "HR",
-    url: "/hr",
-    icon: Users,
-    description: "Employee management",
-  },
-  {
-    title: "Livery",
-    url: "/livery",
-    icon: Truck,
-    description: "Delivery tracking",
-  },
-  {
-    title: "Other Systems",
-    url: "/other-systems",
-    icon: Layers,
-    description: "Veterinary & Projects",
+    title: "Business Units",
+    url: "/business-units",
+    icon: Building2,
   },
   {
     title: "Customer DB",
     url: "/applications/customer-db",
     icon: Contact,
-    description: "Master customer database",
+  },
+  {
+    title: "Projects (Monday)",
+    url: "/projects",
+    icon: FolderKanban,
+  },
+  {
+    title: "HR (Kayan)",
+    url: "/hr",
+    icon: Users,
+  },
+  {
+    title: "Finance (NetSuite)",
+    url: "/erp",
+    icon: DollarSign,
+  },
+  {
+    title: "Boutique Mall",
+    url: "/boutique-mall",
+    icon: Store,
+  },
+  {
+    title: "Equestrian",
+    url: "/equestrian",
+    icon: CircleDot,
+  },
+  {
+    title: "Veterinary",
+    url: "/veterinary",
+    icon: Stethoscope,
+  },
+  {
+    title: "Intranet & Support",
+    url: "/intranet",
+    icon: Headphones,
   },
 ];
 
 const secondaryNavItems = [
   {
-    title: "My Tickets",
-    url: "/tickets",
-    icon: Ticket,
-  },
-  {
     title: "Settings",
     url: "/settings",
     icon: Settings,
-  },
-  {
-    title: "Help",
-    url: "/help",
-    icon: HelpCircle,
   },
 ];
 
@@ -84,45 +110,49 @@ export function AppSidebar() {
     return "U";
   };
 
+  const getDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user?.username || "User";
+  };
+
+  const getRole = () => {
+    return user?.role === "admin" ? "Head of Operations" : user?.role || "User";
+  };
+
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border px-6 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <LayoutDashboard className="h-4 w-4 text-primary-foreground" />
+    <Sidebar className="bg-sidebar border-r border-sidebar-border">
+      <SidebarHeader className="px-4 py-4">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <span className="text-lg font-bold text-primary-foreground">U</span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-sidebar-foreground">Data Portal</span>
-            <span className="text-xs text-muted-foreground">Integration Hub</span>
-          </div>
+          <span className="text-base font-semibold text-sidebar-foreground font-outfit">Unified Portal</span>
         </Link>
       </SidebarHeader>
       <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Applications
-          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => {
                 const isActive = location === item.url || 
-                  (location === "/" && item.url === "/netsuite") ||
-                  (item.url === "/other-systems" && (location.startsWith("/veterinary") || location.startsWith("/projects"))) ||
-                  (item.url === "/applications/customer-db" && location.startsWith("/applications/customer-db"));
+                  (location === "/" && item.url === "/dashboard") ||
+                  (item.url === "/applications/customer-db" && location.startsWith("/applications/customer-db")) ||
+                  (item.url === "/erp" && location.startsWith("/erp")) ||
+                  (item.url === "/veterinary" && location.startsWith("/veterinary")) ||
+                  (item.url === "/projects" && location.startsWith("/projects"));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className="h-12 px-4"
-                      data-testid={`nav-item-${item.title.toLowerCase()}`}
+                      className="h-10 px-3 rounded-lg"
+                      data-testid={`nav-item-${item.title.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}`}
                     >
                       <Link href={item.url}>
-                        <item.icon className="h-5 w-5" />
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{item.title}</span>
-                          <span className="text-xs text-muted-foreground">{item.description}</span>
-                        </div>
+                        <item.icon className="h-4 w-4" />
+                        <span className="font-medium text-sm">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -134,7 +164,7 @@ export function AppSidebar() {
 
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <SidebarGroupLabel className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Administration
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -143,7 +173,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === "/admin"}
-                    className="px-4"
+                    className="h-10 px-3 rounded-lg"
                     data-testid="nav-item-admin"
                   >
                     <Link href="/admin">
@@ -155,21 +185,8 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={location === "/system-settings"}
-                    className="px-4"
-                    data-testid="nav-item-system-settings"
-                  >
-                    <Link href="/system-settings">
-                      <Database className="h-4 w-4" />
-                      <span>System Settings</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
                     isActive={location === "/admin/tickets"}
-                    className="px-4"
+                    className="h-10 px-3 rounded-lg"
                     data-testid="nav-item-admin-tickets"
                   >
                     <Link href="/admin/tickets">
@@ -184,7 +201,7 @@ export function AppSidebar() {
         )}
 
         <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <SidebarGroupLabel className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             System
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -194,7 +211,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === item.url}
-                    className="px-4"
+                    className="h-10 px-3 rounded-lg"
                     data-testid={`nav-item-${item.title.toLowerCase()}`}
                   >
                     <Link href={item.url}>
@@ -211,7 +228,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
         {authLoading ? (
           <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-9 w-9 rounded-full" />
             <div className="flex flex-col gap-1">
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-3 w-28" />
@@ -220,12 +237,12 @@ export function AppSidebar() {
         ) : user ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">{getInitials()}</AvatarFallback>
+              <Avatar className="h-9 w-9 bg-primary/10">
+                <AvatarFallback className="text-xs bg-primary/20 text-primary">{getInitials()}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="text-sm font-medium">{user.username}</span>
-                <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                <span className="text-sm font-medium">{getDisplayName()}</span>
+                <span className="text-xs text-muted-foreground">{getRole()}</span>
               </div>
             </div>
             <Button
