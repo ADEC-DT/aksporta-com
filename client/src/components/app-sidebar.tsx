@@ -60,7 +60,7 @@ const mainNavItems = [
     icon: Users,
   },
   {
-    title: "Finance (NetSuite)",
+    title: "ERP",
     url: "/erp",
     icon: DollarSign,
   },
