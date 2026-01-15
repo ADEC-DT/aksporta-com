@@ -14,7 +14,11 @@ import {
   Megaphone,
   Image,
   Film,
-  Layout
+  Layout,
+  FolderOpen,
+  Download,
+  FileSpreadsheet,
+  File
 } from "lucide-react";
 
 const externalServices = [
@@ -230,6 +234,75 @@ export default function MediaMarketingPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card data-testid="card-document-center">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+              <FolderOpen className="h-5 w-5 text-purple-600" />
+            </div>
+            <CardTitle className="text-lg">Document Center</CardTitle>
+          </div>
+          <Button variant="outline" size="sm" data-testid="button-upload-document">
+            Upload Document
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer" data-testid="doc-brand-guidelines">
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-red-100 dark:bg-red-900/30">
+                <FileText className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">Brand Guidelines</p>
+                <p className="text-xs text-muted-foreground">PDF - 2.4 MB</p>
+              </div>
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer" data-testid="doc-logo-pack">
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-blue-100 dark:bg-blue-900/30">
+                <Image className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">Logo Pack</p>
+                <p className="text-xs text-muted-foreground">ZIP - 15 MB</p>
+              </div>
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer" data-testid="doc-media-kit">
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-green-100 dark:bg-green-900/30">
+                <File className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">Media Kit 2026</p>
+                <p className="text-xs text-muted-foreground">PDF - 8.2 MB</p>
+              </div>
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer" data-testid="doc-content-calendar">
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-amber-100 dark:bg-amber-900/30">
+                <FileSpreadsheet className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">Content Calendar</p>
+                <p className="text-xs text-muted-foreground">XLSX - 156 KB</p>
+              </div>
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
