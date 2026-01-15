@@ -37,15 +37,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, FileText, Users, Building2, User, Plus, Loader2 } from "lucide-react";
+import { Search, Download, FileText, Users, Building2, User, Plus, Loader2, Store, CircleDot, Briefcase } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, CustomerWithProfile } from "@shared/schema";
 
+const businessUnits = [
+  { id: "mall", name: "Boutique Mall", icon: Store },
+  { id: "equestrian", name: "Equestrian Center", icon: CircleDot },
+  { id: "corporate", name: "Corporate", icon: Briefcase },
+];
+
 const emptyForm = {
   name: "",
   type: "Individual",
-  primaryUnit: "",
+  primaryUnit: "Boutique Mall",
   contact: "",
   email: "",
   externalCode: "",
@@ -105,8 +111,9 @@ export default function CustomerDBPage() {
 
   const customers = data?.customers || [];
   const totalCustomers = data?.total || 0;
-  const individualCount = customers.filter((c) => c.type === "Individual").length;
-  const corporateCount = customers.filter((c) => c.type === "Corporate").length;
+  const mallCount = customers.filter((c) => c.primaryUnit === "Boutique Mall").length;
+  const equestrianCount = customers.filter((c) => c.primaryUnit === "Equestrian Center").length;
+  const corporateCount = customers.filter((c) => c.primaryUnit === "Corporate").length;
 
   const exportToCSV = () => {
     const headers = ["ID", "Name", "Type", "Primary Unit", "Contact", "Email"];
@@ -279,14 +286,22 @@ export default function CustomerDBPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="primaryUnit">Primary Unit *</Label>
-                    <Input
-                      id="primaryUnit"
+                    <Label htmlFor="primaryUnit">Business Unit *</Label>
+                    <Select
                       value={formData.primaryUnit}
-                      onChange={(e) => setFormData({ ...formData, primaryUnit: e.target.value })}
-                      placeholder="Unit 100A"
-                      data-testid="input-customer-unit"
-                    />
+                      onValueChange={(value) => setFormData({ ...formData, primaryUnit: value })}
+                    >
+                      <SelectTrigger data-testid="select-customer-unit">
+                        <SelectValue placeholder="Select business unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {businessUnits.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.name}>
+                            {unit.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dob">Date of Birth</Label>
@@ -356,7 +371,7 @@ export default function CustomerDBPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card data-testid="stat-total-customers">
           <CardContent className="flex items-center gap-4 p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -372,25 +387,40 @@ export default function CustomerDBPage() {
             </div>
           </CardContent>
         </Card>
-        <Card data-testid="stat-individual-customers">
+        <Card data-testid="stat-mall-customers">
           <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-              <User className="h-6 w-6 text-green-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-900/30">
+              <Store className="h-6 w-6 text-pink-600" />
             </div>
             <div>
               {isLoading ? (
                 <Skeleton className="h-8 w-12" />
               ) : (
-                <p className="text-2xl font-bold">{individualCount}</p>
+                <p className="text-2xl font-bold">{mallCount}</p>
               )}
-              <p className="text-sm text-muted-foreground">Individual</p>
+              <p className="text-sm text-muted-foreground">Boutique Mall</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-equestrian-customers">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+              <CircleDot className="h-6 w-6 text-green-600" />
+            </div>
+            <div>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{equestrianCount}</p>
+              )}
+              <p className="text-sm text-muted-foreground">Equestrian</p>
             </div>
           </CardContent>
         </Card>
         <Card data-testid="stat-corporate-customers">
           <CardContent className="flex items-center gap-4 p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-              <Building2 className="h-6 w-6 text-purple-600" />
+              <Briefcase className="h-6 w-6 text-purple-600" />
             </div>
             <div>
               {isLoading ? (
@@ -414,7 +444,7 @@ export default function CustomerDBPage() {
               <TableRow>
                 <TableHead>Customer</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Primary Unit</TableHead>
+                <TableHead>Business Unit</TableHead>
                 <TableHead>Contact</TableHead>
               </TableRow>
             </TableHeader>

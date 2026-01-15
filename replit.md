@@ -1,10 +1,10 @@
-# Multi-API Data Integration Portal
+# Unified Portal - Enterprise Operations
 
 ## Overview
 
-This is an enterprise dashboard application for integrating and displaying data from multiple API sources: NetSuite (financial data), HR (employee management), and Livery (delivery tracking). The application provides a unified interface for viewing metrics, transactions, charts, and status information across these three data domains.
+This is an enterprise operations portal called "Unified Portal" that provides a centralized hub for accessing business operational units, BI tools, and support systems. The portal integrates data from multiple business units: Boutique Mall, Equestrian Center, and Corporate.
 
-The portal follows modern enterprise dashboard patterns inspired by Linear, Retool, and Fluent Design, prioritizing data density, efficient navigation, and clear information hierarchy.
+The portal follows an "Enterprise Glassmorphism" design style - professional and high-tech, using Outfit font for headers and Inter for UI elements. It prioritizes data density, efficient navigation, and clear information hierarchy.
 
 ## User Preferences
 
@@ -18,7 +18,8 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack React Query for server state and caching
 - **UI Components**: shadcn/ui component library built on Radix UI primitives
 - **Styling**: Tailwind CSS with CSS variables for theming (light/dark mode support)
-- **Charts**: Recharts for data visualization (bar, line, pie charts)
+- **Typography**: Outfit for headers (font-outfit), Inter for UI text
+- **Charts**: Recharts for data visualization
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express
@@ -30,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Schema Location**: `shared/schema.ts` contains database tables and TypeScript types
 - **Validation**: Zod schemas generated from Drizzle tables via drizzle-zod
-- **Current Storage**: In-memory storage (`MemStorage` class) for development; database ready via Drizzle config
+- **Database**: PostgreSQL with tables for customers, profiles, users, tickets, etc.
 
 ### Project Structure
 ```
@@ -49,12 +50,28 @@ shared/           # Shared code between client/server
   schema.ts       # Database schema and types
 ```
 
+### Key Pages & Routes
+1. **Dashboard** (`/dashboard`) - Main landing page with hero section, metrics cards, business applications grid, intranet updates
+2. **ERP** (`/erp`) - NetSuite Enterprise with Finance/Procurement/Inventory tabs, includes Qashio and Tagway modules
+3. **HR** (`/hr`) - Kayan HRMS for employee directory, payroll, leaves
+4. **Customer DB** (`/applications/customer-db`) - Master Customer Database consolidating Mall, Equestrian, Corporate units
+5. **Projects** (`/projects`) - Monday.com-style project management
+6. **Veterinary** (`/veterinary`) - Veterinary management system
+7. **Settings** (`/settings`) - User profile and preferences
+8. **Admin** (`/admin`) - User management (admin only)
+
+### Business Units
+The Master Customer Database consolidates data from three business units:
+- **Boutique Mall** - Retail tenant customers
+- **Equestrian Center** - Horse stable and riding customers
+- **Corporate** - Business and corporate clients
+
 ### Key Design Decisions
-1. **Monorepo Structure**: Client and server share types through `shared/` directory, enabling type safety across the stack
-2. **Component-Based Dashboard**: Reusable components (MetricCard, DataTable, DashboardChart) for consistent UI patterns
-3. **Mock Data Generation**: Server generates realistic mock data for all three APIs until real integrations are implemented
-4. **Theme System**: CSS custom properties enable seamless light/dark mode switching
-5. **Collapsible Sidebar**: Fixed-width sidebar navigation with responsive behavior for mobile
+1. **Monorepo Structure**: Client and server share types through `shared/` directory
+2. **Enterprise Glassmorphism**: Professional, high-tech design with glassmorphism effects
+3. **Collapsible Sidebar**: Fixed-width sidebar navigation matching Linear/Retool patterns
+4. **Global Search**: Universal search in header for systems, reports, or employees
+5. **Notification System**: Bell icon with badge count in header
 
 ## External Dependencies
 
@@ -75,6 +92,8 @@ shared/           # Shared code between client/server
 - **TSX**: TypeScript execution for server
 - **Tailwind CSS**: Utility-first CSS framework
 
-### Session Management (configured but not fully implemented)
+### Authentication & Session
 - **connect-pg-simple**: PostgreSQL session store
 - **express-session**: Session middleware
+- **bcryptjs**: Password hashing
+- **Custom auth**: Username/password authentication with role-based access control (Admin, Editor, Viewer)
