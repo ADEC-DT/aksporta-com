@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { 
   Users, 
   DollarSign, 
@@ -110,6 +111,7 @@ export default function HRMSPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PageCollaborationStamp sectionName="hrms" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold font-outfit">HRMS</h1>

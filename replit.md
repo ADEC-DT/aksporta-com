@@ -66,6 +66,14 @@ The Master Customer Database consolidates data from three business units:
 - **Equestrian Center** - Horse stable and riding customers
 - **Corporate** - Business and corporate clients
 
+### Collaboration Stamp System
+The portal includes a Collaboration Stamp feature for tracking development status across sections:
+- **Database Table**: `collaboration_blueprints` stores section name, status, ETA, notes, missing items, and ideas
+- **Status Options**: In Development, In Review, Live, Enhancement Needed
+- **Page Header Stamps**: `PageCollaborationStamp` component displays at top of each page when a blueprint exists
+- **Management UI**: Projects page → Collaboration Stamps tab for creating/editing stamps
+- **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects
+
 ### Key Design Decisions
 1. **Monorepo Structure**: Client and server share types through `shared/` directory
 2. **Enterprise Glassmorphism**: Professional, high-tech design with glassmorphism effects

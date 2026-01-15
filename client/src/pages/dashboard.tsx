@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { 
   DollarSign, 
   Users, 
@@ -154,6 +155,9 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col min-h-full">
+      <div className="px-6 pt-6">
+        <PageCollaborationStamp sectionName="dashboard" />
+      </div>
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-6 py-10 md:px-10 md:py-14">
         {/* Background pattern */}

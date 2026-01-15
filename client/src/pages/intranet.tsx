@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { 
   Search, 
   Users, 
@@ -58,6 +59,7 @@ export default function IntranetPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PageCollaborationStamp sectionName="intranet" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div />
         <Button variant="outline" onClick={handleLaunchPowerBI} data-testid="button-launch-powerbi">

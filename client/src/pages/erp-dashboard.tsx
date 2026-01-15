@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { SiStripe } from "react-icons/si";
 import { 
   DollarSign, 
@@ -145,6 +146,7 @@ export default function ERPDashboard() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PageCollaborationStamp sectionName="erp" />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

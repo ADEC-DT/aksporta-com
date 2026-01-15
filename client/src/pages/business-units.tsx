@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { Store, CircleDot, Building2, BarChart3, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 
@@ -59,6 +60,7 @@ export default function BusinessUnitsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PageCollaborationStamp sectionName="business_units" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold font-outfit">Business Units</h1>

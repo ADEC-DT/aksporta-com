@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { 
   Calendar, 
   Star, 
@@ -34,6 +35,7 @@ export default function EventsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PageCollaborationStamp sectionName="events" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold font-outfit">Events & Entertainment</h1>

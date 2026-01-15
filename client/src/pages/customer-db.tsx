@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import {
   Table,
   TableBody,
@@ -185,6 +186,7 @@ export default function CustomerDBPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PageCollaborationStamp sectionName="customer_db" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Master Customer Database</h1>
