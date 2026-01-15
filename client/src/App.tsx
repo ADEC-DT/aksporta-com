@@ -22,6 +22,7 @@ import AdminTicketsPage from "@/pages/admin-tickets";
 import OtherSystemsPage from "@/pages/other-systems";
 import VeterinaryPage from "@/pages/veterinary";
 import ProjectsPage from "@/pages/projects";
+import AssetLeasePage from "@/pages/asset-lease";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import LoginPage from "@/pages/login";
@@ -94,7 +95,7 @@ function ProtectedRoutes() {
               <Route path="/tickets/new" component={MyTicketsPage} />
               <Route path="/other-systems" component={OtherSystemsPage} />
               <Route path="/business-units" component={OtherSystemsPage} />
-              <Route path="/boutique-mall" component={OtherSystemsPage} />
+              <Route path="/asset-lease" component={AssetLeasePage} />
               <Route path="/equestrian" component={OtherSystemsPage} />
               <Route path="/intranet" component={HelpCenterPage} />
               <Route path="/veterinary" component={VeterinaryPage} />

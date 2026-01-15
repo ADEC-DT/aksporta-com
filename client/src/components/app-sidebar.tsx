@@ -65,8 +65,8 @@ const mainNavItems = [
     icon: DollarSign,
   },
   {
-    title: "Boutique Mall",
-    url: "/boutique-mall",
+    title: "Asset and Lease Management",
+    url: "/asset-lease",
     icon: Store,
   },
   {

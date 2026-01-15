@@ -95,14 +95,14 @@ const businessApplications = [
   },
   {
     id: "lease",
-    name: "Lease Manager",
-    description: "Tenant management and lease tracking for Boutique Mall.",
+    name: "Asset & Lease Management",
+    description: "Asset tracking and lease agreement management.",
     category: "Real Estate",
     status: "Beta",
     statusColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
     iconBg: "bg-indigo-500",
-    iconText: "L",
-    url: "/boutique-mall",
+    iconText: "A",
+    url: "/asset-lease",
   },
   {
     id: "equestrian",
