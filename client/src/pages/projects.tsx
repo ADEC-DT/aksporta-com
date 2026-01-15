@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Select,
   SelectContent,
@@ -52,6 +55,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { CollaborationStamp, CollaborationStampMini } from "@/components/collaboration-stamp";
 import type { CollaborationBlueprint, InsertBlueprint } from "@shared/schema";
+import { insertBlueprintSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 type ProjectStatus = "working_on_it" | "stuck" | "done" | "not_started" | "pending_review";
@@ -186,6 +190,15 @@ const blueprintStatusOptions = [
   { value: "enhancement_needed", label: "Enhancement Needed" },
 ];
 
+const blueprintFormSchema = insertBlueprintSchema.extend({
+  sectionName: z.string().min(1, "Section is required"),
+  sectionTitle: z.string().min(1, "Title is required"),
+  missingItems: z.string().optional(),
+  ideas: z.string().optional(),
+});
+
+type BlueprintFormValues = z.infer<typeof blueprintFormSchema>;
+
 const portalSections = [
   { name: "dashboard", title: "Dashboard" },
   { name: "erp", title: "ERP System" },
@@ -282,21 +295,52 @@ export default function ProjectsPage() {
     done: projects.filter((p) => p.status === "done").length,
   };
 
-  const handleBlueprintSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const missingItemsRaw = formData.get("missingItems") as string;
-    const ideasRaw = formData.get("ideas") as string;
-    
-    const etaDateVal = formData.get("etaDate") as string;
+  const blueprintForm = useForm<BlueprintFormValues>({
+    resolver: zodResolver(blueprintFormSchema),
+    defaultValues: {
+      sectionName: "",
+      sectionTitle: "",
+      status: "in_development",
+      etaDate: "",
+      notes: "",
+      missingItems: "",
+      ideas: "",
+    },
+  });
+
+  useEffect(() => {
+    if (editingBlueprint) {
+      blueprintForm.reset({
+        sectionName: editingBlueprint.sectionName,
+        sectionTitle: editingBlueprint.sectionTitle,
+        status: editingBlueprint.status as "in_development" | "review" | "live" | "enhancement_needed",
+        etaDate: editingBlueprint.etaDate ? format(new Date(editingBlueprint.etaDate), "yyyy-MM-dd") : "",
+        notes: editingBlueprint.notes || "",
+        missingItems: editingBlueprint.missingItems?.join("\n") || "",
+        ideas: editingBlueprint.ideas?.join("\n") || "",
+      });
+    } else {
+      blueprintForm.reset({
+        sectionName: "",
+        sectionTitle: "",
+        status: "in_development",
+        etaDate: "",
+        notes: "",
+        missingItems: "",
+        ideas: "",
+      });
+    }
+  }, [editingBlueprint, blueprintDialogOpen]);
+
+  const handleBlueprintSubmit = (values: BlueprintFormValues) => {
     const data: InsertBlueprint = {
-      sectionName: formData.get("sectionName") as string,
-      sectionTitle: formData.get("sectionTitle") as string,
-      status: formData.get("status") as "in_development" | "review" | "live" | "enhancement_needed",
-      etaDate: etaDateVal ? etaDateVal : null,
-      notes: formData.get("notes") as string || null,
-      missingItems: missingItemsRaw ? missingItemsRaw.split("\n").filter(Boolean) : [],
-      ideas: ideasRaw ? ideasRaw.split("\n").filter(Boolean) : [],
+      sectionName: values.sectionName,
+      sectionTitle: values.sectionTitle,
+      status: values.status,
+      etaDate: values.etaDate || null,
+      notes: values.notes || null,
+      missingItems: values.missingItems ? values.missingItems.split("\n").filter(Boolean) : [],
+      ideas: values.ideas ? values.ideas.split("\n").filter(Boolean) : [],
     };
 
     if (editingBlueprint) {
@@ -600,100 +644,157 @@ export default function ProjectsPage() {
                     Configure status, ETA, and notes for a portal section
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleBlueprintSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="sectionName">Section ID</Label>
-                      <Select name="sectionName" defaultValue={editingBlueprint?.sectionName || ""}>
-                        <SelectTrigger data-testid="select-section-name">
-                          <SelectValue placeholder="Select section" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {portalSections.map((section) => (
-                            <SelectItem key={section.name} value={section.name}>
-                              {section.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="sectionTitle">Section Title</Label>
-                      <Input
-                        id="sectionTitle"
+                <Form {...blueprintForm}>
+                  <form onSubmit={blueprintForm.handleSubmit(handleBlueprintSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={blueprintForm.control}
+                        name="sectionName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Section ID</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-section-name">
+                                  <SelectValue placeholder="Select section" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {portalSections.map((section) => (
+                                  <SelectItem key={section.name} value={section.name}>
+                                    {section.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={blueprintForm.control}
                         name="sectionTitle"
-                        defaultValue={editingBlueprint?.sectionTitle || ""}
-                        placeholder="e.g. Dashboard"
-                        data-testid="input-section-title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Section Title</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g. Dashboard"
+                                data-testid="input-section-title"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
-                      <Select name="status" defaultValue={editingBlueprint?.status || "in_development"}>
-                        <SelectTrigger data-testid="select-status">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {blueprintStatusOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="etaDate">ETA Date</Label>
-                      <Input
-                        id="etaDate"
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={blueprintForm.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-status">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {blueprintStatusOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={blueprintForm.control}
                         name="etaDate"
-                        type="date"
-                        defaultValue={editingBlueprint?.etaDate ? format(new Date(editingBlueprint.etaDate), "yyyy-MM-dd") : ""}
-                        data-testid="input-eta-date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>ETA Date</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                data-testid="input-eta-date"
+                                {...field}
+                                value={field.value ?? ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
+                    <FormField
+                      control={blueprintForm.control}
                       name="notes"
-                      defaultValue={editingBlueprint?.notes || ""}
-                      placeholder="Additional context or description"
-                      rows={2}
-                      data-testid="input-notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notes</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Additional context or description"
+                              rows={2}
+                              data-testid="input-notes"
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="missingItems">Missing Items (one per line)</Label>
-                    <Textarea
-                      id="missingItems"
+                    <FormField
+                      control={blueprintForm.control}
                       name="missingItems"
-                      defaultValue={editingBlueprint?.missingItems?.join("\n") || ""}
-                      placeholder="API integration&#10;User authentication&#10;..."
-                      rows={3}
-                      data-testid="input-missing-items"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Missing Items (one per line)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="API integration&#10;User authentication&#10;..."
+                              rows={3}
+                              data-testid="input-missing-items"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ideas">Enhancement Ideas (one per line)</Label>
-                    <Textarea
-                      id="ideas"
+                    <FormField
+                      control={blueprintForm.control}
                       name="ideas"
-                      defaultValue={editingBlueprint?.ideas?.join("\n") || ""}
-                      placeholder="Add charts&#10;Mobile responsive&#10;..."
-                      rows={3}
-                      data-testid="input-ideas"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Enhancement Ideas (one per line)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Add charts&#10;Mobile responsive&#10;..."
+                              rows={3}
+                              data-testid="input-ideas"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={createBlueprintMutation.isPending || updateBlueprintMutation.isPending} data-testid="button-submit-blueprint">
-                      {(createBlueprintMutation.isPending || updateBlueprintMutation.isPending) ? "Saving..." : (editingBlueprint ? "Update" : "Create")}
-                    </Button>
-                  </DialogFooter>
-                </form>
+                    <DialogFooter>
+                      <Button type="submit" disabled={createBlueprintMutation.isPending || updateBlueprintMutation.isPending} data-testid="button-submit-blueprint">
+                        {(createBlueprintMutation.isPending || updateBlueprintMutation.isPending) ? "Saving..." : (editingBlueprint ? "Update" : "Create")}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </div>

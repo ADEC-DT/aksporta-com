@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, AlertCircle, Lightbulb, CheckCircle2, Clock, RefreshCw, Construction } from "lucide-react";
@@ -77,41 +78,43 @@ export function CollaborationStamp({ blueprint, compact = false }: Collaboration
                 <Badge className={`${config.color} border font-medium`} data-testid={`status-badge-${blueprint.sectionName}`}>
                   {config.label}
                 </Badge>
-                <span className="text-sm font-semibold text-foreground">{blueprint.sectionTitle}</span>
+                <span className="text-sm font-semibold text-foreground" data-testid={`section-title-${blueprint.sectionName}`}>{blueprint.sectionTitle}</span>
               </div>
               {blueprint.notes && (
-                <p className="text-xs text-muted-foreground mt-1 max-w-md">{blueprint.notes}</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-md" data-testid={`notes-${blueprint.sectionName}`}>{blueprint.notes}</p>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             {hasEta && (
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-border/50">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-border/50" data-testid={`eta-container-${blueprint.sectionName}`}>
                 <Calendar className="w-4 h-4" />
-                <span>ETA: <span className="font-medium text-foreground">{formattedEta}</span></span>
+                <span>ETA: <span className="font-medium text-foreground" data-testid={`eta-value-${blueprint.sectionName}`}>{formattedEta}</span></span>
               </div>
             )}
 
             {missingItems.length > 0 && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
-                    className="flex items-center gap-1.5 text-sm bg-red-500/10 text-red-700 dark:text-red-400 px-2 py-1 rounded-md border border-red-500/20 hover-elevate cursor-pointer"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-700 dark:text-red-400"
                     data-testid={`missing-items-trigger-${blueprint.sectionName}`}
                   >
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{missingItems.length} Missing</span>
-                  </button>
+                    <AlertCircle className="w-4 h-4 mr-1.5" />
+                    {missingItems.length} Missing
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-3" data-testid={`missing-items-popover-${blueprint.sectionName}`}>
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5" data-testid={`missing-items-title-${blueprint.sectionName}`}>
                     <AlertCircle className="w-4 h-4 text-red-500" />
                     Missing Items
                   </h4>
                   <ul className="space-y-1">
                     {missingItems.map((item, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2" data-testid={`missing-item-${blueprint.sectionName}-${idx}`}>
                         <span className="text-red-500 mt-1">-</span>
                         {item}
                       </li>
@@ -124,22 +127,24 @@ export function CollaborationStamp({ blueprint, compact = false }: Collaboration
             {ideas.length > 0 && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
-                    className="flex items-center gap-1.5 text-sm bg-violet-500/10 text-violet-700 dark:text-violet-400 px-2 py-1 rounded-md border border-violet-500/20 hover-elevate cursor-pointer"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-violet-700 dark:text-violet-400"
                     data-testid={`ideas-trigger-${blueprint.sectionName}`}
                   >
-                    <Lightbulb className="w-4 h-4" />
-                    <span>{ideas.length} Ideas</span>
-                  </button>
+                    <Lightbulb className="w-4 h-4 mr-1.5" />
+                    {ideas.length} Ideas
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-3" data-testid={`ideas-popover-${blueprint.sectionName}`}>
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5" data-testid={`ideas-title-${blueprint.sectionName}`}>
                     <Lightbulb className="w-4 h-4 text-violet-500" />
                     Enhancement Ideas
                   </h4>
                   <ul className="space-y-1">
                     {ideas.map((idea, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2" data-testid={`idea-item-${blueprint.sectionName}-${idx}`}>
                         <span className="text-violet-500 mt-1">+</span>
                         {idea}
                       </li>
