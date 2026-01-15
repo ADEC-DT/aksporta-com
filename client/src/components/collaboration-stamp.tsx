@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, AlertCircle, Lightbulb, CheckCircle2, Clock, RefreshCw, Construction, Layers } from "lucide-react";
+import { Calendar, AlertCircle, Lightbulb, CheckCircle2, Clock, RefreshCw, Construction, Layers, Pencil, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { BlueprintDialog } from "@/components/blueprint-dialog";
 import type { CollaborationBlueprint } from "@shared/schema";
 
 interface CollaborationStampProps {
@@ -173,120 +176,195 @@ export function CollaborationStampMini({ status }: { status: string }) {
   );
 }
 
+const sectionTitleMap: Record<string, string> = {
+  dashboard: "Dashboard",
+  business_units: "Business Units",
+  erp: "ERP System",
+  hrms: "HRMS",
+  customer_db: "Customer Database",
+  equestrian: "Equestrian Center",
+  asset_lease: "Asset & Lease",
+  events: "Events & Entertainment",
+  media_marketing: "Media & Marketing",
+  intranet: "Intranet & Support",
+  projects: "Projects",
+};
+
 interface PageCollaborationStampProps {
   sectionName: string;
 }
 
 export function PageCollaborationStamp({ sectionName }: PageCollaborationStampProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { user } = useAuth();
+  const canEdit = user?.role === "admin" || user?.role === "editor";
+
   const { data: blueprints } = useQuery<CollaborationBlueprint[]>({
     queryKey: ["/api/blueprints"],
   });
 
   const blueprint = blueprints?.find(b => b.sectionName === sectionName);
-  
-  if (!blueprint) return null;
+  const defaultTitle = sectionTitleMap[sectionName] || sectionName;
+
+  if (!blueprint) {
+    if (!canEdit) return null;
+    
+    return (
+      <>
+        <div 
+          className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 backdrop-blur-sm border-2 border-violet-500/30 dark:border-violet-400/30 border-dashed shadow-sm mb-6"
+          data-testid={`page-stamp-empty-${sectionName}`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-md bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-violet-700 dark:text-violet-400 uppercase tracking-wide">Section Blueprint</span>
+              <span className="text-sm text-muted-foreground">No blueprint configured for this section</span>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs border-violet-500/50 text-violet-700 dark:text-violet-400"
+            onClick={() => setDialogOpen(true)}
+            data-testid={`page-stamp-create-${sectionName}`}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Create Stamp
+          </Button>
+        </div>
+        <BlueprintDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          defaultSectionName={sectionName}
+          defaultSectionTitle={defaultTitle}
+        />
+      </>
+    );
+  }
 
   const config = statusConfig[blueprint.status] || statusConfig.in_development;
-  const StatusIcon = config.icon;
   const missingItems = blueprint.missingItems || [];
   const ideas = blueprint.ideas || [];
   const hasEta = blueprint.etaDate;
   const formattedEta = hasEta ? format(new Date(blueprint.etaDate!), "MMM d, yyyy") : null;
 
   return (
-    <div 
-      className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 backdrop-blur-sm border-2 border-violet-500/30 dark:border-violet-400/30 shadow-sm mb-6"
-      data-testid={`page-stamp-${sectionName}`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-1.5 rounded-md bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30">
-          <Layers className="w-4 h-4" />
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-violet-700 dark:text-violet-400 uppercase tracking-wide">Section Blueprint</span>
-          <Badge className={`${config.color} border text-xs font-medium`} data-testid={`page-status-badge-${sectionName}`}>
-            {config.label}
-          </Badge>
-          <span className="text-sm font-semibold text-foreground" data-testid={`page-section-title-${sectionName}`}>
-            {blueprint.sectionTitle}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 flex-wrap">
-        {hasEta && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`page-eta-${sectionName}`}>
-            <span className="uppercase font-medium">ETA Delivery</span>
-            <span className="font-semibold text-foreground">{formattedEta}</span>
+    <>
+      <div 
+        className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 backdrop-blur-sm border-2 border-violet-500/30 dark:border-violet-400/30 shadow-sm mb-6"
+        data-testid={`page-stamp-${sectionName}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 rounded-md bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30">
+            <Layers className="w-4 h-4" />
           </div>
-        )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-violet-700 dark:text-violet-400 uppercase tracking-wide">Section Blueprint</span>
+            <Badge className={`${config.color} border text-xs font-medium`} data-testid={`page-status-badge-${sectionName}`}>
+              {config.label}
+            </Badge>
+            <span className="text-sm font-semibold text-foreground" data-testid={`page-section-title-${sectionName}`}>
+              {blueprint.sectionTitle}
+            </span>
+          </div>
+        </div>
 
-        {missingItems.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-red-700 dark:text-red-400"
-                data-testid={`page-missing-trigger-${sectionName}`}
-              >
-                <AlertCircle className="w-3.5 h-3.5 mr-1" />
-                Missing ({missingItems.length})
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3">
-              <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                <AlertCircle className="w-4 h-4 text-red-500" />
-                Missing Items
-              </h4>
-              <ul className="space-y-1">
-                {missingItems.map((item, idx) => (
-                  <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-red-500 mt-1">-</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </PopoverContent>
-          </Popover>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          {hasEta && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`page-eta-${sectionName}`}>
+              <span className="uppercase font-medium">ETA Delivery</span>
+              <span className="font-semibold text-foreground">{formattedEta}</span>
+            </div>
+          )}
 
-        {ideas.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-violet-700 dark:text-violet-400"
-                data-testid={`page-ideas-trigger-${sectionName}`}
-              >
-                <Lightbulb className="w-3.5 h-3.5 mr-1" />
-                Ideas ({ideas.length})
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3">
-              <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                <Lightbulb className="w-4 h-4 text-violet-500" />
-                Enhancement Ideas
-              </h4>
-              <ul className="space-y-1">
-                {ideas.map((idea, idx) => (
-                  <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-violet-500 mt-1">+</span>
-                    {idea}
-                  </li>
-                ))}
-              </ul>
-            </PopoverContent>
-          </Popover>
-        )}
+          {missingItems.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-red-700 dark:text-red-400"
+                  data-testid={`page-missing-trigger-${sectionName}`}
+                >
+                  <AlertCircle className="w-3.5 h-3.5 mr-1" />
+                  Missing ({missingItems.length})
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  Missing Items
+                </h4>
+                <ul className="space-y-1">
+                  {missingItems.map((item, idx) => (
+                    <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="text-red-500 mt-1">-</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+          )}
 
-        {blueprint.notes && (
-          <span className="text-xs text-muted-foreground italic max-w-[200px] truncate" data-testid={`page-notes-${sectionName}`}>
-            {blueprint.notes}
-          </span>
-        )}
+          {ideas.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-violet-700 dark:text-violet-400"
+                  data-testid={`page-ideas-trigger-${sectionName}`}
+                >
+                  <Lightbulb className="w-3.5 h-3.5 mr-1" />
+                  Ideas ({ideas.length})
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                  <Lightbulb className="w-4 h-4 text-violet-500" />
+                  Enhancement Ideas
+                </h4>
+                <ul className="space-y-1">
+                  {ideas.map((idea, idx) => (
+                    <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="text-violet-500 mt-1">+</span>
+                      {idea}
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {blueprint.notes && (
+            <span className="text-xs text-muted-foreground italic max-w-[200px] truncate" data-testid={`page-notes-${sectionName}`}>
+              {blueprint.notes}
+            </span>
+          )}
+
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-violet-700 dark:text-violet-400"
+              onClick={() => setDialogOpen(true)}
+              data-testid={`page-stamp-edit-${sectionName}`}
+            >
+              <Pencil className="w-3.5 h-3.5 mr-1" />
+              Edit
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+      <BlueprintDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        blueprint={blueprint}
+      />
+    </>
   );
 }
