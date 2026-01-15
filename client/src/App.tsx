@@ -23,6 +23,12 @@ import OtherSystemsPage from "@/pages/other-systems";
 import VeterinaryPage from "@/pages/veterinary";
 import ProjectsPage from "@/pages/projects";
 import AssetLeasePage from "@/pages/asset-lease";
+import BusinessUnitsPage from "@/pages/business-units";
+import HRMSPage from "@/pages/hrms";
+import EquestrianPage from "@/pages/equestrian";
+import EventsPage from "@/pages/events";
+import MediaMarketingPage from "@/pages/media-marketing";
+import IntranetPage from "@/pages/intranet";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import LoginPage from "@/pages/login";
@@ -84,7 +90,7 @@ function ProtectedRoutes() {
               <Route path="/dashboard" component={Dashboard} />
               <Route path="/erp" component={ERPDashboard} />
               <Route path="/netsuite" component={ERPDashboard} />
-              <Route path="/hr" component={HRDashboard} />
+              <Route path="/hr" component={HRMSPage} />
               <Route path="/livery" component={LiveryDashboard} />
               <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/tickets" component={AdminTicketsPage} />
@@ -94,10 +100,12 @@ function ProtectedRoutes() {
               <Route path="/tickets" component={MyTicketsPage} />
               <Route path="/tickets/new" component={MyTicketsPage} />
               <Route path="/other-systems" component={OtherSystemsPage} />
-              <Route path="/business-units" component={OtherSystemsPage} />
+              <Route path="/business-units" component={BusinessUnitsPage} />
               <Route path="/asset-lease" component={AssetLeasePage} />
-              <Route path="/equestrian" component={OtherSystemsPage} />
-              <Route path="/intranet" component={HelpCenterPage} />
+              <Route path="/equestrian" component={EquestrianPage} />
+              <Route path="/events" component={EventsPage} />
+              <Route path="/media-marketing" component={MediaMarketingPage} />
+              <Route path="/intranet" component={IntranetPage} />
               <Route path="/veterinary" component={VeterinaryPage} />
               <Route path="/projects" component={ProjectsPage} />
               <Route path="/applications/customer-db" component={CustomerDBPage} />

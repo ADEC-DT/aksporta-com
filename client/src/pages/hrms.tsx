@@ -1,0 +1,245 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Users, 
+  DollarSign, 
+  Clock, 
+  Ticket, 
+  Plane, 
+  Star, 
+  UserPlus, 
+  Wallet, 
+  Users2, 
+  Smartphone,
+  ExternalLink,
+  BarChart3
+} from "lucide-react";
+
+const hrModules = [
+  {
+    id: "people",
+    name: "People Management",
+    description: "Employee records, org chart, and team management",
+    icon: Users,
+    iconBg: "bg-blue-500",
+    status: "Active",
+  },
+  {
+    id: "payroll",
+    name: "Payroll Management",
+    description: "Salary processing, deductions, and payslips",
+    icon: DollarSign,
+    iconBg: "bg-green-500",
+    status: "Active",
+  },
+  {
+    id: "attendance",
+    name: "Time Attendance",
+    description: "Clock-in/out, timesheets, and overtime tracking",
+    icon: Clock,
+    iconBg: "bg-orange-500",
+    status: "Active",
+  },
+  {
+    id: "tickets",
+    name: "Ticket Management",
+    description: "HR service requests and issue tracking",
+    icon: Ticket,
+    iconBg: "bg-purple-500",
+    status: "Active",
+  },
+  {
+    id: "travel",
+    name: "Business Trip",
+    description: "Travel requests, approvals, and expense claims",
+    icon: Plane,
+    iconBg: "bg-cyan-500",
+    status: "Active",
+  },
+  {
+    id: "performance",
+    name: "Performance Appraisal",
+    description: "Reviews, goals, and performance tracking",
+    icon: Star,
+    iconBg: "bg-yellow-500",
+    status: "Coming Soon",
+  },
+  {
+    id: "recruitment",
+    name: "Talent Acquisition",
+    description: "Job postings, applications, and hiring workflow",
+    icon: UserPlus,
+    iconBg: "bg-pink-500",
+    status: "Active",
+  },
+  {
+    id: "budget",
+    name: "Budget Control",
+    description: "HR budgets, forecasting, and cost analysis",
+    icon: Wallet,
+    iconBg: "bg-indigo-500",
+    status: "Active",
+  },
+  {
+    id: "manpower",
+    name: "Manpower",
+    description: "Headcount planning and workforce analytics",
+    icon: Users2,
+    iconBg: "bg-teal-500",
+    status: "Active",
+  },
+  {
+    id: "selfservice",
+    name: "Self Service (Web & Mobile)",
+    description: "Employee portal for leaves, requests, and documents",
+    icon: Smartphone,
+    iconBg: "bg-rose-500",
+    status: "Active",
+  },
+];
+
+export default function HRMSPage() {
+  const handleLaunchHRMS = () => {
+    window.open("https://hrms.example.com", "_blank");
+  };
+
+  const handleLaunchPowerBI = () => {
+    window.open("https://app.powerbi.com", "_blank");
+  };
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold font-outfit">HRMS</h1>
+          <p className="text-muted-foreground">Human Resource Management System</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={handleLaunchPowerBI} data-testid="button-launch-powerbi">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Launch Power BI
+          </Button>
+          <Button onClick={handleLaunchHRMS} data-testid="button-launch-hrms">
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Launch HR System
+          </Button>
+        </div>
+      </div>
+
+      <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
+        <CardContent className="p-6">
+          <div className="grid gap-6 md:grid-cols-4">
+            <div>
+              <p className="text-blue-100 text-sm">Total Employees</p>
+              <p className="text-3xl font-bold">248</p>
+            </div>
+            <div>
+              <p className="text-blue-100 text-sm">Active Today</p>
+              <p className="text-3xl font-bold">231</p>
+            </div>
+            <div>
+              <p className="text-blue-100 text-sm">On Leave</p>
+              <p className="text-3xl font-bold">12</p>
+            </div>
+            <div>
+              <p className="text-blue-100 text-sm">Open Positions</p>
+              <p className="text-3xl font-bold">5</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-4 font-outfit">HR Modules</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {hrModules.map((module) => (
+            <Card key={module.id} className="hover-elevate cursor-pointer" data-testid={`card-module-${module.id}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${module.iconBg} text-white shrink-0`}>
+                    <module.icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-sm truncate">{module.name}</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{module.description}</p>
+                    <Badge 
+                      variant="secondary" 
+                      className={`mt-2 text-xs ${module.status === "Coming Soon" ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400" : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"}`}
+                    >
+                      {module.status}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">New employee onboarded</p>
+                  <p className="text-xs text-muted-foreground">Ahmed Hassan joined IT Department</p>
+                </div>
+                <span className="text-xs text-muted-foreground">2h ago</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Leave request approved</p>
+                  <p className="text-xs text-muted-foreground">Sara Al-Mahmoud - Annual Leave</p>
+                </div>
+                <span className="text-xs text-muted-foreground">4h ago</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-orange-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Payroll processed</p>
+                  <p className="text-xs text-muted-foreground">January 2026 salaries disbursed</p>
+                </div>
+                <span className="text-xs text-muted-foreground">Yesterday</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Reports & Analytics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Button variant="outline" className="w-full justify-start" data-testid="button-report-headcount">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Headcount Report
+              </Button>
+              <Button variant="outline" className="w-full justify-start" data-testid="button-report-attendance">
+                <Clock className="mr-2 h-4 w-4" />
+                Attendance Summary
+              </Button>
+              <Button variant="outline" className="w-full justify-start" data-testid="button-report-payroll">
+                <DollarSign className="mr-2 h-4 w-4" />
+                Payroll Analytics
+              </Button>
+              <Button variant="outline" className="w-full justify-start" data-testid="button-report-turnover">
+                <Users className="mr-2 h-4 w-4" />
+                Turnover Analysis
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

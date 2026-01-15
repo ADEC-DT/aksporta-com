@@ -15,7 +15,9 @@ import {
   Store,
   CircleDot,
   Stethoscope,
-  Headphones
+  Headphones,
+  PartyPopper,
+  Megaphone
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,7 +57,7 @@ const mainNavItems = [
     icon: FolderKanban,
   },
   {
-    title: "HR (Kayan)",
+    title: "HRMS",
     url: "/hr",
     icon: Users,
   },
@@ -78,6 +80,16 @@ const mainNavItems = [
     title: "Veterinary",
     url: "/veterinary",
     icon: Stethoscope,
+  },
+  {
+    title: "Events & Entertainment",
+    url: "/events",
+    icon: PartyPopper,
+  },
+  {
+    title: "Media & Marketing",
+    url: "/media-marketing",
+    icon: Megaphone,
   },
   {
     title: "Intranet & Support",
