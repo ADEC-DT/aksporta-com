@@ -195,15 +195,15 @@ export function PageCollaborationStamp({ sectionName }: PageCollaborationStampPr
 
   return (
     <div 
-      className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 rounded-lg bg-gradient-to-r from-background/80 to-muted/30 backdrop-blur-sm border border-border/50 mb-6"
+      className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 backdrop-blur-sm border-2 border-violet-500/30 dark:border-violet-400/30 shadow-sm mb-6"
       data-testid={`page-stamp-${sectionName}`}
     >
       <div className="flex items-center gap-3">
-        <div className={`p-1.5 rounded-md ${config.color} border`}>
+        <div className="p-1.5 rounded-md bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30">
           <Layers className="w-4 h-4" />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Section Blueprint</span>
+          <span className="text-xs font-medium text-violet-700 dark:text-violet-400 uppercase tracking-wide">Section Blueprint</span>
           <Badge className={`${config.color} border text-xs font-medium`} data-testid={`page-status-badge-${sectionName}`}>
             {config.label}
           </Badge>
