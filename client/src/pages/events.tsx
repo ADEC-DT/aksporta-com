@@ -10,14 +10,51 @@ import {
   ExternalLink,
   BarChart3,
   Sparkles,
-  PartyPopper
+  PartyPopper,
+  MessageCircle,
+  Mail,
+  Phone,
+  Send,
+  UserCheck,
+  Shield,
+  FileText,
+  Settings,
+  ChevronRight,
+  Crown,
+  ClipboardList
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 
 const upcomingEvents = [
   { id: 1, name: "Annual Gala Dinner", date: "Feb 14, 2026", type: "Corporate", attendees: 250, status: "Confirmed" },
   { id: 2, name: "Equestrian Championship", date: "Mar 5, 2026", type: "Sports", attendees: 500, status: "Planning" },
   { id: 3, name: "Mall Grand Opening", date: "Mar 20, 2026", type: "Launch", attendees: 1000, status: "Confirmed" },
   { id: 4, name: "Kids Summer Camp", date: "Jun 1, 2026", type: "Education", attendees: 80, status: "Planning" },
+];
+
+const communicationChannels = [
+  { id: "whatsapp", name: "WhatsApp Business", status: "connected", icon: SiWhatsapp, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30", messages: 1250 },
+  { id: "email", name: "Email Campaigns", status: "connected", icon: Mail, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30", messages: 3400 },
+  { id: "sms", name: "SMS Gateway", status: "pending", icon: Phone, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30", messages: 0 },
+];
+
+const messageTemplates = [
+  { id: 1, name: "VIP Gala Invitation", type: "WhatsApp", category: "VIP Hospitality", uses: 45 },
+  { id: 2, name: "Event RSVP Request", type: "Email", category: "General", uses: 120 },
+  { id: 3, name: "Exclusive Preview Invite", type: "WhatsApp", category: "VIP Hospitality", uses: 28 },
+  { id: 4, name: "Event Reminder", type: "Multi-channel", category: "Automated", uses: 340 },
+];
+
+const recentCampaigns = [
+  { id: 1, name: "Annual Gala VIP Invitations", channel: "WhatsApp", sent: 150, responded: 98, pending: 52, status: "active" },
+  { id: 2, name: "Championship RSVP", channel: "Email", sent: 500, responded: 320, pending: 180, status: "completed" },
+  { id: 3, name: "Mall Opening Teaser", channel: "Multi-channel", sent: 2000, responded: 850, pending: 1150, status: "active" },
+];
+
+const moderationQueue = [
+  { id: 1, type: "reply", from: "VIP Guest", message: "Confirming attendance for 2", time: "10 min ago" },
+  { id: 2, type: "question", from: "Corporate Client", message: "Is there valet parking available?", time: "25 min ago" },
+  { id: 3, type: "rsvp", from: "Board Member", message: "RSVP Form Submitted", time: "1 hour ago" },
 ];
 
 export default function EventsPage() {
@@ -118,6 +155,276 @@ export default function EventsPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Communication Management Section */}
+      <Card className="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-0">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <MessageCircle className="h-7 w-7" />
+            <div>
+              <h2 className="text-xl font-bold font-outfit">Communication Management</h2>
+              <p className="text-green-100 text-sm">WhatsApp Business, Email Campaigns & VIP Hospitality Invitations</p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div>
+              <p className="text-green-100 text-sm">Active Channels</p>
+              <p className="text-2xl font-bold">3</p>
+            </div>
+            <div>
+              <p className="text-green-100 text-sm">Messages Sent (MTD)</p>
+              <p className="text-2xl font-bold">4.6K</p>
+            </div>
+            <div>
+              <p className="text-green-100 text-sm">Response Rate</p>
+              <p className="text-2xl font-bold">72%</p>
+            </div>
+            <div>
+              <p className="text-green-100 text-sm">Pending Moderation</p>
+              <p className="text-2xl font-bold">3</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Communication Channels */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+              <CardTitle className="text-lg font-outfit">Communication Channels</CardTitle>
+              <Button variant="ghost" size="sm" data-testid="button-channel-settings">
+                <Settings className="h-4 w-4 mr-1" />
+                Settings
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {communicationChannels.map((channel) => (
+                  <div 
+                    key={channel.id}
+                    className="flex items-center gap-4 p-4 rounded-lg border hover-elevate"
+                    data-testid={`channel-${channel.id}`}
+                  >
+                    <div className={`p-3 rounded-lg ${channel.iconBg}`}>
+                      <channel.icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{channel.name}</p>
+                        <Badge className={channel.status === "connected" 
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                        }>
+                          {channel.status === "connected" ? "Connected" : "Setup Pending"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {channel.messages > 0 ? `${channel.messages.toLocaleString()} messages sent` : "Not configured"}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" data-testid={`button-manage-${channel.id}`}>
+                      Manage
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Campaigns */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+              <CardTitle className="text-lg font-outfit">Recent Campaigns</CardTitle>
+              <Button size="sm" data-testid="button-new-campaign">
+                <Send className="h-4 w-4 mr-1" />
+                New Campaign
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentCampaigns.map((campaign) => (
+                  <div 
+                    key={campaign.id}
+                    className="p-4 rounded-lg border hover-elevate"
+                    data-testid={`campaign-${campaign.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <div>
+                        <p className="font-medium">{campaign.name}</p>
+                        <p className="text-sm text-muted-foreground">{campaign.channel}</p>
+                      </div>
+                      <Badge className={campaign.status === "active" 
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" 
+                        : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      }>
+                        {campaign.status === "active" ? "Active" : "Completed"}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Sent</p>
+                        <p className="font-medium">{campaign.sent}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Responded</p>
+                        <p className="font-medium text-green-600">{campaign.responded}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pending</p>
+                        <p className="font-medium text-yellow-600">{campaign.pending}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Message Templates */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+              <CardTitle className="text-lg font-outfit">Message Templates</CardTitle>
+              <Button variant="outline" size="sm" data-testid="button-create-template">
+                <FileText className="h-4 w-4 mr-1" />
+                Create Template
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {messageTemplates.map((template) => (
+                  <div 
+                    key={template.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
+                    data-testid={`template-${template.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {template.category === "VIP Hospitality" && (
+                        <Crown className="h-4 w-4 text-amber-500" />
+                      )}
+                      {template.category !== "VIP Hospitality" && (
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">{template.name}</p>
+                        <p className="text-xs text-muted-foreground">{template.type} • {template.uses} uses</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline">{template.category}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          {/* Moderation Queue */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-outfit flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-500" />
+                Moderation Queue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {moderationQueue.map((item) => (
+                  <div 
+                    key={item.id}
+                    className="p-3 rounded-lg border space-y-2"
+                    data-testid={`moderation-${item.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-sm">{item.from}</p>
+                        <p className="text-xs text-muted-foreground">{item.time}</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">{item.type}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{item.message}</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1" data-testid={`button-approve-${item.id}`}>
+                        <UserCheck className="h-3 w-3 mr-1" />
+                        Approve
+                      </Button>
+                      <Button size="sm" variant="ghost" data-testid={`button-view-${item.id}`}>
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* VIP Invitation Example */}
+          <Card className="border-amber-200 dark:border-amber-800">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-outfit flex items-center gap-2">
+                <Crown className="h-5 w-5 text-amber-500" />
+                VIP Invitation Example
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 space-y-3">
+                <p className="text-sm font-medium">Annual Gala Dinner 2026</p>
+                <p className="text-xs text-muted-foreground">
+                  You are cordially invited to our exclusive Annual Gala Dinner. Please confirm your attendance and any dietary requirements.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" data-testid="button-rsvp-yes">
+                    <UserCheck className="h-3 w-3 mr-1" />
+                    Accept
+                  </Button>
+                  <Button size="sm" variant="outline" data-testid="button-rsvp-form">
+                    <ClipboardList className="h-3 w-3 mr-1" />
+                    RSVP Form
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">Setup Procedure:</p>
+                <ol className="list-decimal list-inside space-y-1 text-xs">
+                  <li>Connect WhatsApp Business API</li>
+                  <li>Create guest contact groups</li>
+                  <li>Design message templates</li>
+                  <li>Link RSVP forms (JotForm)</li>
+                  <li>Set moderation rules</li>
+                  <li>Schedule automated sends</li>
+                </ol>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-outfit">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-send-broadcast">
+                  <Send className="h-4 w-4" />
+                  Send Broadcast
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-manage-contacts">
+                  <Users className="h-4 w-4" />
+                  Manage Contact Groups
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-rsvp-reports">
+                  <ClipboardList className="h-4 w-4" />
+                  RSVP Reports
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-moderation-settings">
+                  <Shield className="h-4 w-4" />
+                  Moderation Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Card>
