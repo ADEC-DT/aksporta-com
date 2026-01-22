@@ -16,7 +16,8 @@ import {
   CircleDot,
   Headphones,
   PartyPopper,
-  Megaphone
+  Megaphone,
+  Scale
 } from "lucide-react";
 import {
   Sidebar,
@@ -89,6 +90,11 @@ const mainNavItems = [
     title: "Intranet & Support",
     url: "/intranet",
     icon: Headphones,
+  },
+  {
+    title: "Legal",
+    url: "/legal",
+    icon: Scale,
   },
 ];
 

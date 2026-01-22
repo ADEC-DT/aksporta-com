@@ -188,6 +188,7 @@ const sectionTitleMap: Record<string, string> = {
   media_marketing: "Media & Marketing",
   intranet: "Intranet & Support",
   projects: "Projects",
+  legal: "Legal & Compliance",
 };
 
 interface PageCollaborationStampProps {

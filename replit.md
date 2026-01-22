@@ -59,6 +59,7 @@ shared/           # Shared code between client/server
 6. **Veterinary** (`/veterinary`) - Veterinary management system
 7. **Settings** (`/settings`) - User profile and preferences
 8. **Admin** (`/admin`) - User management (admin only)
+9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:
@@ -72,7 +73,7 @@ The portal includes a Collaboration Stamp feature for tracking development statu
 - **Status Options**: In Development, In Review, Live, Enhancement Needed
 - **Page Header Stamps**: `PageCollaborationStamp` component displays at top of each page when a blueprint exists
 - **Management UI**: Projects page → Collaboration Stamps tab for creating/editing stamps
-- **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects
+- **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects, legal
 
 ### Key Design Decisions
 1. **Monorepo Structure**: Client and server share types through `shared/` directory
