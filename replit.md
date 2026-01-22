@@ -60,6 +60,9 @@ shared/           # Shared code between client/server
 7. **Settings** (`/settings`) - User profile and preferences
 8. **Admin** (`/admin`) - User management (admin only)
 9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories
+10. **Performance & KPIs** (`/performance-kpi`) - KPI tracking, metrics dashboard, performance alerts
+11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
+12. **IT & DT** (`/it-dt`) - IT & Digital Transformation with system status, projects, security
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:
@@ -73,7 +76,7 @@ The portal includes a Collaboration Stamp feature for tracking development statu
 - **Status Options**: In Development, In Review, Live, Enhancement Needed
 - **Page Header Stamps**: `PageCollaborationStamp` component displays at top of each page when a blueprint exists
 - **Management UI**: Projects page → Collaboration Stamps tab for creating/editing stamps
-- **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects, legal
+- **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects, legal, performance_kpi, ops_fm, it_dt
 
 ### Key Design Decisions
 1. **Monorepo Structure**: Client and server share types through `shared/` directory

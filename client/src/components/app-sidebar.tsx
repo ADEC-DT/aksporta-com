@@ -17,7 +17,10 @@ import {
   Headphones,
   PartyPopper,
   Megaphone,
-  Scale
+  Scale,
+  Target,
+  Wrench,
+  Cpu
 } from "lucide-react";
 import {
   Sidebar,
@@ -95,6 +98,21 @@ const mainNavItems = [
     title: "Legal",
     url: "/legal",
     icon: Scale,
+  },
+  {
+    title: "Performance & KPIs",
+    url: "/performance-kpi",
+    icon: Target,
+  },
+  {
+    title: "OPS & FM",
+    url: "/ops-fm",
+    icon: Wrench,
+  },
+  {
+    title: "IT & DT",
+    url: "/it-dt",
+    icon: Cpu,
   },
 ];
 

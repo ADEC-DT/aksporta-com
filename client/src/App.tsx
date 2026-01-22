@@ -30,6 +30,9 @@ import EventsPage from "@/pages/events";
 import MediaMarketingPage from "@/pages/media-marketing";
 import IntranetPage from "@/pages/intranet";
 import LegalPage from "@/pages/legal";
+import PerformanceKPIPage from "@/pages/performance-kpi";
+import OpsFMPage from "@/pages/ops-fm";
+import ITDTPage from "@/pages/it-dt";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import LoginPage from "@/pages/login";
@@ -108,6 +111,9 @@ function ProtectedRoutes() {
               <Route path="/media-marketing" component={MediaMarketingPage} />
               <Route path="/intranet" component={IntranetPage} />
               <Route path="/legal" component={LegalPage} />
+              <Route path="/performance-kpi" component={PerformanceKPIPage} />
+              <Route path="/ops-fm" component={OpsFMPage} />
+              <Route path="/it-dt" component={ITDTPage} />
               <Route path="/projects" component={ProjectsPage} />
               <Route path="/applications/customer-db" component={CustomerDBPage} />
               <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />
