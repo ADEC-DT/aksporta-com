@@ -48,8 +48,12 @@ import {
   Send,
   CalendarClock,
   User,
-  X
+  X,
+  LayoutGrid,
+  Kanban,
+  GripVertical
 } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -147,6 +151,7 @@ export default function ProjectsPage() {
   const [deadlineJustification, setDeadlineJustification] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUsersToAssign, setSelectedUsersToAssign] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const { toast } = useToast();
 
   // Current user
@@ -302,12 +307,12 @@ export default function ProjectsPage() {
     }
   };
 
-  // Filter projects
+  // Filter projects - for Kanban view, only apply search filter, not status filter
   const filteredProjects = projectsData.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+    const matchesStatus = viewMode === "kanban" || statusFilter === "all" || project.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -456,6 +461,31 @@ export default function ProjectsPage() {
     toast({ title: "Users assigned successfully" });
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+    
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId) return;
+    
+    const newStatus = destination.droppableId as ProjectStatus;
+    
+    apiRequest("PATCH", `/api/projects/${draggableId}`, { status: newStatus })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", "all"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", "mine"] });
+        toast({ title: "Project status updated" });
+      })
+      .catch(() => {
+        toast({ title: "Failed to update status", variant: "destructive" });
+      });
+  };
+
+  const openAssignDialog = () => {
+    setSelectedUsersToAssign([]);
+    setAssignDialogOpen(true);
+  };
+
   const openProjectDetail = async (project: ProjectWithAssignments) => {
     try {
       const res = await fetch(`/api/projects/${project.id}`, { credentials: "include" });
@@ -553,6 +583,23 @@ export default function ProjectsPage() {
                 <User className="h-4 w-4 mr-1" />
                 My Projects
               </Button>
+              <div className="h-6 w-px bg-border mx-2" />
+              <Button
+                variant={viewMode === "list" ? "secondary" : "outline"}
+                size="icon"
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "kanban" ? "secondary" : "outline"}
+                size="icon"
+                onClick={() => setViewMode("kanban")}
+                data-testid="button-view-kanban"
+              >
+                <Kanban className="h-4 w-4" />
+              </Button>
             </div>
             <Button 
               onClick={() => {
@@ -640,12 +687,12 @@ export default function ProjectsPage() {
             </Select>
           </div>
 
-          {/* Projects Grid */}
+          {/* Projects View */}
           {projectsLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-muted-foreground">Loading projects...</p>
             </div>
-          ) : filteredProjects.length === 0 ? (
+          ) : projectsData.length === 0 ? (
             <Card className="p-12 text-center">
               <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No projects found</h3>
@@ -658,6 +705,111 @@ export default function ProjectsPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Create Project
               </Button>
+            </Card>
+          ) : viewMode === "kanban" ? (
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
+                  const columnProjects = filteredProjects.filter(p => p.status === statusKey);
+                  return (
+                    <div key={statusKey} className="flex-shrink-0 w-[300px]">
+                      <div className={`${config.bgColor} rounded-t-lg p-3 flex items-center gap-2`}>
+                        <config.icon className={`h-4 w-4 ${config.color}`} />
+                        <span className={`font-medium text-sm ${config.color}`}>{config.label}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {columnProjects.length}
+                        </Badge>
+                      </div>
+                      <Droppable droppableId={statusKey}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`min-h-[400px] p-2 space-y-2 border border-t-0 rounded-b-lg ${
+                              snapshot.isDraggingOver ? "bg-muted/50" : "bg-background"
+                            }`}
+                          >
+                            {columnProjects.map((project, index) => {
+                              const timeline = getTimelineStatus(project.deadline);
+                              const assignedUsers = getAssignedUsers(project);
+                              
+                              return (
+                                <Draggable key={project.id} draggableId={project.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <Card
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      className={`cursor-pointer ${snapshot.isDragging ? "shadow-lg" : "hover-elevate"}`}
+                                      onClick={() => openProjectDetail(project)}
+                                      data-testid={`kanban-card-${project.id}`}
+                                    >
+                                      <CardContent className="p-3 space-y-2">
+                                        <div className="flex items-start gap-2">
+                                          <div
+                                            {...provided.dragHandleProps}
+                                            className="mt-1 text-muted-foreground hover:text-foreground"
+                                          >
+                                            <GripVertical className="h-4 w-4" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <h3 className="font-medium text-sm leading-tight truncate">{project.name}</h3>
+                                              <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-[10px] shrink-0`}>
+                                                {project.priority}
+                                              </Badge>
+                                            </div>
+                                            {project.description && (
+                                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{project.description}</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between pl-6">
+                                          <div className="flex -space-x-2">
+                                            {assignedUsers.slice(0, 2).map((assignment: any) => (
+                                              <Avatar key={assignment.id} className="h-5 w-5 border-2 border-background">
+                                                <AvatarFallback className="text-[8px] bg-primary text-primary-foreground">
+                                                  {getUserInitials(assignment.user)}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                            ))}
+                                            {assignedUsers.length > 2 && (
+                                              <Avatar className="h-5 w-5 border-2 border-background">
+                                                <AvatarFallback className="text-[8px] bg-muted">
+                                                  +{assignedUsers.length - 2}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                            )}
+                                          </div>
+                                          {project.deadline && (
+                                            <span className={`text-[10px] ${timeline.color}`}>{timeline.text}</span>
+                                          )}
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                            {columnProjects.length === 0 && (
+                              <div className="flex items-center justify-center h-20 text-xs text-muted-foreground border-2 border-dashed rounded-lg">
+                                Drop projects here
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  );
+                })}
+              </div>
+            </DragDropContext>
+          ) : filteredProjects.length === 0 ? (
+            <Card className="p-12 text-center">
+              <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No projects match your filters</h3>
+              <p className="text-muted-foreground mb-4">Try adjusting your search or filters.</p>
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -985,7 +1137,7 @@ export default function ProjectsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setAssignDialogOpen(true)}
+                      onClick={openAssignDialog}
                       data-testid="button-assign-users"
                     >
                       <Plus className="h-4 w-4 mr-1" />
