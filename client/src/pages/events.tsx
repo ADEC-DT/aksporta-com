@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { WhatsAppDialog } from "@/components/whatsapp-dialog";
 import { 
   Calendar, 
   Star, 
@@ -58,6 +60,8 @@ const moderationQueue = [
 ];
 
 export default function EventsPage() {
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
+
   const handleLaunchPowerBI = () => {
     window.open("https://app.powerbi.com", "_blank");
   };
@@ -224,7 +228,17 @@ export default function EventsPage() {
                         {channel.messages > 0 ? `${channel.messages.toLocaleString()} messages sent` : "Not configured"}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" data-testid={`button-manage-${channel.id}`}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (channel.id === "whatsapp") {
+                          setWhatsappDialogOpen(true);
+                        }
+                      }}
+                      data-testid={`button-manage-${channel.id}`}
+                    >
                       Manage
                     </Button>
                   </div>
@@ -484,6 +498,11 @@ export default function EventsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <WhatsAppDialog 
+        open={whatsappDialogOpen} 
+        onOpenChange={setWhatsappDialogOpen} 
+      />
     </div>
   );
 }
