@@ -359,3 +359,87 @@ export const insertBlueprintSchema = createInsertSchema(collaborationBlueprints)
 
 export type InsertBlueprint = z.infer<typeof insertBlueprintSchema>;
 export type CollaborationBlueprint = typeof collaborationBlueprints.$inferSelect;
+
+// Project status and priority enums
+export const projectStatuses = ["not_started", "in_progress", "on_hold", "completed", "cancelled"] as const;
+export type ProjectStatus = typeof projectStatuses[number];
+
+export const projectPriorities = ["low", "medium", "high", "critical"] as const;
+export type ProjectPriority = typeof projectPriorities[number];
+
+// Projects table
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  status: varchar("status").notNull().default("not_started"),
+  priority: varchar("priority").notNull().default("medium"),
+  startDate: varchar("start_date"),
+  deadline: varchar("deadline"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  statusIdx: index("projects_status_idx").on(table.status),
+  createdByIdx: index("projects_created_by_idx").on(table.createdBy),
+}));
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Project = typeof projects.$inferSelect;
+
+// Project assignments table (who is assigned to a project)
+export const projectAssignments = pgTable("project_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  role: varchar("role").notNull().default("member"),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by").notNull(),
+}, (table) => ({
+  projectIdx: index("project_assignments_project_idx").on(table.projectId),
+  userIdx: index("project_assignments_user_idx").on(table.userId),
+}));
+
+export const insertProjectAssignmentSchema = createInsertSchema(projectAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type InsertProjectAssignment = z.infer<typeof insertProjectAssignmentSchema>;
+export type ProjectAssignment = typeof projectAssignments.$inferSelect;
+
+// Project comments table (for deadline changes, updates, discussions)
+export const projectComments = pgTable("project_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  userName: varchar("user_name"),
+  content: text("content").notNull(),
+  type: varchar("type").notNull().default("comment"),
+  oldDeadline: varchar("old_deadline"),
+  newDeadline: varchar("new_deadline"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  projectIdx: index("project_comments_project_idx").on(table.projectId),
+  createdAtIdx: index("project_comments_created_at_idx").on(table.createdAt),
+}));
+
+export const insertProjectCommentSchema = createInsertSchema(projectComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProjectComment = z.infer<typeof insertProjectCommentSchema>;
+export type ProjectComment = typeof projectComments.$inferSelect;
+
+// Combined project with assignments for API responses
+export type ProjectWithAssignments = Project & {
+  assignments: (ProjectAssignment & { user?: ManagedUser })[];
+  comments?: ProjectComment[];
+};
