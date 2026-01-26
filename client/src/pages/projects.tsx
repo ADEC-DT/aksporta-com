@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,161 +28,52 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { 
   ArrowLeft, 
   Search, 
   Calendar,
-  LayoutGrid,
-  List,
   Plus,
   Clock,
   CheckCircle2,
   AlertCircle,
   Pause,
   Filter,
-  MoreHorizontal,
   Users,
   Target,
-  Construction,
-  RefreshCw,
-  Lightbulb,
   Edit,
   Trash2,
-  Stamp
+  Stamp,
+  MessageSquare,
+  Send,
+  CalendarClock,
+  User,
+  X
 } from "lucide-react";
-import { format, addDays, subDays, differenceInDays } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { CollaborationStamp, CollaborationStampMini } from "@/components/collaboration-stamp";
-import type { CollaborationBlueprint, InsertBlueprint } from "@shared/schema";
+import type { CollaborationBlueprint, InsertBlueprint, Project, ProjectWithAssignments, ProjectComment, ManagedUser } from "@shared/schema";
 import { insertBlueprintSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
-type ProjectStatus = "working_on_it" | "stuck" | "done" | "not_started" | "pending_review";
+type ProjectStatus = "not_started" | "in_progress" | "on_hold" | "completed" | "cancelled";
+type ProjectPriority = "low" | "medium" | "high" | "critical";
 
 const statusConfig: Record<ProjectStatus, { label: string; color: string; bgColor: string; icon: any }> = {
   not_started: { label: "Not Started", color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-800", icon: Pause },
-  working_on_it: { label: "Working on it", color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900/30", icon: Clock },
-  stuck: { label: "Stuck", color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30", icon: AlertCircle },
-  pending_review: { label: "Pending Review", color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30", icon: Target },
-  done: { label: "Done", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle2 },
+  in_progress: { label: "In Progress", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: Clock },
+  on_hold: { label: "On Hold", color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900/30", icon: AlertCircle },
+  completed: { label: "Completed", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle2 },
+  cancelled: { label: "Cancelled", color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30", icon: X },
 };
 
-const teamMembers = [
-  { id: "TM01", name: "Alice Chen", role: "Project Manager", initials: "AC", color: "bg-blue-500" },
-  { id: "TM02", name: "Bob Martinez", role: "Developer", initials: "BM", color: "bg-green-500" },
-  { id: "TM03", name: "Carol White", role: "Designer", initials: "CW", color: "bg-purple-500" },
-  { id: "TM04", name: "David Kim", role: "Analyst", initials: "DK", color: "bg-orange-500" },
-  { id: "TM05", name: "Emma Brown", role: "QA Engineer", initials: "EB", color: "bg-pink-500" },
-];
-
-const projects = [
-  {
-    id: "PRJ001",
-    name: "Website Redesign",
-    description: "Complete overhaul of the club's public website",
-    status: "working_on_it" as ProjectStatus,
-    priority: "high",
-    startDate: subDays(new Date(), 30),
-    endDate: addDays(new Date(), 45),
-    progress: 35,
-    owner: "TM01",
-    members: ["TM01", "TM03", "TM02"],
-    tasks: { total: 24, completed: 8 },
-    group: "Digital Initiatives",
-  },
-  {
-    id: "PRJ002",
-    name: "Stable Management System",
-    description: "Digital system for managing stable operations",
-    status: "stuck" as ProjectStatus,
-    priority: "high",
-    startDate: subDays(new Date(), 60),
-    endDate: addDays(new Date(), 15),
-    progress: 60,
-    owner: "TM02",
-    members: ["TM02", "TM04"],
-    tasks: { total: 18, completed: 11 },
-    group: "Operations",
-  },
-  {
-    id: "PRJ003",
-    name: "Member Portal Enhancement",
-    description: "Adding new features to member self-service portal",
-    status: "done" as ProjectStatus,
-    priority: "medium",
-    startDate: subDays(new Date(), 90),
-    endDate: subDays(new Date(), 10),
-    progress: 100,
-    owner: "TM01",
-    members: ["TM01", "TM02", "TM05"],
-    tasks: { total: 32, completed: 32 },
-    group: "Digital Initiatives",
-  },
-  {
-    id: "PRJ004",
-    name: "Annual Event Planning",
-    description: "Planning and coordination for yearly gala event",
-    status: "working_on_it" as ProjectStatus,
-    priority: "medium",
-    startDate: subDays(new Date(), 14),
-    endDate: addDays(new Date(), 90),
-    progress: 15,
-    owner: "TM04",
-    members: ["TM04", "TM01"],
-    tasks: { total: 28, completed: 4 },
-    group: "Events",
-  },
-  {
-    id: "PRJ005",
-    name: "Financial System Integration",
-    description: "Connecting NetSuite with internal reporting tools",
-    status: "pending_review" as ProjectStatus,
-    priority: "high",
-    startDate: subDays(new Date(), 45),
-    endDate: addDays(new Date(), 5),
-    progress: 90,
-    owner: "TM02",
-    members: ["TM02", "TM04", "TM05"],
-    tasks: { total: 15, completed: 14 },
-    group: "Operations",
-  },
-  {
-    id: "PRJ006",
-    name: "Mobile App Development",
-    description: "Native mobile app for members",
-    status: "not_started" as ProjectStatus,
-    priority: "low",
-    startDate: addDays(new Date(), 30),
-    endDate: addDays(new Date(), 180),
-    progress: 0,
-    owner: "TM03",
-    members: ["TM03", "TM02"],
-    tasks: { total: 0, completed: 0 },
-    group: "Digital Initiatives",
-  },
-  {
-    id: "PRJ007",
-    name: "Safety Compliance Audit",
-    description: "Annual safety compliance review and documentation",
-    status: "working_on_it" as ProjectStatus,
-    priority: "high",
-    startDate: subDays(new Date(), 7),
-    endDate: addDays(new Date(), 21),
-    progress: 25,
-    owner: "TM05",
-    members: ["TM05", "TM04"],
-    tasks: { total: 12, completed: 3 },
-    group: "Operations",
-  },
-];
-
-const priorityColors: Record<string, string> = {
-  high: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+const priorityColors: Record<ProjectPriority, string> = {
   low: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  high: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  critical: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
 const blueprintStatusOptions = [
@@ -211,21 +104,160 @@ const portalSections = [
   { name: "media_marketing", title: "Media & Marketing" },
   { name: "intranet", title: "Intranet & Support" },
   { name: "projects", title: "Projects" },
+  { name: "legal", title: "Legal & Compliance" },
+  { name: "performance_kpi", title: "Performance & KPIs" },
+  { name: "ops_fm", title: "OPS & FM" },
+  { name: "it_dt", title: "IT & DT" },
 ];
+
+const projectFormSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  description: z.string().optional(),
+  status: z.enum(["not_started", "in_progress", "on_hold", "completed", "cancelled"]),
+  priority: z.enum(["low", "medium", "high", "critical"]),
+  startDate: z.string().optional(),
+  deadline: z.string().optional(),
+});
+
+type ProjectFormValues = z.infer<typeof projectFormSchema>;
+
+type SimpleUser = {
+  id: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  role: string;
+};
 
 export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"board" | "list">("board");
+  const [viewFilter, setViewFilter] = useState<"all" | "mine">("all");
   const [activeTab, setActiveTab] = useState("projects");
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
   const [editingBlueprint, setEditingBlueprint] = useState<CollaborationBlueprint | null>(null);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<ProjectWithAssignments | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithAssignments | null>(null);
+  const [projectDetailOpen, setProjectDetailOpen] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [deadlineChangeMode, setDeadlineChangeMode] = useState(false);
+  const [newDeadline, setNewDeadline] = useState("");
+  const [deadlineJustification, setDeadlineJustification] = useState("");
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedUsersToAssign, setSelectedUsersToAssign] = useState<string[]>([]);
   const { toast } = useToast();
 
+  // Current user
+  const { data: currentUser } = useQuery<ManagedUser>({
+    queryKey: ["/api/auth/user"],
+  });
+
+  // All users for assignment
+  const { data: allUsers = [] } = useQuery<SimpleUser[]>({
+    queryKey: ["/api/users/list"],
+  });
+
+  // Projects query
+  const { data: projectsData = [], isLoading: projectsLoading } = useQuery<ProjectWithAssignments[]>({
+    queryKey: ["/api/projects", viewFilter],
+    queryFn: async () => {
+      const url = viewFilter === "mine" ? "/api/projects?mine=true" : "/api/projects";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch projects");
+      return res.json();
+    },
+  });
+
+  // Blueprints query
   const { data: blueprints = [], isLoading: blueprintsLoading } = useQuery<CollaborationBlueprint[]>({
     queryKey: ["/api/blueprints"],
   });
 
+  // Project mutations
+  const createProjectMutation = useMutation({
+    mutationFn: (data: ProjectFormValues) => apiRequest("POST", "/api/projects", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setProjectDialogOpen(false);
+      toast({ title: "Project created successfully" });
+    },
+    onError: () => toast({ title: "Failed to create project", variant: "destructive" }),
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<ProjectFormValues> }) =>
+      apiRequest("PATCH", `/api/projects/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setProjectDialogOpen(false);
+      setEditingProject(null);
+      toast({ title: "Project updated successfully" });
+    },
+    onError: () => toast({ title: "Failed to update project", variant: "destructive" }),
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/projects/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setProjectDetailOpen(false);
+      setSelectedProject(null);
+      toast({ title: "Project deleted successfully" });
+    },
+    onError: () => toast({ title: "Failed to delete project", variant: "destructive" }),
+  });
+
+  // Assignment mutations
+  const addAssignmentMutation = useMutation({
+    mutationFn: ({ projectId, userId }: { projectId: string; userId: string }) =>
+      apiRequest("POST", `/api/projects/${projectId}/assignments`, { userId, role: "member" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      if (selectedProject) {
+        refetchProjectDetail(selectedProject.id);
+      }
+    },
+    onError: () => toast({ title: "Failed to add assignment", variant: "destructive" }),
+  });
+
+  const removeAssignmentMutation = useMutation({
+    mutationFn: ({ projectId, assignmentId }: { projectId: string; assignmentId: string }) =>
+      apiRequest("DELETE", `/api/projects/${projectId}/assignments/${assignmentId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      if (selectedProject) {
+        refetchProjectDetail(selectedProject.id);
+      }
+    },
+    onError: () => toast({ title: "Failed to remove assignment", variant: "destructive" }),
+  });
+
+  // Comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: ({ projectId, content, type, oldDeadline, newDeadline }: { 
+      projectId: string; 
+      content: string; 
+      type?: string;
+      oldDeadline?: string;
+      newDeadline?: string;
+    }) =>
+      apiRequest("POST", `/api/projects/${projectId}/comments`, { content, type, oldDeadline, newDeadline }),
+    onSuccess: () => {
+      if (selectedProject) {
+        refetchProjectDetail(selectedProject.id);
+      }
+      setNewComment("");
+      setDeadlineChangeMode(false);
+      setNewDeadline("");
+      setDeadlineJustification("");
+      toast({ title: "Comment added successfully" });
+    },
+    onError: () => toast({ title: "Failed to add comment", variant: "destructive" }),
+  });
+
+  // Blueprint mutations
   const createBlueprintMutation = useMutation({
     mutationFn: (data: InsertBlueprint) => apiRequest("POST", "/api/blueprints", data),
     onSuccess: () => {
@@ -238,7 +270,7 @@ export default function ProjectsPage() {
   });
 
   const updateBlueprintMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertBlueprint> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<InsertBlueprint> }) =>
       apiRequest("PATCH", `/api/blueprints/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/blueprints"] });
@@ -258,44 +290,48 @@ export default function ProjectsPage() {
     onError: () => toast({ title: "Failed to delete blueprint", variant: "destructive" }),
   });
 
-  const filteredProjects = projects.filter((project) => {
+  const refetchProjectDetail = async (projectId: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedProject(data);
+      }
+    } catch (error) {
+      console.error("Failed to refetch project detail:", error);
+    }
+  };
+
+  // Filter projects
+  const filteredProjects = projectsData.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = statusFilter === "all" || project.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const projectsByGroup = filteredProjects.reduce((acc, project) => {
-    if (!acc[project.group]) acc[project.group] = [];
-    acc[project.group].push(project);
-    return acc;
-  }, {} as Record<string, typeof projects>);
-
-  const projectsByStatus = filteredProjects.reduce((acc, project) => {
-    if (!acc[project.status]) acc[project.status] = [];
-    acc[project.status].push(project);
-    return acc;
-  }, {} as Record<string, typeof projects>);
-
-  const getMember = (id: string) => teamMembers.find((m) => m.id === id);
-
-  const getTimelineStatus = (project: typeof projects[0]) => {
-    const today = new Date();
-    const daysLeft = differenceInDays(new Date(project.endDate), today);
-    if (project.status === "done") return { text: "Completed", color: "text-green-600" };
-    if (daysLeft < 0) return { text: `${Math.abs(daysLeft)} days overdue`, color: "text-red-600" };
-    if (daysLeft <= 7) return { text: `${daysLeft} days left`, color: "text-orange-600" };
-    return { text: `${daysLeft} days left`, color: "text-muted-foreground" };
-  };
-
   const stats = {
-    total: projects.length,
-    inProgress: projects.filter((p) => p.status === "working_on_it").length,
-    stuck: projects.filter((p) => p.status === "stuck").length,
-    done: projects.filter((p) => p.status === "done").length,
+    total: projectsData.length,
+    inProgress: projectsData.filter((p) => p.status === "in_progress").length,
+    onHold: projectsData.filter((p) => p.status === "on_hold").length,
+    completed: projectsData.filter((p) => p.status === "completed").length,
   };
 
+  // Project form
+  const projectForm = useForm<ProjectFormValues>({
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      status: "not_started",
+      priority: "medium",
+      startDate: "",
+      deadline: "",
+    },
+  });
+
+  // Blueprint form
   const blueprintForm = useForm<BlueprintFormValues>({
     resolver: zodResolver(blueprintFormSchema),
     defaultValues: {
@@ -308,6 +344,28 @@ export default function ProjectsPage() {
       ideas: "",
     },
   });
+
+  useEffect(() => {
+    if (editingProject) {
+      projectForm.reset({
+        name: editingProject.name,
+        description: editingProject.description || "",
+        status: editingProject.status as ProjectStatus,
+        priority: editingProject.priority as ProjectPriority,
+        startDate: editingProject.startDate || "",
+        deadline: editingProject.deadline || "",
+      });
+    } else {
+      projectForm.reset({
+        name: "",
+        description: "",
+        status: "not_started",
+        priority: "medium",
+        startDate: "",
+        deadline: "",
+      });
+    }
+  }, [editingProject, projectDialogOpen]);
 
   useEffect(() => {
     if (editingBlueprint) {
@@ -333,6 +391,14 @@ export default function ProjectsPage() {
     }
   }, [editingBlueprint, blueprintDialogOpen]);
 
+  const handleProjectSubmit = (values: ProjectFormValues) => {
+    if (editingProject) {
+      updateProjectMutation.mutate({ id: editingProject.id, data: values });
+    } else {
+      createProjectMutation.mutate(values);
+    }
+  };
+
   const handleBlueprintSubmit = (values: BlueprintFormValues) => {
     const data: InsertBlueprint = {
       sectionName: values.sectionName,
@@ -351,9 +417,93 @@ export default function ProjectsPage() {
     }
   };
 
-  const openEditDialog = (blueprint: CollaborationBlueprint) => {
-    setEditingBlueprint(blueprint);
-    setBlueprintDialogOpen(true);
+  const handleAddComment = () => {
+    if (!selectedProject || !newComment.trim()) return;
+    addCommentMutation.mutate({ projectId: selectedProject.id, content: newComment.trim(), type: "comment" });
+  };
+
+  const handleDeadlineChange = () => {
+    if (!selectedProject || !newDeadline || !deadlineJustification.trim()) {
+      toast({ title: "Please provide a new deadline and justification", variant: "destructive" });
+      return;
+    }
+
+    // Add comment for deadline change
+    addCommentMutation.mutate({
+      projectId: selectedProject.id,
+      content: deadlineJustification.trim(),
+      type: "deadline_change",
+      oldDeadline: selectedProject.deadline || undefined,
+      newDeadline: newDeadline,
+    });
+
+    // Update project deadline
+    updateProjectMutation.mutate({
+      id: selectedProject.id,
+      data: { deadline: newDeadline },
+    });
+  };
+
+  const handleAssignUsers = () => {
+    if (!selectedProject || selectedUsersToAssign.length === 0) return;
+    
+    selectedUsersToAssign.forEach((userId) => {
+      addAssignmentMutation.mutate({ projectId: selectedProject.id, userId });
+    });
+    
+    setAssignDialogOpen(false);
+    setSelectedUsersToAssign([]);
+    toast({ title: "Users assigned successfully" });
+  };
+
+  const openProjectDetail = async (project: ProjectWithAssignments) => {
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedProject(data);
+        setProjectDetailOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to fetch project detail:", error);
+    }
+  };
+
+  const getTimelineStatus = (deadline: string | null | undefined) => {
+    if (!deadline) return { text: "No deadline", color: "text-muted-foreground" };
+    const today = new Date();
+    const deadlineDate = new Date(deadline);
+    const daysLeft = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysLeft < 0) return { text: `${Math.abs(daysLeft)} days overdue`, color: "text-red-600" };
+    if (daysLeft <= 7) return { text: `${daysLeft} days left`, color: "text-orange-600" };
+    return { text: `${daysLeft} days left`, color: "text-muted-foreground" };
+  };
+
+  const getUserInitials = (user: SimpleUser | ManagedUser | undefined) => {
+    if (!user) return "??";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    return user.username.slice(0, 2).toUpperCase();
+  };
+
+  const getUserName = (user: SimpleUser | ManagedUser | undefined) => {
+    if (!user) return "Unknown";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user.username;
+  };
+
+  const getAssignedUsers = (project: ProjectWithAssignments) => {
+    return project.assignments || [];
+  };
+
+  const getUnassignedUsers = () => {
+    if (!selectedProject) return allUsers;
+    const assignedIds = selectedProject.assignments.map(a => a.userId);
+    return allUsers.filter(u => !assignedIds.includes(u.id));
   };
 
   return (
@@ -365,8 +515,8 @@ export default function ProjectsPage() {
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold">Projects</h1>
-          <p className="text-muted-foreground">Monday.com-style project management & Collaboration Stamps</p>
+          <h1 className="text-2xl font-semibold font-outfit">Projects</h1>
+          <p className="text-muted-foreground">Manage projects, assignments, and deadlines</p>
         </div>
       </div>
 
@@ -383,476 +533,792 @@ export default function ProjectsPage() {
         </TabsList>
 
         <TabsContent value="projects" className="space-y-6">
-          <div className="flex items-end justify-end">
-            <Button data-testid="button-new-project">
+          {/* Actions Row */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewFilter === "all" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setViewFilter("all")}
+                data-testid="button-view-all"
+              >
+                All Projects
+              </Button>
+              <Button
+                variant={viewFilter === "mine" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setViewFilter("mine")}
+                data-testid="button-view-mine"
+              >
+                <User className="h-4 w-4 mr-1" />
+                My Projects
+              </Button>
+            </div>
+            <Button 
+              onClick={() => {
+                setEditingProject(null);
+                setProjectDialogOpen(true);
+              }}
+              data-testid="button-new-project"
+            >
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Button>
           </div>
 
+          {/* Stats Cards */}
           <div className="grid gap-4 md:grid-cols-4">
-        <Card data-testid="stat-total-projects">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <Calendar className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total Projects</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-in-progress">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-              <Clock className="h-6 w-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.inProgress}</p>
-              <p className="text-sm text-muted-foreground">In Progress</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-stuck">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
-              <AlertCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.stuck}</p>
-              <p className="text-sm text-muted-foreground">Stuck</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-completed">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.done}</p>
-              <p className="text-sm text-muted-foreground">Completed</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search projects..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="input-search-projects"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {Object.entries(statusConfig).map(([key, config]) => (
-              <SelectItem key={key} value={key}>{config.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex rounded-lg border">
-          <Button
-            variant={viewMode === "board" ? "secondary" : "ghost"}
-            size="sm"
-            className="rounded-r-none"
-            onClick={() => setViewMode("board")}
-            data-testid="button-view-board"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            className="rounded-l-none"
-            onClick={() => setViewMode("list")}
-            data-testid="button-view-list"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {viewMode === "board" ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Object.entries(statusConfig).map(([statusKey, statusData]) => {
-            const projectsInStatus = projectsByStatus[statusKey] || [];
-            return (
-              <div key={statusKey} className="flex flex-col gap-3">
-                <div className={`flex items-center gap-2 rounded-lg ${statusData.bgColor} px-3 py-2`}>
-                  <statusData.icon className={`h-4 w-4 ${statusData.color}`} />
-                  <span className={`text-sm font-medium ${statusData.color}`}>{statusData.label}</span>
-                  <Badge variant="secondary" className="ml-auto">{projectsInStatus.length}</Badge>
+            <Card data-testid="stat-total-projects">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Calendar className="h-6 w-6 text-blue-600" />
                 </div>
-                <div className="space-y-3">
-                  {projectsInStatus.map((project) => {
-                    const owner = getMember(project.owner);
-                    const timeline = getTimelineStatus(project);
-                    return (
-                      <Card key={project.id} className="hover-elevate cursor-pointer" data-testid={`card-project-${project.id}`}>
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-medium leading-tight">{project.name}</h3>
-                            <Badge className={`${priorityColors[project.priority]} border-0 text-xs shrink-0`}>
-                              {project.priority}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Progress</span>
-                              <span className="font-medium">{project.progress}%</span>
-                            </div>
-                            <Progress value={project.progress} className="h-1.5" />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex -space-x-2">
-                              {project.members.slice(0, 3).map((memberId) => {
-                                const member = getMember(memberId);
-                                return member ? (
-                                  <Avatar key={memberId} className="h-6 w-6 border-2 border-background">
-                                    <AvatarFallback className={`text-[10px] text-white ${member.color}`}>
-                                      {member.initials}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ) : null;
-                              })}
-                              {project.members.length > 3 && (
-                                <Avatar className="h-6 w-6 border-2 border-background">
-                                  <AvatarFallback className="text-[10px] bg-muted">
-                                    +{project.members.length - 3}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                            <span className={`text-xs ${timeline.color}`}>{timeline.text}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                <div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-muted-foreground">Total Projects</p>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b bg-muted/50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Project</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Owner</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Timeline</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Progress</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Priority</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProjects.map((project) => {
-                    const status = statusConfig[project.status];
-                    const owner = getMember(project.owner);
-                    const timeline = getTimelineStatus(project);
-                    return (
-                      <tr key={project.id} className="border-b hover:bg-muted/30 cursor-pointer" data-testid={`row-project-${project.id}`}>
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="font-medium">{project.name}</p>
-                            <p className="text-xs text-muted-foreground">{project.group}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge className={`${status.bgColor} ${status.color} border-0`}>
-                            {status.label}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {owner && (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className={`text-[10px] text-white ${owner.color}`}>
-                                  {owner.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{owner.name}</span>
-                            </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="stat-in-progress">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Clock className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.inProgress}</p>
+                  <p className="text-sm text-muted-foreground">In Progress</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="stat-on-hold">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <AlertCircle className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.onHold}</p>
+                  <p className="text-sm text-muted-foreground">On Hold</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="stat-completed">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.completed}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search projects..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-projects"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {Object.entries(statusConfig).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Projects Grid */}
+          {projectsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-muted-foreground">Loading projects...</p>
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <Card className="p-12 text-center">
+              <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+              <p className="text-muted-foreground mb-4">
+                {viewFilter === "mine" 
+                  ? "You don't have any assigned projects yet." 
+                  : "Create your first project to get started."}
+              </p>
+              <Button onClick={() => setProjectDialogOpen(true)} data-testid="button-create-first-project">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Project
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredProjects.map((project) => {
+                const status = statusConfig[project.status as ProjectStatus] || statusConfig.not_started;
+                const timeline = getTimelineStatus(project.deadline);
+                const assignedUsers = getAssignedUsers(project);
+                
+                return (
+                  <Card 
+                    key={project.id} 
+                    className="hover-elevate cursor-pointer" 
+                    onClick={() => openProjectDetail(project)}
+                    data-testid={`card-project-${project.id}`}
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-medium leading-tight">{project.name}</h3>
+                        <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-xs shrink-0`}>
+                          {project.priority}
+                        </Badge>
+                      </div>
+                      
+                      {project.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>
+                      )}
+                      
+                      <div className="flex items-center gap-2">
+                        <status.icon className={`h-4 w-4 ${status.color}`} />
+                        <span className={`text-xs ${status.color}`}>{status.label}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex -space-x-2">
+                          {assignedUsers.slice(0, 3).map((assignment: any) => (
+                            <Avatar key={assignment.id} className="h-6 w-6 border-2 border-background">
+                              <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                                {getUserInitials(assignment.user)}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                          {assignedUsers.length > 3 && (
+                            <Avatar className="h-6 w-6 border-2 border-background">
+                              <AvatarFallback className="text-[10px] bg-muted">
+                                +{assignedUsers.length - 3}
+                              </AvatarFallback>
+                            </Avatar>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm">
-                            <p>{format(new Date(project.startDate), "MMM d")} - {format(new Date(project.endDate), "MMM d, yyyy")}</p>
-                            <p className={`text-xs ${timeline.color}`}>{timeline.text}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 min-w-[120px]">
-                          <div className="space-y-1">
-                            <Progress value={project.progress} className="h-1.5" />
-                            <p className="text-xs text-muted-foreground">
-                              {project.tasks.completed}/{project.tasks.total} tasks
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge className={`${priorityColors[project.priority]} border-0 capitalize`}>
-                            {project.priority}
-                          </Badge>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                        <span className={`text-xs ${timeline.color}`}>{timeline.text}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
         </TabsContent>
 
         <TabsContent value="blueprints" className="space-y-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Collaboration Stamps</h2>
-              <p className="text-sm text-muted-foreground">
-                Track development status, ETAs, and enhancement ideas across portal sections
-              </p>
-            </div>
-            <Dialog open={blueprintDialogOpen} onOpenChange={(open) => {
-              setBlueprintDialogOpen(open);
-              if (!open) setEditingBlueprint(null);
-            }}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-new-blueprint">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Stamp
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>{editingBlueprint ? "Edit" : "Create"} Collaboration Stamp</DialogTitle>
-                  <DialogDescription>
-                    Configure status, ETA, and notes for a portal section
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...blueprintForm}>
-                  <form onSubmit={blueprintForm.handleSubmit(handleBlueprintSubmit)} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={blueprintForm.control}
-                        name="sectionName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Section ID</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-section-name">
-                                  <SelectValue placeholder="Select section" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {portalSections.map((section) => (
-                                  <SelectItem key={section.name} value={section.name}>
-                                    {section.title}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={blueprintForm.control}
-                        name="sectionTitle"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Section Title</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g. Dashboard"
-                                data-testid="input-section-title"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={blueprintForm.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Status</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-status">
-                                  <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {blueprintStatusOptions.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={blueprintForm.control}
-                        name="etaDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>ETA Date</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                data-testid="input-eta-date"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={blueprintForm.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Notes</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Additional context or description"
-                              rows={2}
-                              data-testid="input-notes"
-                              {...field}
-                              value={field.value ?? ""}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={blueprintForm.control}
-                      name="missingItems"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Missing Items (one per line)</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="API integration&#10;User authentication&#10;..."
-                              rows={3}
-                              data-testid="input-missing-items"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={blueprintForm.control}
-                      name="ideas"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Enhancement Ideas (one per line)</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Add charts&#10;Mobile responsive&#10;..."
-                              rows={3}
-                              data-testid="input-ideas"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                      <Button type="submit" disabled={createBlueprintMutation.isPending || updateBlueprintMutation.isPending} data-testid="button-submit-blueprint">
-                        {(createBlueprintMutation.isPending || updateBlueprintMutation.isPending) ? "Saving..." : (editingBlueprint ? "Update" : "Create")}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <p className="text-muted-foreground">Track development status across portal sections</p>
+            <Button 
+              onClick={() => {
+                setEditingBlueprint(null);
+                setBlueprintDialogOpen(true);
+              }}
+              data-testid="button-new-blueprint"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Stamp
+            </Button>
           </div>
 
           {blueprintsLoading ? (
-            <div className="flex justify-center py-12">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex items-center justify-center py-12">
+              <p className="text-muted-foreground">Loading blueprints...</p>
             </div>
           ) : blueprints.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Stamp className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Collaboration Stamps Yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Create stamps to track development status across portal sections
-                </p>
-                <Button onClick={() => setBlueprintDialogOpen(true)} data-testid="button-create-first-stamp">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create First Stamp
-                </Button>
-              </CardContent>
+            <Card className="p-12 text-center">
+              <Stamp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No collaboration stamps yet</h3>
+              <p className="text-muted-foreground">Create stamps to track development status.</p>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {blueprints.map((blueprint) => (
-                <div key={blueprint.id} className="relative group">
-                  <CollaborationStamp blueprint={blueprint} />
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openEditDialog(blueprint)}
-                      data-testid={`button-edit-${blueprint.sectionName}`}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to delete this stamp?")) {
-                          deleteBlueprintMutation.mutate(blueprint.id);
-                        }
-                      }}
-                      data-testid={`button-delete-${blueprint.sectionName}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                <Card key={blueprint.id} data-testid={`blueprint-${blueprint.id}`}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-base">{blueprint.sectionTitle}</CardTitle>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingBlueprint(blueprint);
+                            setBlueprintDialogOpen(true);
+                          }}
+                          data-testid={`button-edit-blueprint-${blueprint.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteBlueprintMutation.mutate(blueprint.id)}
+                          data-testid={`button-delete-blueprint-${blueprint.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CollaborationStampMini status={blueprint.status} />
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Create/Edit Project Dialog */}
+      <Dialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-outfit">
+              {editingProject ? "Edit Project" : "Create New Project"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProject ? "Update project details below." : "Fill in the details to create a new project."}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...projectForm}>
+            <form onSubmit={projectForm.handleSubmit(handleProjectSubmit)} className="space-y-4">
+              <FormField
+                control={projectForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter project name" {...field} data-testid="input-project-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={projectForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Describe the project..." 
+                        className="min-h-[80px]"
+                        {...field} 
+                        data-testid="input-project-description" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={projectForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-project-status">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(statusConfig).map(([key, config]) => (
+                            <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={projectForm.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-project-priority">
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={projectForm.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} data-testid="input-project-start-date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={projectForm.control}
+                  name="deadline"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deadline</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} data-testid="input-project-deadline" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setProjectDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createProjectMutation.isPending || updateProjectMutation.isPending}
+                  data-testid="button-save-project"
+                >
+                  {editingProject ? "Update" : "Create"} Project
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Detail Dialog */}
+      <Dialog open={projectDetailOpen} onOpenChange={setProjectDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          {selectedProject && (
+            <>
+              <DialogHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <DialogTitle className="font-outfit text-xl">{selectedProject.name}</DialogTitle>
+                    <DialogDescription>{selectedProject.description}</DialogDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingProject(selectedProject);
+                        setProjectDetailOpen(false);
+                        setProjectDialogOpen(true);
+                      }}
+                      data-testid="button-edit-selected-project"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    {currentUser?.role === "admin" && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteProjectMutation.mutate(selectedProject.id)}
+                        data-testid="button-delete-selected-project"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto space-y-6">
+                {/* Status and Info Row */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <Badge className={statusConfig[selectedProject.status as ProjectStatus]?.bgColor}>
+                    {statusConfig[selectedProject.status as ProjectStatus]?.label}
+                  </Badge>
+                  <Badge className={priorityColors[selectedProject.priority as ProjectPriority]}>
+                    {selectedProject.priority} priority
+                  </Badge>
+                  {selectedProject.deadline && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Deadline: {format(new Date(selectedProject.deadline), "MMM d, yyyy")}
+                    </div>
+                  )}
+                </div>
+
+                {/* Assigned Users */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Assigned Team ({selectedProject.assignments.length})
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssignDialogOpen(true)}
+                      data-testid="button-assign-users"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Assign
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProject.assignments.map((assignment: any) => (
+                      <Badge 
+                        key={assignment.id} 
+                        variant="secondary" 
+                        className="flex items-center gap-2 py-1.5"
+                      >
+                        <Avatar className="h-5 w-5">
+                          <AvatarFallback className="text-[10px]">
+                            {getUserInitials(assignment.user)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{getUserName(assignment.user)}</span>
+                        {assignment.role === "owner" && (
+                          <span className="text-xs text-muted-foreground">(Owner)</span>
+                        )}
+                        {assignment.role !== "owner" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 ml-1"
+                            onClick={() => removeAssignmentMutation.mutate({
+                              projectId: selectedProject.id,
+                              assignmentId: assignment.id
+                            })}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </Badge>
+                    ))}
+                    {selectedProject.assignments.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No team members assigned</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Deadline Change Section */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <CalendarClock className="h-4 w-4" />
+                      Deadline Management
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeadlineChangeMode(!deadlineChangeMode)}
+                      data-testid="button-toggle-deadline-change"
+                    >
+                      {deadlineChangeMode ? "Cancel" : "Request Change"}
+                    </Button>
+                  </div>
+                  
+                  {deadlineChangeMode && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>New Deadline</Label>
+                        <Input 
+                          type="date" 
+                          value={newDeadline}
+                          onChange={(e) => setNewDeadline(e.target.value)}
+                          className="mt-1"
+                          data-testid="input-new-deadline"
+                        />
+                      </div>
+                      <div>
+                        <Label>Justification</Label>
+                        <Textarea
+                          placeholder="Explain why the deadline needs to change..."
+                          value={deadlineJustification}
+                          onChange={(e) => setDeadlineJustification(e.target.value)}
+                          className="mt-1 min-h-[80px]"
+                          data-testid="input-deadline-justification"
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleDeadlineChange}
+                        disabled={addCommentMutation.isPending}
+                        data-testid="button-submit-deadline-change"
+                      >
+                        Submit Deadline Change
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Comments Section */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-4 w-4" />
+                    Comments & Activity
+                  </h4>
+                  
+                  <ScrollArea className="h-[200px] mb-4">
+                    <div className="space-y-3">
+                      {selectedProject.comments?.map((comment: ProjectComment) => (
+                        <div key={comment.id} className="p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm">{comment.userName || "Unknown"}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(comment.createdAt!), { addSuffix: true })}
+                            </span>
+                          </div>
+                          {comment.type === "deadline_change" && (
+                            <Badge variant="outline" className="mb-2 text-xs">
+                              Deadline Change: {comment.oldDeadline || "None"} → {comment.newDeadline}
+                            </Badge>
+                          )}
+                          <p className="text-sm">{comment.content}</p>
+                        </div>
+                      ))}
+                      {(!selectedProject.comments || selectedProject.comments.length === 0) && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No comments yet</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleAddComment();
+                        }
+                      }}
+                      data-testid="input-new-comment"
+                    />
+                    <Button 
+                      onClick={handleAddComment}
+                      disabled={addCommentMutation.isPending || !newComment.trim()}
+                      data-testid="button-send-comment"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Users Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-outfit">Assign Team Members</DialogTitle>
+            <DialogDescription>Select users to assign to this project.</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[300px]">
+            <div className="space-y-2">
+              {getUnassignedUsers().map((user) => (
+                <div 
+                  key={user.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedUsersToAssign.includes(user.id) 
+                      ? "border-primary bg-primary/5" 
+                      : "hover:bg-muted/50"
+                  }`}
+                  onClick={() => {
+                    setSelectedUsersToAssign(prev =>
+                      prev.includes(user.id)
+                        ? prev.filter(id => id !== user.id)
+                        : [...prev, user.id]
+                    );
+                  }}
+                >
+                  <Checkbox checked={selectedUsersToAssign.includes(user.id)} />
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>{getUserInitials(user)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium text-sm">{getUserName(user)}</p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                </div>
+              ))}
+              {getUnassignedUsers().length === 0 && (
+                <p className="text-center text-muted-foreground py-4">All users are already assigned</p>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignUsers}
+              disabled={selectedUsersToAssign.length === 0}
+              data-testid="button-confirm-assign"
+            >
+              Assign ({selectedUsersToAssign.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Blueprint Dialog */}
+      <Dialog open={blueprintDialogOpen} onOpenChange={setBlueprintDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-outfit">
+              {editingBlueprint ? "Edit Collaboration Stamp" : "Create Collaboration Stamp"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...blueprintForm}>
+            <form onSubmit={blueprintForm.handleSubmit(handleBlueprintSubmit)} className="space-y-4">
+              <FormField
+                control={blueprintForm.control}
+                name="sectionName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Section</FormLabel>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      const section = portalSections.find(s => s.name === value);
+                      if (section) {
+                        blueprintForm.setValue("sectionTitle", section.title);
+                      }
+                    }} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select section" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {portalSections.map((section) => (
+                          <SelectItem key={section.name} value={section.name}>
+                            {section.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={blueprintForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {blueprintStatusOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={blueprintForm.control}
+                name="etaDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ETA Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={blueprintForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ""} placeholder="Additional notes..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={blueprintForm.control}
+                name="missingItems"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Missing Items (one per line)</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Enter missing items..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={blueprintForm.control}
+                name="ideas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ideas (one per line)</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Enter ideas..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setBlueprintDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createBlueprintMutation.isPending || updateBlueprintMutation.isPending}>
+                  {editingBlueprint ? "Update" : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

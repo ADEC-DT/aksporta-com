@@ -1435,8 +1435,14 @@ export async function registerRoutes(
   app.post("/api/projects", isAuthenticated, async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
+      
+      // Normalize empty strings to null for date fields
+      const bodyData = { ...req.body };
+      if (bodyData.startDate === "") bodyData.startDate = null;
+      if (bodyData.deadline === "") bodyData.deadline = null;
+      
       const data = insertProjectSchema.parse({
-        ...req.body,
+        ...bodyData,
         createdBy: managedUser.id
       });
       const project = await storage.createProject(data);
@@ -1462,11 +1468,35 @@ export async function registerRoutes(
   // Update project
   app.patch("/api/projects/:id", isAuthenticated, async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      
+      // Viewers cannot edit projects
+      if (managedUser.role === "viewer") {
+        return res.status(403).json({ message: "Viewers cannot edit projects" });
+      }
+      
       const existing = await storage.getProject(req.params.id);
       if (!existing) {
         return res.status(404).json({ message: "Project not found" });
       }
-      const updated = await storage.updateProject(req.params.id, req.body);
+      
+      // Check if user is owner, admin, or editor assigned to project
+      const assignments = await storage.getProjectAssignments(req.params.id);
+      const isOwner = assignments.some(a => a.userId === managedUser.id && a.role === "owner");
+      const isAdmin = managedUser.role === "admin";
+      const isEditor = managedUser.role === "editor";
+      const isAssigned = assignments.some(a => a.userId === managedUser.id);
+      
+      if (!isOwner && !isAdmin && !(isEditor && isAssigned)) {
+        return res.status(403).json({ message: "You don't have permission to update this project" });
+      }
+      
+      // Normalize empty strings to null for date fields
+      const data = { ...req.body };
+      if (data.startDate === "") data.startDate = null;
+      if (data.deadline === "") data.deadline = null;
+      
+      const updated = await storage.updateProject(req.params.id, data);
       res.json(updated);
     } catch (error) {
       console.error("Error updating project:", error);
@@ -1493,6 +1523,16 @@ export async function registerRoutes(
   app.post("/api/projects/:id/assignments", isAuthenticated, async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
+      
+      // Check if user can assign (must be owner, admin, or already assigned)
+      const assignments = await storage.getProjectAssignments(req.params.id);
+      const isOwner = assignments.some(a => a.userId === managedUser.id && a.role === "owner");
+      const isAdmin = managedUser.role === "admin";
+      
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ message: "Only project owners or admins can assign users" });
+      }
+      
       const data = insertProjectAssignmentSchema.parse({
         ...req.body,
         projectId: req.params.id,
@@ -1512,6 +1552,17 @@ export async function registerRoutes(
   // Remove assignment from project
   app.delete("/api/projects/:projectId/assignments/:id", isAuthenticated, async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      
+      // Check if user can remove assignments (must be owner or admin)
+      const assignments = await storage.getProjectAssignments(req.params.projectId);
+      const isOwner = assignments.some(a => a.userId === managedUser.id && a.role === "owner");
+      const isAdmin = managedUser.role === "admin";
+      
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ message: "Only project owners or admins can remove assignments" });
+      }
+      
       await storage.deleteProjectAssignment(req.params.id);
       res.json({ message: "Assignment removed successfully" });
     } catch (error) {
@@ -1535,6 +1586,21 @@ export async function registerRoutes(
   app.post("/api/projects/:id/comments", isAuthenticated, async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
+      
+      // Viewers cannot comment
+      if (managedUser.role === "viewer") {
+        return res.status(403).json({ message: "Viewers cannot add comments" });
+      }
+      
+      // Check if user is assigned to the project
+      const assignments = await storage.getProjectAssignments(req.params.id);
+      const isAssigned = assignments.some(a => a.userId === managedUser.id);
+      const isAdmin = managedUser.role === "admin";
+      
+      if (!isAssigned && !isAdmin) {
+        return res.status(403).json({ message: "Only assigned team members can comment" });
+      }
+      
       const data = insertProjectCommentSchema.parse({
         ...req.body,
         projectId: req.params.id,
