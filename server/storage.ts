@@ -9,7 +9,10 @@ import {
   customers, type Customer, type InsertCustomer,
   customerProfiles, type CustomerProfile, type InsertCustomerProfile,
   type CustomerWithProfile,
-  collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint
+  collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint,
+  projects, type Project, type InsertProject, type ProjectWithAssignments,
+  projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
+  projectComments, type ProjectComment, type InsertProjectComment
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -94,6 +97,24 @@ export interface IStorage {
   createBlueprint(blueprint: InsertBlueprint): Promise<CollaborationBlueprint>;
   updateBlueprint(id: string, data: Partial<InsertBlueprint>): Promise<CollaborationBlueprint | undefined>;
   deleteBlueprint(id: string): Promise<boolean>;
+
+  // Projects CRUD
+  getAllProjects(options?: { userId?: string; status?: string }): Promise<Project[]>;
+  getProject(id: string): Promise<Project | undefined>;
+  getProjectWithAssignments(id: string): Promise<ProjectWithAssignments | undefined>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, data: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: string): Promise<boolean>;
+  
+  // Project assignments
+  getProjectAssignments(projectId: string): Promise<ProjectAssignment[]>;
+  createProjectAssignment(assignment: InsertProjectAssignment): Promise<ProjectAssignment>;
+  deleteProjectAssignment(id: string): Promise<boolean>;
+  getProjectsByUser(userId: string): Promise<Project[]>;
+  
+  // Project comments
+  getProjectComments(projectId: string): Promise<ProjectComment[]>;
+  createProjectComment(comment: InsertProjectComment): Promise<ProjectComment>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -506,6 +527,104 @@ export class DatabaseStorage implements IStorage {
   async deleteBlueprint(id: string): Promise<boolean> {
     const result = await db.delete(collaborationBlueprints).where(eq(collaborationBlueprints.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Projects methods
+  async getAllProjects(options?: { userId?: string; status?: string }): Promise<Project[]> {
+    let query = db.select().from(projects);
+    const conditions = [];
+    
+    if (options?.status) {
+      conditions.push(eq(projects.status, options.status));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(projects.createdAt));
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+
+  async getProjectWithAssignments(id: string): Promise<ProjectWithAssignments | undefined> {
+    const project = await this.getProject(id);
+    if (!project) return undefined;
+    
+    const assignments = await this.getProjectAssignments(id);
+    const comments = await this.getProjectComments(id);
+    
+    const assignmentsWithUsers = await Promise.all(
+      assignments.map(async (assignment) => {
+        const user = await this.getManagedUser(assignment.userId);
+        return { ...assignment, user };
+      })
+    );
+    
+    return { ...project, assignments: assignmentsWithUsers, comments };
+  }
+
+  async createProject(project: InsertProject): Promise<Project> {
+    const [created] = await db.insert(projects).values(project).returning();
+    return created;
+  }
+
+  async updateProject(id: string, data: Partial<InsertProject>): Promise<Project | undefined> {
+    const [updated] = await db
+      .update(projects)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    await db.delete(projectAssignments).where(eq(projectAssignments.projectId, id));
+    await db.delete(projectComments).where(eq(projectComments.projectId, id));
+    const result = await db.delete(projects).where(eq(projects.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Project assignments methods
+  async getProjectAssignments(projectId: string): Promise<ProjectAssignment[]> {
+    return await db.select().from(projectAssignments).where(eq(projectAssignments.projectId, projectId));
+  }
+
+  async createProjectAssignment(assignment: InsertProjectAssignment): Promise<ProjectAssignment> {
+    const [created] = await db.insert(projectAssignments).values(assignment).returning();
+    return created;
+  }
+
+  async deleteProjectAssignment(id: string): Promise<boolean> {
+    const result = await db.delete(projectAssignments).where(eq(projectAssignments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getProjectsByUser(userId: string): Promise<Project[]> {
+    const assignments = await db.select().from(projectAssignments).where(eq(projectAssignments.userId, userId));
+    const projectIds = assignments.map(a => a.projectId);
+    
+    if (projectIds.length === 0) return [];
+    
+    const userProjects = await db.select().from(projects).where(
+      or(...projectIds.map(pid => eq(projects.id, pid)))
+    );
+    return userProjects;
+  }
+
+  // Project comments methods
+  async getProjectComments(projectId: string): Promise<ProjectComment[]> {
+    return await db.select().from(projectComments)
+      .where(eq(projectComments.projectId, projectId))
+      .orderBy(asc(projectComments.createdAt));
+  }
+
+  async createProjectComment(comment: InsertProjectComment): Promise<ProjectComment> {
+    const [created] = await db.insert(projectComments).values(comment).returning();
+    return created;
   }
 }
 

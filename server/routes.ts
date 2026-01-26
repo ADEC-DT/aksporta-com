@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1380,6 +1380,196 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting blueprint:", error);
       res.status(500).json({ message: "Failed to delete blueprint" });
+    }
+  });
+
+  // ========================
+  // Projects API Routes
+  // ========================
+  
+  // Get all projects
+  app.get("/api/projects", isAuthenticated, async (req, res) => {
+    try {
+      const { status, mine } = req.query;
+      const managedUser = (req as any).managedUser as ManagedUser;
+      
+      let projectList;
+      if (mine === "true" && managedUser) {
+        projectList = await storage.getProjectsByUser(managedUser.id);
+      } else {
+        projectList = await storage.getAllProjects({ 
+          status: status as string | undefined 
+        });
+      }
+      
+      // Fetch assignments for each project
+      const projectsWithAssignments = await Promise.all(
+        projectList.map(async (project) => {
+          const assignments = await storage.getProjectAssignments(project.id);
+          return { ...project, assignments };
+        })
+      );
+      
+      res.json(projectsWithAssignments);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  // Get project by ID with full details
+  app.get("/api/projects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProjectWithAssignments(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  // Create new project
+  app.post("/api/projects", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const data = insertProjectSchema.parse({
+        ...req.body,
+        createdBy: managedUser.id
+      });
+      const project = await storage.createProject(data);
+      
+      // Auto-assign creator to the project
+      await storage.createProjectAssignment({
+        projectId: project.id,
+        userId: managedUser.id,
+        role: "owner",
+        assignedBy: managedUser.id
+      });
+      
+      res.status(201).json(project);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  // Update project
+  app.patch("/api/projects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getProject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      const updated = await storage.updateProject(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  // Delete project
+  app.delete("/api/projects/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getProject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      await storage.deleteProject(req.params.id);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  // Add assignment to project
+  app.post("/api/projects/:id/assignments", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const data = insertProjectAssignmentSchema.parse({
+        ...req.body,
+        projectId: req.params.id,
+        assignedBy: managedUser.id
+      });
+      const assignment = await storage.createProjectAssignment(data);
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating assignment:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create assignment" });
+    }
+  });
+
+  // Remove assignment from project
+  app.delete("/api/projects/:projectId/assignments/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteProjectAssignment(req.params.id);
+      res.json({ message: "Assignment removed successfully" });
+    } catch (error) {
+      console.error("Error removing assignment:", error);
+      res.status(500).json({ message: "Failed to remove assignment" });
+    }
+  });
+
+  // Get project comments
+  app.get("/api/projects/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const comments = await storage.getProjectComments(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+
+  // Add comment to project
+  app.post("/api/projects/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const data = insertProjectCommentSchema.parse({
+        ...req.body,
+        projectId: req.params.id,
+        userId: managedUser.id,
+        userName: managedUser.firstName && managedUser.lastName 
+          ? `${managedUser.firstName} ${managedUser.lastName}` 
+          : managedUser.username
+      });
+      const comment = await storage.createProjectComment(data);
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  // Get all users (for assignment dropdown)
+  app.get("/api/users/list", isAuthenticated, async (req, res) => {
+    try {
+      const users = await storage.getAllManagedUsers();
+      const safeUsers = users.map(u => ({
+        id: u.id,
+        username: u.username,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        role: u.role
+      }));
+      res.json(safeUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
