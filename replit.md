@@ -55,7 +55,7 @@ shared/           # Shared code between client/server
 2. **ERP** (`/erp`) - NetSuite Enterprise with Finance/Procurement/Inventory tabs, includes Qashio and Tagway modules
 3. **HR** (`/hr`) - Kayan HRMS for employee directory, payroll, leaves
 4. **Customer DB** (`/applications/customer-db`) - Master Customer Database consolidating Mall, Equestrian, Corporate units
-5. **Projects** (`/projects`) - Monday.com-style project management
+5. **Projects** (`/projects`) - Full project management system with create/edit, team assignments, deadline management, commenting, and Collaboration Stamps
 6. **Veterinary** (`/veterinary`) - Veterinary management system
 7. **Settings** (`/settings`) - User profile and preferences
 8. **Admin** (`/admin`) - User management (admin only)
