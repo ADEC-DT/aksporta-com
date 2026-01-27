@@ -40,6 +40,16 @@ import { Loader2, Search, Bell, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+const ALLOWED_ROUTES_FOR_NON_ADMIN = [
+  "/dashboard",
+  "/applications/customer-db",
+  "/erp",
+  "/netsuite",
+  "/events",
+  "/intranet",
+  "/settings",
+];
+
 function ProtectedRoutes() {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
@@ -54,6 +64,15 @@ function ProtectedRoutes() {
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+
+  const isAdmin = user.role === "admin";
+  const isAllowedRoute = location === "/" || ALLOWED_ROUTES_FOR_NON_ADMIN.some(
+    (route) => location === route || location.startsWith(route + "/")
+  );
+  
+  if (!isAdmin && !isAllowedRoute) {
+    return <Redirect to="/dashboard" />;
   }
 
   const sidebarStyle = {

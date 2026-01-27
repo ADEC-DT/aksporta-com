@@ -43,76 +43,91 @@ const mainNavItems = [
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
+    adminOnly: false,
   },
   {
     title: "Business Units",
     url: "/business-units",
     icon: Building2,
+    adminOnly: true,
   },
   {
     title: "Customer DB",
     url: "/applications/customer-db",
     icon: Contact,
+    adminOnly: false,
   },
   {
     title: "Projects",
     url: "/projects",
     icon: FolderKanban,
+    adminOnly: true,
   },
   {
     title: "HRMS",
     url: "/hr",
     icon: Users,
+    adminOnly: true,
   },
   {
     title: "ERP",
     url: "/erp",
     icon: DollarSign,
+    adminOnly: false,
   },
   {
     title: "Asset and Lease Management",
     url: "/asset-lease",
     icon: Store,
+    adminOnly: true,
   },
   {
     title: "Equestrian",
     url: "/equestrian",
     icon: CircleDot,
+    adminOnly: true,
   },
   {
     title: "Events & Entertainment",
     url: "/events",
     icon: PartyPopper,
+    adminOnly: false,
   },
   {
     title: "Media & Marketing",
     url: "/media-marketing",
     icon: Megaphone,
+    adminOnly: true,
   },
   {
     title: "Intranet & Support",
     url: "/intranet",
     icon: Headphones,
+    adminOnly: false,
   },
   {
     title: "Legal",
     url: "/legal",
     icon: Scale,
+    adminOnly: true,
   },
   {
     title: "Performance & KPIs",
     url: "/performance-kpi",
     icon: Target,
+    adminOnly: true,
   },
   {
     title: "OPS & FM",
     url: "/ops-fm",
     icon: Wrench,
+    adminOnly: true,
   },
   {
     title: "IT & DT",
     url: "/it-dt",
     icon: Cpu,
+    adminOnly: true,
   },
 ];
 
@@ -165,7 +180,9 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => {
+              {mainNavItems
+                .filter((item) => isAdmin || !item.adminOnly)
+                .map((item) => {
                 const isActive = location === item.url || 
                   (location === "/" && item.url === "/dashboard") ||
                   (item.url === "/applications/customer-db" && location.startsWith("/applications/customer-db")) ||
