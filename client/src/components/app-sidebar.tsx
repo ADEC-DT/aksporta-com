@@ -20,7 +20,9 @@ import {
   Scale,
   Target,
   Wrench,
-  Cpu
+  Cpu,
+  Pin,
+  PinOff
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +35,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -142,6 +145,7 @@ const secondaryNavItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
+  const { isPinned, togglePinned, state } = useSidebar();
 
   const isAdmin = user?.role === "admin";
 
@@ -169,12 +173,28 @@ export function AppSidebar() {
   return (
     <Sidebar className="bg-sidebar border-r border-sidebar-border">
       <SidebarHeader className="px-4 py-4">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">U</span>
-          </div>
-          <span className="text-base font-semibold text-sidebar-foreground font-outfit">Unified Portal</span>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary flex-shrink-0">
+              <span className="text-lg font-bold text-primary-foreground">U</span>
+            </div>
+            {state === "expanded" && (
+              <span className="text-base font-semibold text-sidebar-foreground font-outfit whitespace-nowrap">Unified Portal</span>
+            )}
+          </Link>
+          {state === "expanded" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={togglePinned}
+              className="h-7 w-7 flex-shrink-0"
+              data-testid="button-pin-sidebar"
+              title={isPinned ? "Открепить меню" : "Закрепить меню"}
+            >
+              {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
       </SidebarHeader>
       <SidebarContent className="px-2">
         <SidebarGroup>
@@ -196,6 +216,7 @@ export function AppSidebar() {
                       isActive={isActive}
                       className="h-10 px-3 rounded-lg"
                       data-testid={`nav-item-${item.title.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}`}
+                      tooltip={item.title}
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -222,6 +243,7 @@ export function AppSidebar() {
                     isActive={location === "/admin"}
                     className="h-10 px-3 rounded-lg"
                     data-testid="nav-item-admin"
+                    tooltip="User Management"
                   >
                     <Link href="/admin">
                       <Shield className="h-4 w-4" />
@@ -235,6 +257,7 @@ export function AppSidebar() {
                     isActive={location === "/admin/tickets"}
                     className="h-10 px-3 rounded-lg"
                     data-testid="nav-item-admin-tickets"
+                    tooltip="Ticket Management"
                   >
                     <Link href="/admin/tickets">
                       <Ticket className="h-4 w-4" />
@@ -260,6 +283,7 @@ export function AppSidebar() {
                     isActive={location === item.url}
                     className="h-10 px-3 rounded-lg"
                     data-testid={`nav-item-${item.title.toLowerCase()}`}
+                    tooltip={item.title}
                   >
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
@@ -276,31 +300,37 @@ export function AppSidebar() {
         {authLoading ? (
           <div className="flex items-center gap-3">
             <Skeleton className="h-9 w-9 rounded-full" />
-            <div className="flex flex-col gap-1">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-3 w-28" />
-            </div>
+            {state === "expanded" && (
+              <div className="flex flex-col gap-1">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+            )}
           </div>
         ) : user ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <Avatar className="h-9 w-9 bg-primary/10">
+              <Avatar className="h-9 w-9 bg-primary/10 flex-shrink-0">
                 <AvatarFallback className="text-xs bg-primary/20 text-primary">{getInitials()}</AvatarFallback>
               </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{getDisplayName()}</span>
-                <span className="text-xs text-muted-foreground">{getRole()}</span>
-              </div>
+              {state === "expanded" && (
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{getDisplayName()}</span>
+                  <span className="text-xs text-muted-foreground">{getRole()}</span>
+                </div>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => logout()}
-              disabled={isLoggingOut}
-              data-testid="button-logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {state === "expanded" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => logout()}
+                disabled={isLoggingOut}
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ) : null}
       </SidebarFooter>
