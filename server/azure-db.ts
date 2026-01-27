@@ -1,31 +1,64 @@
 import sql from 'mssql';
-
-const config: sql.config = {
-  server: process.env.AZURE_SQL_SERVER || '',
-  database: process.env.AZURE_SQL_DATABASE || '',
-  user: process.env.AZURE_SQL_USER || '',
-  password: process.env.AZURE_SQL_PASSWORD || '',
-  options: {
-    encrypt: true,
-    trustServerCertificate: false,
-  },
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000,
-  },
-};
+import { ClientSecretCredential } from '@azure/identity';
 
 let pool: sql.ConnectionPool | null = null;
 
+async function getAccessToken(): Promise<string> {
+  const tenantId = process.env.AZURE_TENANT_ID;
+  const clientId = process.env.AZURE_CLIENT_ID;
+  const clientSecret = process.env.AZURE_CLIENT_SECRET;
+
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error('Azure AD credentials not configured. Please set AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET');
+  }
+
+  const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+  const tokenResponse = await credential.getToken('https://database.windows.net/.default');
+  
+  if (!tokenResponse) {
+    throw new Error('Failed to obtain Azure AD access token');
+  }
+
+  return tokenResponse.token;
+}
+
 export async function getAzureConnection(): Promise<sql.ConnectionPool> {
-  if (pool) {
+  if (pool && pool.connected) {
     return pool;
   }
-  
+
+  const server = process.env.AZURE_SQL_SERVER;
+  const database = process.env.AZURE_SQL_DATABASE;
+
+  if (!server || !database) {
+    throw new Error('Azure SQL Server or Database not configured. Please set AZURE_SQL_SERVER and AZURE_SQL_DATABASE');
+  }
+
   try {
+    const accessToken = await getAccessToken();
+
+    const config: sql.config = {
+      server: server,
+      database: database,
+      options: {
+        encrypt: true,
+        trustServerCertificate: false,
+      },
+      authentication: {
+        type: 'azure-active-directory-access-token',
+        options: {
+          token: accessToken,
+        },
+      },
+      pool: {
+        max: 10,
+        min: 0,
+        idleTimeoutMillis: 30000,
+      },
+    };
+
     pool = await sql.connect(config);
-    console.log('Connected to Azure SQL Database');
+    console.log('Connected to Azure SQL Database via Azure AD');
     return pool;
   } catch (error) {
     console.error('Azure SQL connection error:', error);
