@@ -5,11 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
 import { SiStripe } from "react-icons/si";
-import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   DollarSign, 
   ShoppingCart, 
@@ -20,7 +15,6 @@ import {
   ExternalLink,
   CreditCard,
   Tag,
-  Wallet,
   BarChart3,
   Receipt,
   Truck,
@@ -28,11 +22,7 @@ import {
   CheckCircle,
   Shield,
   Activity,
-  ArrowUpRight,
-  Database,
-  RefreshCw,
-  AlertCircle,
-  Loader2
+  ArrowUpRight
 } from "lucide-react";
 
 const financeModules = [
@@ -152,31 +142,6 @@ const recentPayments = [
 
 export default function ERPDashboard() {
   const [activeTab, setActiveTab] = useState("finance");
-  const [selectedTable, setSelectedTable] = useState<string>("");
-
-  const { data: azureStatus, isLoading: statusLoading, refetch: refetchStatus } = useQuery<{ connected: boolean; message: string }>({
-    queryKey: ["/api/azure/status"],
-  });
-
-  const { data: tables, isLoading: tablesLoading, refetch: refetchTables } = useQuery<string[]>({
-    queryKey: ["/api/azure/tables"],
-    enabled: azureStatus?.connected === true,
-  });
-
-  const { data: tableData, isLoading: dataLoading, refetch: refetchData } = useQuery<any[]>({
-    queryKey: ["/api/azure/tables", selectedTable],
-    enabled: !!selectedTable && azureStatus?.connected === true,
-  });
-
-  const handleRefresh = () => {
-    refetchStatus();
-    if (azureStatus?.connected) {
-      refetchTables();
-      if (selectedTable) {
-        refetchData();
-      }
-    }
-  };
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -195,7 +160,7 @@ export default function ERPDashboard() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-5">
+        <TabsList className="grid w-full max-w-xl grid-cols-4">
           <TabsTrigger value="finance" className="flex items-center gap-2" data-testid="tab-finance">
             <DollarSign className="h-4 w-4" />
             Finance
@@ -211,10 +176,6 @@ export default function ERPDashboard() {
           <TabsTrigger value="payments" className="flex items-center gap-2" data-testid="tab-payments">
             <CreditCard className="h-4 w-4" />
             Payments
-          </TabsTrigger>
-          <TabsTrigger value="azure" className="flex items-center gap-2" data-testid="tab-azure">
-            <Database className="h-4 w-4" />
-            Azure Data
           </TabsTrigger>
         </TabsList>
 
@@ -447,174 +408,6 @@ export default function ERPDashboard() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        {/* Azure Data Tab */}
-        <TabsContent value="azure" className="mt-6">
-          {/* Azure Connection Status Header */}
-          <Card className="mb-6 border-0 bg-gradient-to-r from-blue-600 to-cyan-600" data-testid="azure-connection-card">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-                    <Database className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white font-outfit">Azure SQL Database</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      {statusLoading ? (
-                        <Badge className="bg-gray-400/20 text-gray-100 border-0">
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          Checking...
-                        </Badge>
-                      ) : azureStatus?.connected ? (
-                        <Badge className="bg-green-400/20 text-green-100 border-0">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Connected
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-400/20 text-red-100 border-0">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Disconnected
-                        </Badge>
-                      )}
-                      <span className="text-white/70 text-sm">{azureStatus?.message}</span>
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  onClick={handleRefresh}
-                  data-testid="button-refresh-azure"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {azureStatus?.connected ? (
-            <div className="space-y-6">
-              {/* Table Selector */}
-              <Card data-testid="table-selector-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold">Select Table</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {tablesLoading ? (
-                    <Skeleton className="h-10 w-full max-w-sm" />
-                  ) : (
-                    <Select value={selectedTable} onValueChange={setSelectedTable}>
-                      <SelectTrigger className="w-full max-w-sm" data-testid="select-table">
-                        <SelectValue placeholder="Select a table to view data" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tables?.map((table) => (
-                          <SelectItem key={table} value={table} data-testid={`table-option-${table}`}>
-                            {table}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {tables && tables.length > 0 && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {tables.length} tables available
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Table Data Display */}
-              {selectedTable && (
-                <Card data-testid="table-data-card">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2 gap-4">
-                    <CardTitle className="text-base font-semibold">{selectedTable}</CardTitle>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => refetchData()}
-                      data-testid="button-refresh-table"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh Data
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    {dataLoading ? (
-                      <div className="space-y-2">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                      </div>
-                    ) : tableData && tableData.length > 0 ? (
-                      <ScrollArea className="w-full">
-                        <div className="min-w-max">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                {Object.keys(tableData[0]).map((column) => (
-                                  <TableHead key={column} className="whitespace-nowrap font-medium">
-                                    {column}
-                                  </TableHead>
-                                ))}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {tableData.map((row, rowIndex) => (
-                                <TableRow key={rowIndex} data-testid={`table-row-${rowIndex}`}>
-                                  {Object.values(row).map((value, colIndex) => (
-                                    <TableCell key={colIndex} className="whitespace-nowrap">
-                                      {value === null ? (
-                                        <span className="text-muted-foreground italic">null</span>
-                                      ) : typeof value === 'object' ? (
-                                        JSON.stringify(value)
-                                      ) : (
-                                        String(value)
-                                      )}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        <ScrollBar orientation="horizontal" />
-                      </ScrollArea>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No data found in this table</p>
-                      </div>
-                    )}
-                    {tableData && tableData.length > 0 && (
-                      <p className="text-sm text-muted-foreground mt-4">
-                        Showing {tableData.length} rows (max 100)
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          ) : !statusLoading && (
-            <Card className="border-dashed" data-testid="azure-not-connected-card">
-              <CardContent className="p-8 text-center">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="font-semibold mb-2">Azure SQL Database Not Connected</h3>
-                <p className="text-muted-foreground mb-4">
-                  Please check your Azure SQL connection settings and credentials.
-                </p>
-                <Button onClick={handleRefresh} data-testid="button-retry-connection">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Retry Connection
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
       </Tabs>
     </div>

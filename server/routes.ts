@@ -7,7 +7,6 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
-import { testAzureConnection, getAzureTables, getTableData, getTableSchema, queryAzureDB } from "./azure-db";
 
 // Middleware to check if user is admin
 const isAdmin: RequestHandler = async (req, res, next) => {
@@ -153,59 +152,6 @@ export async function registerRoutes(
   app.get("/api/livery", (_req, res) => {
     const data = generateLiveryData();
     res.json(data);
-  });
-
-  // Azure SQL Database endpoints for ERP
-  app.get("/api/azure/status", isAuthenticated, async (_req, res) => {
-    try {
-      const isConnected = await testAzureConnection();
-      res.json({ connected: isConnected, message: isConnected ? "Connected to Azure SQL Database" : "Connection failed" });
-    } catch (error: any) {
-      res.json({ connected: false, message: error.message || "Connection failed" });
-    }
-  });
-
-  app.get("/api/azure/tables", isAuthenticated, async (_req, res) => {
-    try {
-      const tables = await getAzureTables();
-      res.json(tables);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || "Failed to fetch tables" });
-    }
-  });
-
-  app.get("/api/azure/tables/:tableName", isAuthenticated, async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      const limit = parseInt(req.query.limit as string) || 100;
-      const data = await getTableData(tableName, limit);
-      res.json(data);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || "Failed to fetch table data" });
-    }
-  });
-
-  app.get("/api/azure/tables/:tableName/schema", isAuthenticated, async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      const schema = await getTableSchema(tableName);
-      res.json(schema);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || "Failed to fetch table schema" });
-    }
-  });
-
-  app.post("/api/azure/query", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const { query } = req.body;
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({ message: "Query is required" });
-      }
-      const result = await queryAzureDB(query);
-      res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || "Query execution failed" });
-    }
   });
 
   // Get current user's managed profile
@@ -726,12 +672,6 @@ export async function registerRoutes(
     }
   };
 
-  const validateConnectionString = (connStr: string): boolean => {
-    // Basic validation for Azure SQL connection string format
-    const requiredParts = ["Server=", "Database="];
-    return requiredParts.every(part => connStr.includes(part));
-  };
-
   app.post("/api/admin/settings", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const currentUser = (req as any).managedUser as ManagedUser;
@@ -745,12 +685,6 @@ export async function registerRoutes(
       if (parsed.data.key.includes("netsuite") && parsed.data.key.includes("url") && parsed.data.value) {
         if (!validateNetSuiteUrl(parsed.data.value)) {
           return res.status(400).json({ message: "Invalid NetSuite RESTlet URL format. Must be a valid HTTPS URL." });
-        }
-      }
-
-      if (parsed.data.key.includes("azure") && parsed.data.key.includes("connection") && parsed.data.value) {
-        if (!validateConnectionString(parsed.data.value)) {
-          return res.status(400).json({ message: "Invalid Azure SQL connection string format. Must include Server= and Database=." });
         }
       }
 
@@ -818,12 +752,6 @@ export async function registerRoutes(
           status: "healthy" as const,
           lastChecked: new Date().toISOString(),
           responseTime: Math.floor(Math.random() * 200) + 50,
-        },
-        {
-          name: "Azure SQL",
-          status: "healthy" as const,
-          lastChecked: new Date().toISOString(),
-          responseTime: Math.floor(Math.random() * 100) + 20,
         },
         {
           name: "HR System",
