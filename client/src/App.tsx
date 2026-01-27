@@ -77,7 +77,7 @@ function ProtectedRoutes() {
 
   const sidebarStyle = {
     "--sidebar-width": "17rem",
-    "--sidebar-width-icon": "3.5rem",
+    "--sidebar-width-icon": "4.5rem",
   };
 
   return (
