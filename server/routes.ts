@@ -745,6 +745,17 @@ export async function registerRoutes(
 
   // ===== EXTERNAL SERVICES =====
   
+  // Public endpoint for enabled services (used by sidebar)
+  app.get("/api/services/enabled", isAuthenticated, async (_req, res) => {
+    try {
+      const services = await storage.getEnabledExternalServices();
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching enabled services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+  
   app.get("/api/admin/services", isAuthenticated, isAdmin, async (_req, res) => {
     try {
       const services = await storage.getExternalServices();

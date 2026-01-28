@@ -40,6 +40,7 @@ export interface IStorage {
   
   // External services CRUD
   getExternalServices(): Promise<ExternalService[]>;
+  getEnabledExternalServices(): Promise<ExternalService[]>;
   getExternalService(id: string): Promise<ExternalService | undefined>;
   createExternalService(service: InsertExternalService): Promise<ExternalService>;
   updateExternalService(id: string, data: Partial<InsertExternalService>): Promise<ExternalService | undefined>;
@@ -219,6 +220,12 @@ export class DatabaseStorage implements IStorage {
   // External services methods
   async getExternalServices(): Promise<ExternalService[]> {
     return await db.select().from(externalServices).orderBy(asc(externalServices.sortOrder));
+  }
+
+  async getEnabledExternalServices(): Promise<ExternalService[]> {
+    return await db.select().from(externalServices)
+      .where(eq(externalServices.isEnabled, true))
+      .orderBy(asc(externalServices.sortOrder));
   }
 
   async getExternalService(id: string): Promise<ExternalService | undefined> {

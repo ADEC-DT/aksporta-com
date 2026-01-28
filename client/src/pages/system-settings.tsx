@@ -134,6 +134,7 @@ export default function SystemSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/enabled"] });
       setServiceDialogOpen(false);
       resetServiceForm();
       toast({ title: editingService ? "Service updated" : "Service created" });
@@ -149,6 +150,7 @@ export default function SystemSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/enabled"] });
       setServiceDialogOpen(false);
       resetServiceForm();
       toast({ title: "Service updated" });
@@ -164,6 +166,7 @@ export default function SystemSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/enabled"] });
       toast({ title: "Service deleted" });
     },
     onError: (error: Error) => {

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { 
   LayoutDashboard, 
   Users, 
@@ -23,7 +24,8 @@ import {
   Wrench,
   Cpu,
   Pin,
-  PinOff
+  PinOff,
+  type LucideIcon
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +43,31 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ExternalService } from "@shared/schema";
+
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  Users,
+  Building2,
+  Contact,
+  Settings,
+  HelpCircle,
+  Shield,
+  LogOut,
+  Ticket,
+  FolderKanban,
+  DollarSign,
+  Store,
+  CircleDot,
+  Headphones,
+  PartyPopper,
+  Megaphone,
+  Scale,
+  UserCircle,
+  Target,
+  Wrench,
+  Cpu,
+};
 
 const mainNavItems = [
   {
@@ -154,6 +181,11 @@ export function AppSidebar() {
   const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
   const { isPinned, togglePinned, state } = useSidebar();
 
+  const { data: enabledServices } = useQuery<ExternalService[]>({
+    queryKey: ["/api/services/enabled"],
+    enabled: !!user,
+  });
+
   const isAdmin = user?.role === "admin";
 
   const getInitials = () => {
@@ -210,27 +242,36 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems
-                .filter((item) => isAdmin || !item.adminOnly)
-                .map((item) => {
-                const isActive = location === item.url || 
-                  (location === "/" && item.url === "/dashboard") ||
-                  (item.url === "/applications/customer-db" && location.startsWith("/applications/customer-db")) ||
-                  (item.url === "/erp" && location.startsWith("/erp")) ||
-                  (item.url === "/veterinary" && location.startsWith("/veterinary")) ||
-                  (item.url === "/projects" && location.startsWith("/projects"));
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location === "/dashboard" || location === "/"}
+                  className="h-10 px-3 rounded-lg"
+                  data-testid="nav-item-dashboard"
+                  tooltip="Dashboard"
+                >
+                  <Link href="/dashboard">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span className="font-medium text-sm">Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {enabledServices?.map((service) => {
+                const IconComponent = iconMap[service.icon || ""] || HelpCircle;
+                const isActive = location === service.url || 
+                  (service.url && location.startsWith(service.url));
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={service.id}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
                       className="h-10 px-3 rounded-lg"
-                      data-testid={`nav-item-${item.title.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}`}
-                      tooltip={item.title}
+                      data-testid={`nav-item-${service.name.toLowerCase().replace(/[()&]/g, '').replace(/\s+/g, '-')}`}
+                      tooltip={service.name}
                     >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span className="font-medium text-sm">{item.title}</span>
+                      <Link href={service.url || "#"}>
+                        <IconComponent className="h-4 w-4" />
+                        <span className="font-medium text-sm">{service.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
