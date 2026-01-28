@@ -309,7 +309,11 @@ export function AppSidebar() {
           </div>
         ) : user ? (
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
+            <Link 
+              href="/settings" 
+              className="flex items-center gap-3 flex-1 rounded-lg p-1 -m-1 hover-elevate cursor-pointer"
+              data-testid="link-user-profile"
+            >
               <Avatar className="h-9 w-9 bg-primary/10 flex-shrink-0">
                 <AvatarFallback className="text-xs bg-primary/20 text-primary">{getInitials()}</AvatarFallback>
               </Avatar>
@@ -319,7 +323,7 @@ export function AppSidebar() {
                   <span className="text-xs text-muted-foreground">{getRole()}</span>
                 </div>
               )}
-            </div>
+            </Link>
             {state === "expanded" && (
               <Button
                 variant="ghost"
