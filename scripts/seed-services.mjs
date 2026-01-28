@@ -12,7 +12,7 @@ const services = [
   { name: "Equestrian", url: "/equestrian", icon: "CircleDot", category: "operations", isEnabled: true, isExternal: false, sortOrder: "7" },
   { name: "Events & Entertainment", url: "/events", icon: "PartyPopper", category: "marketing", isEnabled: true, isExternal: false, sortOrder: "8" },
   { name: "Media & Marketing", url: "/media-marketing", icon: "Megaphone", category: "marketing", isEnabled: true, isExternal: false, sortOrder: "9" },
-  { name: "Intranet & Support", url: "/intranet", icon: "Headphones", category: "general", isEnabled: true, isExternal: false, sortOrder: "10" },
+  { name: "DT Support", url: "/intranet", icon: "Headphones", category: "general", isEnabled: true, isExternal: false, sortOrder: "10" },
   { name: "Legal", url: "/legal", icon: "Scale", category: "general", isEnabled: true, isExternal: false, sortOrder: "11" },
   { name: "Performance & KPIs", url: "/performance-kpi", icon: "Target", category: "operations", isEnabled: true, isExternal: false, sortOrder: "12" },
   { name: "OPS & FM", url: "/ops-fm", icon: "Wrench", category: "operations", isEnabled: true, isExternal: false, sortOrder: "13" },

@@ -132,7 +132,7 @@ const mainNavItems = [
     adminOnly: true,
   },
   {
-    title: "Intranet & Support",
+    title: "DT Support",
     url: "/intranet",
     icon: Headphones,
     adminOnly: false,

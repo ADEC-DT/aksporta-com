@@ -1,22 +1,28 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
-  Search, 
   Users, 
   Shield, 
   FileText, 
   Palette,
   ChevronRight,
   Clock,
-  MessageSquare,
   Download,
-  BarChart3,
-  Ticket
+  Ticket,
+  Plus,
+  Loader2,
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react";
 
 const categories = [
@@ -51,65 +57,158 @@ const announcements = [
 ];
 
 export default function IntranetPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [category, setCategory] = useState("it");
 
-  const handleLaunchPowerBI = () => {
-    window.open("https://app.powerbi.com", "_blank");
+  const createTicketMutation = useMutation({
+    mutationFn: async (data: { subject: string; description: string; priority: string; category: string }) => {
+      return apiRequest("POST", "/api/tickets", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
+      setSubject("");
+      setDescription("");
+      setPriority("medium");
+      setCategory("it");
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create ticket", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmitTicket = () => {
+    if (!subject.trim() || !description.trim()) {
+      toast({ title: "Missing information", description: "Please fill in subject and description", variant: "destructive" });
+      return;
+    }
+    createTicketMutation.mutate({ subject, description, priority, category });
   };
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageCollaborationStamp sectionName="intranet" />
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div />
-        <Button variant="outline" onClick={handleLaunchPowerBI} data-testid="button-launch-powerbi">
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Launch Power BI
-        </Button>
-      </div>
-
       <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
         <CardContent className="p-8">
-          <h1 className="text-2xl font-bold font-outfit mb-2">Knowledge Base & Intranet</h1>
-          <p className="text-blue-100 mb-6">
-            Find regulations, policies, forms, and the latest company announcements in one place.
-          </p>
-          <div className="relative max-w-xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search for documents, policies, or people..."
-              className="pl-12 h-12 bg-white dark:bg-gray-900 text-foreground"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              data-testid="input-search-intranet"
-            />
+          <div className="flex items-center gap-3 mb-2">
+            <Ticket className="h-8 w-8" />
+            <h1 className="text-2xl font-bold font-outfit">Create Support Ticket</h1>
           </div>
+          <p className="text-blue-100">
+            Submit a new support request for IT, HR, or Facility Management issues.
+          </p>
         </CardContent>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                New Ticket
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger id="category" data-testid="select-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="it">IT Support</SelectItem>
+                      <SelectItem value="hr">HR Request</SelectItem>
+                      <SelectItem value="facilities">Facilities</SelectItem>
+                      <SelectItem value="finance">Finance</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger id="priority" data-testid="select-priority">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Input 
+                  id="subject" 
+                  placeholder="Brief description of the issue"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  data-testid="input-subject"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea 
+                  id="description" 
+                  placeholder="Provide details about your request..."
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  data-testid="input-description"
+                />
+              </div>
+
+              <Button 
+                onClick={handleSubmitTicket} 
+                disabled={createTicketMutation.isPending}
+                className="w-full md:w-auto"
+                data-testid="button-submit-ticket"
+              >
+                {createTicketMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Ticket className="mr-2 h-4 w-4" />
+                    Submit Ticket
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           <div>
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Browse Categories
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
-              {categories.map((category) => (
+              {categories.map((cat) => (
                 <Card 
-                  key={category.id} 
+                  key={cat.id} 
                   className="hover-elevate cursor-pointer"
-                  data-testid={`card-category-${category.id}`}
+                  data-testid={`card-category-${cat.id}`}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${category.iconBg}`}>
-                          <category.icon className="h-5 w-5" />
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${cat.iconBg}`}>
+                          <cat.icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="font-medium">{category.name}</h3>
-                          <p className="text-sm text-muted-foreground">{category.count} articles</p>
+                          <h3 className="font-medium">{cat.name}</h3>
+                          <p className="text-sm text-muted-foreground">{cat.count} articles</p>
                         </div>
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -181,23 +280,42 @@ export default function IntranetPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0">
-            <CardContent className="p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 mb-4">
-                <MessageSquare className="h-6 w-6" />
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Quick Tips
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5" />
+                <p className="text-sm text-muted-foreground">Include screenshots for IT issues</p>
               </div>
-              <h3 className="font-semibold text-lg mb-2">Need Support?</h3>
-              <p className="text-blue-100 text-sm mb-4">
-                Raise a ticket for IT, HR, or Facility Management issues directly from here.
-              </p>
-              <Link href="/tickets/new">
-                <Button variant="secondary" className="w-full" data-testid="button-create-request">
-                  <Ticket className="mr-2 h-4 w-4" />
-                  Create Request
-                </Button>
-              </Link>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5" />
+                <p className="text-sm text-muted-foreground">Set correct priority for faster response</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5" />
+                <p className="text-sm text-muted-foreground">Check existing tickets before creating new</p>
+              </div>
             </CardContent>
           </Card>
+
+          <Link href="/my-tickets">
+            <Card className="bg-gradient-to-br from-green-600 to-emerald-700 text-white border-0 hover-elevate cursor-pointer">
+              <CardContent className="p-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 mb-4">
+                  <Ticket className="h-6 w-6" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">View My Tickets</h3>
+                <p className="text-green-100 text-sm">
+                  Track the status of your submitted support requests.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </div>
     </div>
