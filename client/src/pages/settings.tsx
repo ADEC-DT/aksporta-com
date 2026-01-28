@@ -40,6 +40,8 @@ export default function SettingsPage() {
     email: "",
     firstName: "",
     lastName: "",
+    jobTitle: "",
+    phoneNumber: "",
   });
   
   const [passwordForm, setPasswordForm] = useState({
@@ -71,6 +73,8 @@ export default function SettingsPage() {
         email: profile.email,
         firstName: profile.firstName || "",
         lastName: profile.lastName || "",
+        jobTitle: profile.jobTitle || "",
+        phoneNumber: profile.phoneNumber || "",
       });
     }
   }, [profile]);
@@ -342,6 +346,27 @@ export default function SettingsPage() {
                       onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
                       placeholder="Last name"
                       data-testid="input-last-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="jobTitle">Job Title</Label>
+                    <Input
+                      id="jobTitle"
+                      value={profileForm.jobTitle}
+                      onChange={(e) => setProfileForm({ ...profileForm, jobTitle: e.target.value })}
+                      placeholder="Your job title"
+                      data-testid="input-job-title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Input
+                      id="phoneNumber"
+                      type="tel"
+                      value={profileForm.phoneNumber}
+                      onChange={(e) => setProfileForm({ ...profileForm, phoneNumber: e.target.value })}
+                      placeholder="+1 (555) 123-4567"
+                      data-testid="input-phone-number"
                     />
                   </div>
                 </div>

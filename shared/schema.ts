@@ -19,6 +19,8 @@ export const managedUsers = pgTable("managed_users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   displayName: varchar("display_name"),
+  jobTitle: varchar("job_title"),
+  phoneNumber: varchar("phone_number"),
   profilePicture: varchar("profile_picture"),
   role: varchar("role").notNull().default("viewer"),
   isActive: boolean("is_active").notNull().default(true),
