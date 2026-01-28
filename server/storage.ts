@@ -2,6 +2,7 @@ import {
   managedUsers, type ManagedUser, type InsertManagedUser,
   systemSettings, type SystemSetting, type InsertSystemSetting,
   externalServices, type ExternalService, type InsertExternalService,
+  userServices,
   auditLogs, type AuditLog, type InsertAuditLog,
   tickets, type Ticket, type InsertTicket,
   ticketComments, type TicketComment, type InsertTicketComment,
@@ -124,6 +125,10 @@ export interface IStorage {
   // Project comments
   getProjectComments(projectId: string): Promise<ProjectComment[]>;
   createProjectComment(comment: InsertProjectComment): Promise<ProjectComment>;
+  
+  // User services (access control)
+  getUserServices(userId: string): Promise<string[]>;
+  setUserServices(userId: string, serviceIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -669,6 +674,23 @@ export class DatabaseStorage implements IStorage {
   async createProjectComment(comment: InsertProjectComment): Promise<ProjectComment> {
     const [created] = await db.insert(projectComments).values(comment).returning();
     return created;
+  }
+
+  // User services (access control) methods
+  async getUserServices(userId: string): Promise<string[]> {
+    const services = await db.select({ serviceId: userServices.serviceId })
+      .from(userServices)
+      .where(eq(userServices.userId, userId));
+    return services.map(s => s.serviceId);
+  }
+
+  async setUserServices(userId: string, serviceIds: string[]): Promise<void> {
+    await db.delete(userServices).where(eq(userServices.userId, userId));
+    if (serviceIds.length > 0) {
+      await db.insert(userServices).values(
+        serviceIds.map(serviceId => ({ userId, serviceId }))
+      );
+    }
   }
 }
 
