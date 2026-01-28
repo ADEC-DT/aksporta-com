@@ -306,11 +306,10 @@ export class DatabaseStorage implements IStorage {
 
   // Ticket methods
   async createTicket(ticketData: InsertTicket): Promise<Ticket> {
-    // Generate tracking ID (INC-YYYY-NNN format)
-    const year = new Date().getFullYear();
+    // Generate tracking ID (DT + number format)
     const existingTickets = await db.select().from(tickets);
-    const ticketNumber = (existingTickets.length + 1).toString().padStart(3, '0');
-    const trackingId = `INC-${year}-${ticketNumber}`;
+    const ticketNumber = existingTickets.length + 1;
+    const trackingId = `DT${ticketNumber}`;
     
     const [ticket] = await db.insert(tickets).values({
       ...ticketData,
