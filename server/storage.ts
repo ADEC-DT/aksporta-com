@@ -1,6 +1,7 @@
 import { 
   managedUsers, type ManagedUser, type InsertManagedUser,
   systemSettings, type SystemSetting, type InsertSystemSetting,
+  externalServices, type ExternalService, type InsertExternalService,
   auditLogs, type AuditLog, type InsertAuditLog,
   tickets, type Ticket, type InsertTicket,
   ticketComments, type TicketComment, type InsertTicketComment,
@@ -36,6 +37,13 @@ export interface IStorage {
   getSystemSettingsByCategory(category: string): Promise<SystemSetting[]>;
   upsertSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
   deleteSystemSetting(key: string): Promise<boolean>;
+  
+  // External services CRUD
+  getExternalServices(): Promise<ExternalService[]>;
+  getExternalService(id: string): Promise<ExternalService | undefined>;
+  createExternalService(service: InsertExternalService): Promise<ExternalService>;
+  updateExternalService(id: string, data: Partial<InsertExternalService>): Promise<ExternalService | undefined>;
+  deleteExternalService(id: string): Promise<boolean>;
   
   // Audit logs
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
@@ -205,6 +213,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSystemSetting(key: string): Promise<boolean> {
     const result = await db.delete(systemSettings).where(eq(systemSettings.key, key)).returning();
+    return result.length > 0;
+  }
+
+  // External services methods
+  async getExternalServices(): Promise<ExternalService[]> {
+    return await db.select().from(externalServices).orderBy(asc(externalServices.sortOrder));
+  }
+
+  async getExternalService(id: string): Promise<ExternalService | undefined> {
+    const [service] = await db.select().from(externalServices).where(eq(externalServices.id, id));
+    return service;
+  }
+
+  async createExternalService(service: InsertExternalService): Promise<ExternalService> {
+    const [created] = await db.insert(externalServices).values(service).returning();
+    return created;
+  }
+
+  async updateExternalService(id: string, data: Partial<InsertExternalService>): Promise<ExternalService | undefined> {
+    const [updated] = await db
+      .update(externalServices)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(externalServices.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalService(id: string): Promise<boolean> {
+    const result = await db.delete(externalServices).where(eq(externalServices.id, id)).returning();
     return result.length > 0;
   }
 

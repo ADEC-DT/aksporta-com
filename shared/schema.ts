@@ -106,6 +106,30 @@ export type LiveryData = {
 
 export type DashboardTab = "netsuite" | "hr" | "livery";
 
+// External services table (Production services management)
+export const externalServices = pgTable("external_services", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  url: varchar("url"),
+  icon: varchar("icon"),
+  category: varchar("category").notNull().default("general"),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  isExternal: boolean("is_external").notNull().default(true),
+  sortOrder: varchar("sort_order").default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertExternalServiceSchema = createInsertSchema(externalServices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalService = z.infer<typeof insertExternalServiceSchema>;
+export type ExternalService = typeof externalServices.$inferSelect;
+
 // System settings table (Admin configuration)
 export const systemSettings = pgTable("system_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

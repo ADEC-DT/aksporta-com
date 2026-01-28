@@ -51,7 +51,7 @@ import {
   Search
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
-import type { SystemSetting, AuditLog, IntegrationHealth, ManagedUser } from "@shared/schema";
+import type { SystemSetting, AuditLog, IntegrationHealth, ManagedUser, ExternalService } from "@shared/schema";
 
 export default function SystemSettingsPage() {
   const [, setLocation] = useLocation();
@@ -72,6 +72,18 @@ export default function SystemSettingsPage() {
   const [auditCategory, setAuditCategory] = useState<string>("all");
   const [auditPage, setAuditPage] = useState(0);
   const AUDIT_PAGE_SIZE = 20;
+
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [serviceForm, setServiceForm] = useState({
+    name: "",
+    description: "",
+    url: "",
+    icon: "",
+    category: "general",
+    isEnabled: false,
+    isExternal: true,
+  });
+  const [editingService, setEditingService] = useState<ExternalService | null>(null);
 
   const { data: currentUser, isLoading: currentUserLoading } = useQuery<ManagedUser>({
     queryKey: ["/api/admin/users/current"],
@@ -109,6 +121,54 @@ export default function SystemSettingsPage() {
       return response.json();
     },
     enabled: !!authUser && currentUser?.role === "admin",
+  });
+
+  const { data: services, isLoading: servicesLoading } = useQuery<ExternalService[]>({
+    queryKey: ["/api/admin/services"],
+    enabled: !!authUser && currentUser?.role === "admin",
+  });
+
+  const createServiceMutation = useMutation({
+    mutationFn: async (data: typeof serviceForm) => {
+      return apiRequest("POST", "/api/admin/services", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      setServiceDialogOpen(false);
+      resetServiceForm();
+      toast({ title: editingService ? "Service updated" : "Service created" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to save service", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateServiceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof serviceForm> }) => {
+      return apiRequest("PATCH", `/api/admin/services/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      setServiceDialogOpen(false);
+      resetServiceForm();
+      toast({ title: "Service updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update service", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/admin/services/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      toast({ title: "Service deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to delete service", description: error.message, variant: "destructive" });
+    },
   });
 
   const upsertSettingMutation = useMutation({
@@ -170,6 +230,54 @@ export default function SystemSettingsPage() {
   function handleSettingSubmit(e: React.FormEvent) {
     e.preventDefault();
     upsertSettingMutation.mutate(settingForm);
+  }
+
+  function resetServiceForm() {
+    setServiceForm({
+      name: "",
+      description: "",
+      url: "",
+      icon: "",
+      category: "general",
+      isEnabled: false,
+      isExternal: true,
+    });
+    setEditingService(null);
+  }
+
+  function handleOpenCreateService() {
+    resetServiceForm();
+    setServiceDialogOpen(true);
+  }
+
+  function handleOpenEditService(service: ExternalService) {
+    setEditingService(service);
+    setServiceForm({
+      name: service.name,
+      description: service.description || "",
+      url: service.url || "",
+      icon: service.icon || "",
+      category: service.category,
+      isEnabled: service.isEnabled,
+      isExternal: service.isExternal,
+    });
+    setServiceDialogOpen(true);
+  }
+
+  function handleServiceSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (editingService) {
+      updateServiceMutation.mutate({ id: editingService.id, data: serviceForm });
+    } else {
+      createServiceMutation.mutate(serviceForm);
+    }
+  }
+
+  function handleToggleService(service: ExternalService) {
+    updateServiceMutation.mutate({ 
+      id: service.id, 
+      data: { isEnabled: !service.isEnabled } 
+    });
   }
 
   function getHealthBadge(status: string) {
@@ -250,6 +358,10 @@ export default function SystemSettingsPage() {
           <TabsTrigger value="audit" data-testid="tab-audit">
             <FileText className="mr-2 h-4 w-4" />
             Audit Logs
+          </TabsTrigger>
+          <TabsTrigger value="services" data-testid="tab-services">
+            <Activity className="mr-2 h-4 w-4" />
+            Services
           </TabsTrigger>
         </TabsList>
 
@@ -547,7 +659,201 @@ export default function SystemSettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="services" className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <div>
+                <CardTitle>External Services</CardTitle>
+                <CardDescription>Manage production-ready external services</CardDescription>
+              </div>
+              <Button onClick={handleOpenCreateService} data-testid="button-add-service">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Service
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {servicesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : services && services.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>URL</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {services.map((service) => (
+                      <TableRow key={service.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{service.name}</span>
+                            {service.description && (
+                              <span className="text-xs text-muted-foreground">{service.description}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{service.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {service.url ? (
+                            <a 
+                              href={service.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {service.url}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={service.isEnabled}
+                              onCheckedChange={() => handleToggleService(service)}
+                              data-testid={`switch-service-${service.id}`}
+                            />
+                            <span className="text-sm">
+                              {service.isEnabled ? "Enabled" : "Disabled"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEditService(service)}
+                              data-testid={`button-edit-service-${service.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteServiceMutation.mutate(service.id)}
+                              data-testid={`button-delete-service-${service.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Activity className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">No services configured</h3>
+                  <p className="text-muted-foreground">
+                    Add external services to enable them for production
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingService ? "Edit Service" : "Add Service"}</DialogTitle>
+            <DialogDescription>
+              {editingService
+                ? "Update the external service configuration"
+                : "Add a new external service to the portal"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleServiceSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="service-name">Service Name</Label>
+              <Input
+                id="service-name"
+                value={serviceForm.name}
+                onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
+                placeholder="Service name"
+                required
+                data-testid="input-service-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="service-description">Description</Label>
+              <Input
+                id="service-description"
+                value={serviceForm.description}
+                onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
+                placeholder="Brief description"
+                data-testid="input-service-description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="service-url">URL</Label>
+              <Input
+                id="service-url"
+                value={serviceForm.url}
+                onChange={(e) => setServiceForm({ ...serviceForm, url: e.target.value })}
+                placeholder="https://..."
+                data-testid="input-service-url"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="service-category">Category</Label>
+              <Select
+                value={serviceForm.category}
+                onValueChange={(value) => setServiceForm({ ...serviceForm, category: value })}
+              >
+                <SelectTrigger data-testid="select-service-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">General</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="hr">HR</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="it">IT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="service-enabled"
+                checked={serviceForm.isEnabled}
+                onCheckedChange={(checked) => setServiceForm({ ...serviceForm, isEnabled: checked })}
+                data-testid="switch-service-enabled"
+              />
+              <Label htmlFor="service-enabled">Enable service</Label>
+            </div>
+          </form>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setServiceDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleServiceSubmit}
+              disabled={createServiceMutation.isPending || updateServiceMutation.isPending}
+              data-testid="button-save-service"
+            >
+              {(createServiceMutation.isPending || updateServiceMutation.isPending) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {editingService ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={settingDialogOpen} onOpenChange={setSettingDialogOpen}>
         <DialogContent>

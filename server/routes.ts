@@ -743,6 +743,93 @@ export async function registerRoutes(
     }
   });
 
+  // ===== EXTERNAL SERVICES =====
+  
+  app.get("/api/admin/services", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const services = await storage.getExternalServices();
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+
+  app.post("/api/admin/services", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser as ManagedUser;
+      const service = await storage.createExternalService(req.body);
+      
+      await storage.createAuditLog({
+        action: "service_created",
+        category: "admin",
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        details: { serviceName: req.body.name },
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+      
+      res.status(201).json(service);
+    } catch (error) {
+      console.error("Error creating service:", error);
+      res.status(500).json({ message: "Failed to create service" });
+    }
+  });
+
+  app.patch("/api/admin/services/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser as ManagedUser;
+      const service = await storage.updateExternalService(req.params.id, req.body);
+      
+      if (service) {
+        await storage.createAuditLog({
+          action: "service_updated",
+          category: "admin",
+          userId: currentUser.id,
+          userEmail: currentUser.email,
+          details: { serviceId: req.params.id, changes: req.body },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "success",
+        });
+        res.json(service);
+      } else {
+        res.status(404).json({ message: "Service not found" });
+      }
+    } catch (error) {
+      console.error("Error updating service:", error);
+      res.status(500).json({ message: "Failed to update service" });
+    }
+  });
+
+  app.delete("/api/admin/services/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser as ManagedUser;
+      const deleted = await storage.deleteExternalService(req.params.id);
+      
+      if (deleted) {
+        await storage.createAuditLog({
+          action: "service_deleted",
+          category: "admin",
+          userId: currentUser.id,
+          userEmail: currentUser.email,
+          details: { serviceId: req.params.id },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+          status: "success",
+        });
+        res.status(204).send();
+      } else {
+        res.status(404).json({ message: "Service not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting service:", error);
+      res.status(500).json({ message: "Failed to delete service" });
+    }
+  });
+
   // ===== INTEGRATION HEALTH CHECK =====
   
   app.get("/api/admin/integrations/health", isAuthenticated, isAdmin, async (_req, res) => {
