@@ -354,7 +354,7 @@ export async function registerRoutes(
   });
 
   const updateProfileSchema = z.object({
-    displayName: z.string().min(1).max(100).optional(),
+    displayName: z.string().max(100).optional().nullable(),
     email: z.string().email().optional(),
     firstName: z.string().max(50).optional().nullable(),
     lastName: z.string().max(50).optional().nullable(),
