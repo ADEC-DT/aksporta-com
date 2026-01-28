@@ -443,6 +443,9 @@ function AdminDashboard() {
                 required={formMode === "create"}
                 data-testid="input-user-password"
               />
+              <p className="text-xs text-muted-foreground">
+                Minimum 8 characters, with uppercase letter, number, and special character (!@#$%^&*-_)
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

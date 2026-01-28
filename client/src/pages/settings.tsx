@@ -561,6 +561,9 @@ export default function SettingsPage() {
                 required
                 data-testid="input-new-password"
               />
+              <p className="text-xs text-muted-foreground">
+                Minimum 8 characters, with uppercase letter, number, and special character (!@#$%^&*-_)
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
