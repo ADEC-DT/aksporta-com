@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import type { ManagedUser, AdminStats } from "@shared/schema";
+import type { ManagedUser, AdminStats, ExternalService } from "@shared/schema";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +44,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -55,6 +61,77 @@ interface UserFormData {
   firstName: string;
   lastName: string;
   role: "admin" | "editor" | "viewer";
+}
+
+function UserServicesCell({ userId, enabledServices }: { userId: string; enabledServices: ExternalService[] }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+
+  const { data: userServiceIds = [], isLoading } = useQuery<string[]>({
+    queryKey: ["/api/admin/users", userId, "services"],
+  });
+
+  const updateServicesMutation = useMutation({
+    mutationFn: async (serviceIds: string[]) => {
+      return apiRequest("PUT", `/api/admin/users/${userId}/services`, { serviceIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "services"] });
+      toast({ title: "Services updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update services", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleToggleService = (serviceId: string, checked: boolean) => {
+    const newServiceIds = checked
+      ? [...userServiceIds, serviceId]
+      : userServiceIds.filter(id => id !== serviceId);
+    updateServicesMutation.mutate(newServiceIds);
+  };
+
+  const assignedCount = userServiceIds.length;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="gap-1" data-testid={`button-services-${userId}`}>
+          <Settings2 className="h-4 w-4" />
+          <Badge variant="secondary" className="text-xs">{isLoading ? "-" : assignedCount}</Badge>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64" align="start">
+        <div className="space-y-3">
+          <div className="font-medium text-sm">Assigned Services</div>
+          {isLoading ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : enabledServices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No services enabled in system settings</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {enabledServices.map(service => (
+                <div key={service.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`service-${userId}-${service.id}`}
+                    checked={userServiceIds.includes(service.id)}
+                    onCheckedChange={(checked) => handleToggleService(service.id, checked as boolean)}
+                    disabled={updateServicesMutation.isPending}
+                    data-testid={`checkbox-service-${userId}-${service.id}`}
+                  />
+                  <Label htmlFor={`service-${userId}-${service.id}`} className="text-sm cursor-pointer">
+                    {service.name}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function AdminDashboard() {
@@ -88,6 +165,11 @@ function AdminDashboard() {
 
   const { data: users, isLoading: usersLoading, error: usersError } = useQuery<ManagedUser[]>({
     queryKey: ["/api/admin/users"],
+    enabled: currentUser?.role === "admin",
+  });
+
+  const { data: enabledServices = [] } = useQuery<ExternalService[]>({
+    queryKey: ["/api/services/enabled"],
     enabled: currentUser?.role === "admin",
   });
 
@@ -335,6 +417,7 @@ function AdminDashboard() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Services</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -360,6 +443,9 @@ function AdminDashboard() {
                       <Badge variant={user.isActive ? "outline" : "secondary"}>
                         {user.isActive ? "Active" : "Inactive"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <UserServicesCell userId={user.id} enabledServices={enabledServices} />
                     </TableCell>
                     <TableCell>
                       {user.lastActiveAt
