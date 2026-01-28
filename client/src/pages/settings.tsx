@@ -173,14 +173,31 @@ export default function SettingsPage() {
     updateProfileMutation.mutate(profileForm);
   }
 
+  function validatePassword(password: string): string | null {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return "Password must contain at least one special character (!@#$%^&*-_)";
+    }
+    return null;
+  }
+
   function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({ title: "Passwords do not match", variant: "destructive" });
       return;
     }
-    if (passwordForm.newPassword.length < 4) {
-      toast({ title: "Password must be at least 4 characters", variant: "destructive" });
+    const passwordError = validatePassword(passwordForm.newPassword);
+    if (passwordError) {
+      toast({ title: passwordError, variant: "destructive" });
       return;
     }
     changePasswordMutation.mutate({

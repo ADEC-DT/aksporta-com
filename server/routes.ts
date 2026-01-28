@@ -8,6 +8,12 @@ import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
 
+const passwordSchema = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character (!@#$%^&*-_)");
+
 // Middleware to check if user is admin
 const isAdmin: RequestHandler = async (req, res, next) => {
   const managedUser = (req as any).managedUser as ManagedUser;
@@ -198,7 +204,7 @@ export async function registerRoutes(
   const createUserSchema = z.object({
     email: z.string().email(),
     username: z.string().min(3).max(50),
-    password: z.string().min(4),
+    password: passwordSchema,
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
     role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
@@ -244,7 +250,7 @@ export async function registerRoutes(
   const updateUserSchema = z.object({
     email: z.string().email().optional(),
     username: z.string().min(3).max(50).optional(),
-    password: z.string().min(4).optional(),
+    password: passwordSchema.optional(),
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
     role: z.enum(["admin", "editor", "viewer"]).optional(),
@@ -410,7 +416,7 @@ export async function registerRoutes(
   // Password change
   const changePasswordSchema = z.object({
     currentPassword: z.string().min(1),
-    newPassword: z.string().min(4),
+    newPassword: passwordSchema,
   });
 
   app.post("/api/settings/change-password", isAuthenticated, async (req, res) => {

@@ -165,12 +165,40 @@ function AdminDashboard() {
     setDialogOpen(true);
   }
 
+  function validatePassword(password: string): string | null {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return "Password must contain at least one special character (!@#$%^&*-_)";
+    }
+    return null;
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (formMode === "create") {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) {
+        toast({ title: passwordError, variant: "destructive" });
+        return;
+      }
       createUserMutation.mutate(formData);
     } else if (editingUser) {
       const { password, ...rest } = formData;
+      if (password) {
+        const passwordError = validatePassword(password);
+        if (passwordError) {
+          toast({ title: passwordError, variant: "destructive" });
+          return;
+        }
+      }
       const updateData = password ? formData : rest;
       updateUserMutation.mutate({ id: editingUser.id, data: updateData });
     }
