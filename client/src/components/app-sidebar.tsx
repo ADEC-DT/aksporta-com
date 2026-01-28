@@ -64,7 +64,7 @@ const mainNavItems = [
     title: "Projects",
     url: "/projects",
     icon: FolderKanban,
-    adminOnly: true,
+    adminOnly: false,
   },
   {
     title: "HRMS",
