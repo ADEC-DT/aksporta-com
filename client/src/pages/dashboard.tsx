@@ -199,7 +199,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* Metrics Cards - temporarily hidden
       <div className="px-6 md:px-10 -mt-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {metrics.map((metric) => (
@@ -227,6 +227,7 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+      */}
 
       {/* Main Content Grid */}
       <div className="flex-1 px-6 md:px-10 py-6">
@@ -244,25 +245,7 @@ export default function Dashboard() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {businessApplications.map((app) => (
-                <Link key={app.id} href={app.url}>
-                  <Card className="hover-elevate cursor-pointer h-full" data-testid={`app-card-${app.id}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${app.iconBg}`}>
-                          <span className="text-lg font-bold text-white">{app.iconText}</span>
-                        </div>
-                        <Badge className={`${app.statusColor} border-0`}>
-                          {app.status}
-                        </Badge>
-                      </div>
-                      <h4 className="font-semibold mb-1">{app.name}</h4>
-                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{app.description}</p>
-                      <Badge variant="outline" className="text-xs">{app.category}</Badge>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+              {/* Business applications cards temporarily removed */}
             </div>
           </div>
 
@@ -274,20 +257,7 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground mb-4">Latest news and announcements</p>
                 
                 <div className="space-y-4">
-                  {intranetUpdates.map((update) => (
-                    <div key={update.id} className="flex items-start gap-3" data-testid={`update-${update.id}`}>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{update.title}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{update.date}</span>
-                          <span className={update.categoryColor}>{update.category}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                  {/* News items temporarily removed */}
                 </div>
               </CardContent>
             </Card>
@@ -300,17 +270,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="space-y-2">
-                  {quickLinks.map((link) => (
-                    <Button 
-                      key={link.title} 
-                      variant="ghost" 
-                      className="w-full justify-start text-sm h-9"
-                      data-testid={`quick-link-${link.title.toLowerCase().replace(/\s+/g, '-')}`}
-                    >
-                      <link.icon className="h-4 w-4 mr-2" />
-                      {link.title}
-                    </Button>
-                  ))}
+                  {/* Quick links temporarily removed */}
                 </div>
               </CardContent>
             </Card>
