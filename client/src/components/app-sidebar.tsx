@@ -18,6 +18,7 @@ import {
   PartyPopper,
   Megaphone,
   Scale,
+  UserCircle,
   Target,
   Wrench,
   Cpu,
@@ -136,8 +137,13 @@ const mainNavItems = [
 
 const secondaryNavItems = [
   {
-    title: "Settings",
+    title: "Users Profile",
     url: "/settings",
+    icon: UserCircle,
+  },
+  {
+    title: "Settings",
+    url: "/system-settings",
     icon: Settings,
   },
 ];
