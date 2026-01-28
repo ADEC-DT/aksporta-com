@@ -267,6 +267,7 @@ export default function SettingsPage() {
             <User className="mr-2 h-4 w-4" />
             Profile
           </TabsTrigger>
+          {/* COMMENTED OUT: Security and Preferences tabs - can be restored later
           <TabsTrigger value="security" data-testid="tab-security">
             <Lock className="mr-2 h-4 w-4" />
             Security
@@ -275,6 +276,7 @@ export default function SettingsPage() {
             <Palette className="mr-2 h-4 w-4" />
             Preferences
           </TabsTrigger>
+          */}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -359,6 +361,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* COMMENTED OUT: Security TabsContent - can be restored later
         <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
@@ -421,7 +424,9 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        */}
 
+        {/* COMMENTED OUT: Preferences TabsContent - can be restored later
         <TabsContent value="preferences" className="space-y-6">
           <Card>
             <CardHeader>
@@ -479,6 +484,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        */}
       </Tabs>
 
       {/* Password Change Dialog */}
