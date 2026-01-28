@@ -47,6 +47,7 @@ const ALLOWED_ROUTES_FOR_NON_ADMIN = [
   "/netsuite",
   "/events",
   "/intranet",
+  "/projects",
   "/settings",
 ];
 
