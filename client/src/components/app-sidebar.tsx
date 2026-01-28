@@ -23,6 +23,7 @@ import {
   Target,
   Wrench,
   Cpu,
+  Monitor,
   Pin,
   PinOff,
   type LucideIcon
@@ -259,7 +260,7 @@ export function AppSidebar() {
               {enabledServices?.map((service) => {
                 const IconComponent = iconMap[service.icon || ""] || HelpCircle;
                 const isActive = location === service.url || 
-                  (service.url && location.startsWith(service.url));
+                  (!!service.url && location.startsWith(service.url));
                 return (
                   <SidebarMenuItem key={service.id}>
                     <SidebarMenuButton
@@ -313,6 +314,20 @@ export function AppSidebar() {
                     <Link href="/admin/tickets">
                       <Ticket className="h-4 w-4" />
                       <span>Ticket Management</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/it-dt" || location.startsWith("/it-dt")}
+                    className="h-10 px-3 rounded-lg"
+                    data-testid="nav-item-it-dt"
+                    tooltip="IT & DT"
+                  >
+                    <Link href="/it-dt">
+                      <Monitor className="h-4 w-4" />
+                      <span>IT & DT</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
