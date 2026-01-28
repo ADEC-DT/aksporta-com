@@ -130,6 +130,22 @@ export const insertExternalServiceSchema = createInsertSchema(externalServices).
 export type InsertExternalService = z.infer<typeof insertExternalServiceSchema>;
 export type ExternalService = typeof externalServices.$inferSelect;
 
+// User-Service access junction table
+export const userServices = pgTable("user_services", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "cascade" }),
+  serviceId: varchar("service_id").notNull().references(() => externalServices.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserServiceSchema = createInsertSchema(userServices).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserService = z.infer<typeof insertUserServiceSchema>;
+export type UserService = typeof userServices.$inferSelect;
+
 // System settings table (Admin configuration)
 export const systemSettings = pgTable("system_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
