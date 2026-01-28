@@ -358,6 +358,8 @@ export async function registerRoutes(
     email: z.string().email().optional(),
     firstName: z.string().max(50).optional().nullable(),
     lastName: z.string().max(50).optional().nullable(),
+    jobTitle: z.string().max(100).optional().nullable(),
+    phoneNumber: z.string().max(30).optional().nullable(),
     profilePicture: z.string().url().optional().nullable(),
     theme: z.enum(["light", "dark", "system"]).optional(),
     emailNotifications: z.boolean().optional(),

@@ -173,8 +173,11 @@ export function AppSidebar() {
     return user?.username || "User";
   };
 
-  const getRole = () => {
-    return user?.role === "admin" ? "Head of Operations" : user?.role || "User";
+  const getJobTitle = () => {
+    if (user?.jobTitle) {
+      return user.jobTitle;
+    }
+    return user?.role === "admin" ? "Administrator" : user?.role || "User";
   };
 
   return (
@@ -329,7 +332,7 @@ export function AppSidebar() {
               {state === "expanded" && (
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{getDisplayName()}</span>
-                  <span className="text-xs text-muted-foreground">{getRole()}</span>
+                  <span className="text-xs text-muted-foreground">{getJobTitle()}</span>
                 </div>
               )}
             </Link>
