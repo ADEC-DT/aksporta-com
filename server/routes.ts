@@ -345,6 +345,33 @@ export async function registerRoutes(
     }
   });
 
+  // Get user services
+  app.get("/api/admin/users/:id/services", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const serviceIds = await storage.getUserServices(req.params.id);
+      res.json(serviceIds);
+    } catch (error) {
+      console.error("Error getting user services:", error);
+      res.status(500).json({ message: "Failed to get user services" });
+    }
+  });
+
+  // Set user services
+  app.put("/api/admin/users/:id/services", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({ serviceIds: z.array(z.string()) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input" });
+      }
+      await storage.setUserServices(req.params.id, parsed.data.serviceIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting user services:", error);
+      res.status(500).json({ message: "Failed to set user services" });
+    }
+  });
+
   // ===== USER PROFILE SETTINGS =====
   
   // Get current user's profile
