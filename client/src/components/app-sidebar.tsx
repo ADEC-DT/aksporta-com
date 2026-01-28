@@ -145,6 +145,7 @@ const secondaryNavItems = [
     title: "Settings",
     url: "/system-settings",
     icon: Settings,
+    adminOnly: true,
   },
 ];
 
@@ -282,7 +283,9 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {secondaryNavItems.map((item) => (
+              {secondaryNavItems
+                .filter((item) => !item.adminOnly || isAdmin)
+                .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
