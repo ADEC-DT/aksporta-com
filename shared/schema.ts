@@ -202,7 +202,7 @@ export type IntegrationHealth = {
 };
 
 // Ticket categories and severity enums
-export const ticketCategories = ["netsuite_sync", "ui_bug", "access_issue", "data_error", "performance", "other"] as const;
+export const ticketCategories = ["it_support", "other"] as const;
 export type TicketCategory = typeof ticketCategories[number];
 
 export const ticketSeverities = ["low", "medium", "high", "critical"] as const;

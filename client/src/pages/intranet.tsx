@@ -24,7 +24,7 @@ export default function IntranetPage() {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
-  const [category, setCategory] = useState("it");
+  const [category, setCategory] = useState("it_support");
 
   const createTicketMutation = useMutation({
     mutationFn: async (data: { subject: string; description: string; priority: string; category: string }) => {
@@ -35,7 +35,7 @@ export default function IntranetPage() {
       setSubject("");
       setDescription("");
       setPriority("medium");
-      setCategory("it");
+      setCategory("it_support");
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
     },
@@ -132,7 +132,7 @@ export default function IntranetPage() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="it">IT Support</SelectItem>
+                    <SelectItem value="it_support">IT Support</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
