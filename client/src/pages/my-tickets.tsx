@@ -70,44 +70,6 @@ const categoryConfig: Record<string, { label: string; icon: any; color: string; 
   other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
 };
 
-const supportDocuments = [
-  { 
-    id: "doc-1", 
-    title: "Portal User Guide", 
-    type: "PDF", 
-    size: "2.4 MB", 
-    date: "Jan 10, 2026",
-    color: "text-red-600",
-    bgColor: "bg-red-100 dark:bg-red-900/30"
-  },
-  { 
-    id: "doc-2", 
-    title: "Ticket Submission Guidelines", 
-    type: "PDF", 
-    size: "1.1 MB", 
-    date: "Jan 8, 2026",
-    color: "text-red-600",
-    bgColor: "bg-red-100 dark:bg-red-900/30"
-  },
-  { 
-    id: "doc-3", 
-    title: "NetSuite Integration FAQ", 
-    type: "DOC", 
-    size: "856 KB", 
-    date: "Jan 5, 2026",
-    color: "text-blue-600",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30"
-  },
-  { 
-    id: "doc-4", 
-    title: "Troubleshooting Common Issues", 
-    type: "PDF", 
-    size: "1.8 MB", 
-    date: "Dec 20, 2025",
-    color: "text-red-600",
-    bgColor: "bg-red-100 dark:bg-red-900/30"
-  },
-];
 
 export default function MyTicketsPage() {
   const [, setLocation] = useLocation();
@@ -197,14 +159,6 @@ export default function MyTicketsPage() {
     acc[key] = tickets.filter(t => t.category === key).length;
     return acc;
   }, {} as Record<string, number>);
-
-  const recentUpdates = [...tickets]
-    .sort((a, b) => {
-      const dateA = a.updatedAt || a.createdAt || new Date();
-      const dateB = b.updatedAt || b.createdAt || new Date();
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    })
-    .slice(0, 3);
 
   if (selectedTicket) {
     const status = statusConfig[selectedTicket.status] || statusConfig.new;
@@ -393,8 +347,7 @@ export default function MyTicketsPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
           <div>
             <div className="mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -521,129 +474,6 @@ export default function MyTicketsPage() {
               </div>
             )}
           </div>
-
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">Documents</h2>
-            </div>
-            <div className="space-y-3">
-              {supportDocuments.map((doc) => (
-                <Card 
-                  key={doc.id} 
-                  className="hover-elevate"
-                  data-testid={`card-document-${doc.id}`}
-                >
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${doc.bgColor}`}>
-                        <span className={`text-xs font-bold ${doc.color}`}>{doc.type}</span>
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{doc.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {doc.size} - {doc.date}
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toast({ title: "Download started", description: `Downloading ${doc.title}...` });
-                      }}
-                      data-testid={`button-download-${doc.id}`}
-                    >
-                      <Download className="h-5 w-5 text-muted-foreground" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Recent Updates</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentUpdates.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-4">
-                  No recent updates
-                </p>
-              ) : (
-                recentUpdates.map((ticket) => {
-                  const status = statusConfig[ticket.status] || statusConfig.new;
-                  return (
-                    <div 
-                      key={ticket.id} 
-                      className="cursor-pointer"
-                      onClick={() => setSelectedTicket(ticket)}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className={`mt-1.5 h-2 w-2 rounded-full ${status.color.replace('text-', 'bg-')}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">
-                            {ticket.updatedAt 
-                              ? formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })
-                              : ticket.createdAt 
-                                ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })
-                                : "Unknown"
-                            }
-                          </p>
-                          <p className="text-sm font-medium truncate">{ticket.subject}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Status: {status.label}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              {tickets.length > 3 && (
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={() => {
-                    setCategoryFilter(null);
-                    setSearchQuery("");
-                  }}
-                >
-                  View All Tickets
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-                  <HelpCircle className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Need Help?</h3>
-                  <p className="text-xs text-muted-foreground">Create a new support ticket</p>
-                </div>
-              </div>
-              <Button 
-                className="w-full" 
-                onClick={() => setCreateDialogOpen(true)}
-                data-testid="button-quick-new-ticket"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Submit Ticket
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
