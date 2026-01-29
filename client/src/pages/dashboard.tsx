@@ -247,6 +247,26 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Business applications cards temporarily removed */}
             </div>
+
+            {/* Power BI Dashboard */}
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold font-outfit">Power BI Dashboard</h3>
+              </div>
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <iframe
+                    title="Power BI Report"
+                    src="https://app.powerbi.com/reportEmbed?reportId=e33349d0-6d3e-490f-b375-85e1525cfc64&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3"
+                    className="w-full border-0"
+                    style={{ height: "600px" }}
+                    allowFullScreen
+                    data-testid="powerbi-embed"
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Intranet Updates - Takes 1 column */}
