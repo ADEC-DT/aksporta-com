@@ -133,9 +133,6 @@ export default function IntranetPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="it">IT Support</SelectItem>
-                    <SelectItem value="hr">HR Request</SelectItem>
-                    <SelectItem value="facilities">Facilities</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
