@@ -4,6 +4,7 @@ import { registerStripeRoutes } from "./stripeRoutes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, registerAuthRoutes, seedAdminUser } from "./auth";
+import { seedExternalServices } from "./seedServices";
 import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
@@ -149,6 +150,9 @@ app.use((req, res, next) => {
   
   // Seed default admin user
   await seedAdminUser();
+  
+  // Seed external services
+  await seedExternalServices();
   
   // Register Stripe routes
   registerStripeRoutes(app);
