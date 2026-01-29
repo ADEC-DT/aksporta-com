@@ -556,10 +556,6 @@ export default function ProjectsPage() {
             <Target className="w-4 h-4 mr-2" />
             Projects
           </TabsTrigger>
-          <TabsTrigger value="blueprints" data-testid="tab-blueprints">
-            <Stamp className="w-4 h-4 mr-2" />
-            Collaboration Stamps
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="projects" className="space-y-6">
@@ -869,69 +865,6 @@ export default function ProjectsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="blueprints" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <p className="text-muted-foreground">Track development status across portal sections</p>
-            <Button 
-              onClick={() => {
-                setEditingBlueprint(null);
-                setBlueprintDialogOpen(true);
-              }}
-              data-testid="button-new-blueprint"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Stamp
-            </Button>
-          </div>
-
-          {blueprintsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">Loading blueprints...</p>
-            </div>
-          ) : blueprints.length === 0 ? (
-            <Card className="p-12 text-center">
-              <Stamp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No collaboration stamps yet</h3>
-              <p className="text-muted-foreground">Create stamps to track development status.</p>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {blueprints.map((blueprint) => (
-                <Card key={blueprint.id} data-testid={`blueprint-${blueprint.id}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base">{blueprint.sectionTitle}</CardTitle>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditingBlueprint(blueprint);
-                            setBlueprintDialogOpen(true);
-                          }}
-                          data-testid={`button-edit-blueprint-${blueprint.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteBlueprintMutation.mutate(blueprint.id)}
-                          data-testid={`button-delete-blueprint-${blueprint.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CollaborationStampMini status={blueprint.status} />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
 
       {/* Create/Edit Project Dialog */}
