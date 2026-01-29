@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { 
   Clock,
   Ticket,
-  Headphones
+  Headphones,
+  Plus
 } from "lucide-react";
 
 export default function IntranetPage() {
@@ -22,19 +23,23 @@ export default function IntranetPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Announcements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">No announcements at this time.</p>
+      <Link href="/tickets/new">
+        <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0 hover-elevate cursor-pointer">
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20">
+              <Plus className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Create New Ticket</h3>
+              <p className="text-blue-100 text-sm">
+                Submit a new support request for IT, HR, or Facility issues.
+              </p>
+            </div>
           </CardContent>
         </Card>
+      </Link>
 
+      <div className="grid gap-6 lg:grid-cols-2">
         <Link href="/my-tickets">
           <Card className="bg-gradient-to-br from-green-600 to-emerald-700 text-white border-0 hover-elevate cursor-pointer h-full">
             <CardContent className="p-6">
@@ -48,6 +53,18 @@ export default function IntranetPage() {
             </CardContent>
           </Card>
         </Link>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Announcements
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">No announcements at this time.</p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
