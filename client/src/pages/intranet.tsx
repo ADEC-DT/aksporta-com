@@ -27,7 +27,7 @@ export default function IntranetPage() {
   const [category, setCategory] = useState("it_support");
 
   const createTicketMutation = useMutation({
-    mutationFn: async (data: { subject: string; description: string; priority: string; category: string }) => {
+    mutationFn: async (data: { subject: string; description: string; severity: string; category: string }) => {
       return apiRequest("POST", "/api/tickets", data);
     },
     onSuccess: () => {
@@ -49,7 +49,7 @@ export default function IntranetPage() {
       toast({ title: "Missing information", description: "Please fill in subject and description", variant: "destructive" });
       return;
     }
-    createTicketMutation.mutate({ subject, description, priority, category });
+    createTicketMutation.mutate({ subject, description, severity: priority, category });
   };
 
   return (

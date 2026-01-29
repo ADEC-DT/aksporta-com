@@ -1010,7 +1010,7 @@ export async function registerRoutes(
   const createTicketSchema = z.object({
     subject: z.string().min(5, "Subject must be at least 5 characters"),
     description: z.string().min(10, "Description must be at least 10 characters"),
-    category: z.enum(["netsuite_sync", "ui_bug", "access_issue", "data_error", "performance", "other"]),
+    category: z.enum(["it_support", "other"]),
     severity: z.enum(["low", "medium", "high", "critical"]),
   });
 
