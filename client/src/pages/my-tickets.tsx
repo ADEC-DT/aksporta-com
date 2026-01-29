@@ -66,11 +66,7 @@ const severityConfig: Record<string, { label: string; variant: "default" | "seco
 };
 
 const categoryConfig: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
-  netsuite_sync: { label: "NetSuite Sync", icon: RefreshCw, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
-  ui_bug: { label: "UI/UX Bug", icon: Bug, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
-  access_issue: { label: "Access Issue", icon: ShieldAlert, color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30" },
-  data_error: { label: "Data Error", icon: Database, color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900/30" },
-  performance: { label: "Performance", icon: Zap, color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30" },
+  it_support: { label: "IT Support", icon: ShieldAlert, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
   other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
 };
 

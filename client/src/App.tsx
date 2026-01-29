@@ -49,6 +49,7 @@ const ALLOWED_ROUTES_FOR_NON_ADMIN = [
   "/intranet",
   "/projects",
   "/settings",
+  "/my-tickets",
 ];
 
 function ProtectedRoutes() {
@@ -123,6 +124,7 @@ function ProtectedRoutes() {
               <Route path="/help" component={HelpCenterPage} />
               <Route path="/tickets" component={MyTicketsPage} />
               <Route path="/tickets/new" component={MyTicketsPage} />
+              <Route path="/my-tickets" component={MyTicketsPage} />
               <Route path="/other-systems" component={OtherSystemsPage} />
               <Route path="/business-units" component={BusinessUnitsPage} />
               <Route path="/asset-lease" component={AssetLeasePage} />
