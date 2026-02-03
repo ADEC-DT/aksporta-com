@@ -422,6 +422,8 @@ export const projects = pgTable("projects", {
   tags: text("tags").array().default(sql`'{}'::text[]`),
   startDate: varchar("start_date"),
   deadline: varchar("deadline"),
+  blocked: boolean("blocked").default(false),
+  blockedReason: text("blocked_reason"),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

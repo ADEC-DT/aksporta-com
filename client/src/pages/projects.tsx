@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -122,6 +123,8 @@ const projectFormSchema = z.object({
   tags: z.array(z.string()).optional(),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
+  blocked: z.boolean().optional(),
+  blockedReason: z.string().optional(),
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
@@ -345,6 +348,8 @@ export default function ProjectsPage() {
       tags: [],
       startDate: "",
       deadline: "",
+      blocked: false,
+      blockedReason: "",
     },
   });
 
@@ -372,6 +377,8 @@ export default function ProjectsPage() {
         tags: (editingProject as any).tags || [],
         startDate: editingProject.startDate || "",
         deadline: editingProject.deadline || "",
+        blocked: (editingProject as any).blocked || false,
+        blockedReason: (editingProject as any).blockedReason || "",
       });
     } else {
       projectForm.reset({
@@ -382,6 +389,8 @@ export default function ProjectsPage() {
         tags: [],
         startDate: "",
         deadline: "",
+        blocked: false,
+        blockedReason: "",
       });
     }
   }, [editingProject, projectDialogOpen]);
@@ -883,6 +892,41 @@ export default function ProjectsPage() {
                   </FormItem>
                 )}
               />
+              <div className="flex items-center gap-4">
+                <FormField
+                  control={projectForm.control}
+                  name="blocked"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center gap-3">
+                      <FormLabel className="mt-0">Blocked?</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-blocked"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {projectForm.watch("blocked") && (
+                  <FormField
+                    control={projectForm.control}
+                    name="blockedReason"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormControl>
+                          <Input
+                            placeholder="Describe what's blocking this task..."
+                            {...field}
+                            data-testid="input-blocked-reason"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={projectForm.control}
