@@ -22,6 +22,7 @@ import AdminTicketsPage from "@/pages/admin-tickets";
 import OtherSystemsPage from "@/pages/other-systems";
 import VeterinaryPage from "@/pages/veterinary";
 import ProjectsPage from "@/pages/projects";
+import ManageTagsPage from "@/pages/manage-tags";
 import AssetLeasePage from "@/pages/asset-lease";
 import BusinessUnitsPage from "@/pages/business-units";
 import HRMSPage from "@/pages/hrms";
@@ -137,6 +138,7 @@ function ProtectedRoutes() {
               <Route path="/ops-fm" component={OpsFMPage} />
               <Route path="/it-dt" component={ITDTPage} />
               <Route path="/projects" component={ProjectsPage} />
+              <Route path="/manage-tags" component={ManageTagsPage} />
               <Route path="/applications/customer-db" component={CustomerDBPage} />
               <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />
               <Route component={NotFound} />

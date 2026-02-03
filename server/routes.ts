@@ -1499,6 +1499,59 @@ export async function registerRoutes(
   });
 
   // ========================
+  // Project Tags API Routes
+  // ========================
+  
+  app.get("/api/project-tags", isAuthenticated, async (req, res) => {
+    try {
+      const tags = await storage.getAllProjectTags();
+      res.json(tags);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch project tags" });
+    }
+  });
+
+  app.post("/api/project-tags", isAuthenticated, async (req, res) => {
+    try {
+      const { name, color } = req.body;
+      if (!name) {
+        return res.status(400).json({ message: "Tag name is required" });
+      }
+      const tag = await storage.createProjectTag({ name, color });
+      res.status(201).json(tag);
+    } catch (error: any) {
+      if (error?.code === "23505") {
+        return res.status(400).json({ message: "Tag with this name already exists" });
+      }
+      res.status(500).json({ message: "Failed to create project tag" });
+    }
+  });
+
+  app.patch("/api/project-tags/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, color } = req.body;
+      const tag = await storage.updateProjectTag(id, { name, color });
+      if (!tag) {
+        return res.status(404).json({ message: "Tag not found" });
+      }
+      res.json(tag);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update project tag" });
+    }
+  });
+
+  app.delete("/api/project-tags/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProjectTag(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete project tag" });
+    }
+  });
+
+  // ========================
   // Projects API Routes
   // ========================
   

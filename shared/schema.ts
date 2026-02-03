@@ -410,6 +410,22 @@ export const projectPriorities = ["low", "medium", "high", "critical"] as const;
 export type ProjectPriority = typeof projectPriorities[number];
 
 // Projects table
+// Project tags table
+export const projectTagsTable = pgTable("project_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  color: varchar("color").default("#6366f1"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProjectTagSchema = createInsertSchema(projectTagsTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProjectTag = z.infer<typeof insertProjectTagSchema>;
+export type ProjectTagRecord = typeof projectTagsTable.$inferSelect;
+
 export const projectTags = ["Dashboard", "NetSuite", "Equestrian"] as const;
 export type ProjectTag = typeof projectTags[number];
 

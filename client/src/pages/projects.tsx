@@ -50,7 +50,8 @@ import {
   CalendarClock,
   User,
   X,
-  GripVertical
+  GripVertical,
+  Tag
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format, formatDistanceToNow } from "date-fns";
@@ -606,6 +607,16 @@ export default function ProjectsPage() {
                 <User className="h-4 w-4 mr-1" />
                 My Tasks
               </Button>
+              <Link href="/manage-tags">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-manage-tags"
+                >
+                  <Tag className="h-4 w-4 mr-1" />
+                  Manage Tags
+                </Button>
+              </Link>
             </div>
             <Button 
               onClick={() => {

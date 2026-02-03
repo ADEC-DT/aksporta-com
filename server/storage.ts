@@ -14,7 +14,8 @@ import {
   collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint,
   projects, type Project, type InsertProject, type ProjectWithAssignments,
   projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
-  projectComments, type ProjectComment, type InsertProjectComment
+  projectComments, type ProjectComment, type InsertProjectComment,
+  projectTagsTable, type ProjectTagRecord, type InsertProjectTag
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -125,6 +126,13 @@ export interface IStorage {
   // Project comments
   getProjectComments(projectId: string): Promise<ProjectComment[]>;
   createProjectComment(comment: InsertProjectComment): Promise<ProjectComment>;
+  
+  // Project tags
+  getAllProjectTags(): Promise<ProjectTagRecord[]>;
+  getProjectTag(id: string): Promise<ProjectTagRecord | undefined>;
+  createProjectTag(tag: InsertProjectTag): Promise<ProjectTagRecord>;
+  updateProjectTag(id: string, data: Partial<InsertProjectTag>): Promise<ProjectTagRecord | undefined>;
+  deleteProjectTag(id: string): Promise<boolean>;
   
   // User services (access control)
   getUserServices(userId: string): Promise<string[]>;
@@ -673,6 +681,34 @@ export class DatabaseStorage implements IStorage {
   async createProjectComment(comment: InsertProjectComment): Promise<ProjectComment> {
     const [created] = await db.insert(projectComments).values(comment).returning();
     return created;
+  }
+
+  // Project tags methods
+  async getAllProjectTags(): Promise<ProjectTagRecord[]> {
+    return await db.select().from(projectTagsTable).orderBy(asc(projectTagsTable.name));
+  }
+
+  async getProjectTag(id: string): Promise<ProjectTagRecord | undefined> {
+    const [tag] = await db.select().from(projectTagsTable).where(eq(projectTagsTable.id, id));
+    return tag;
+  }
+
+  async createProjectTag(tag: InsertProjectTag): Promise<ProjectTagRecord> {
+    const [created] = await db.insert(projectTagsTable).values(tag).returning();
+    return created;
+  }
+
+  async updateProjectTag(id: string, data: Partial<InsertProjectTag>): Promise<ProjectTagRecord | undefined> {
+    const [updated] = await db.update(projectTagsTable)
+      .set(data)
+      .where(eq(projectTagsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProjectTag(id: string): Promise<boolean> {
+    const result = await db.delete(projectTagsTable).where(eq(projectTagsTable.id, id));
+    return true;
   }
 
   // User services (access control) methods
