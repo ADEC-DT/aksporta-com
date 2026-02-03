@@ -114,7 +114,12 @@ const portalSections = [
   { name: "it_dt", title: "IT & DT" },
 ];
 
-const projectTags = ["Dashboard", "NetSuite", "Equestrian"] as const;
+type ProjectTag = {
+  id: string;
+  name: string;
+  color: string | null;
+  createdAt: string;
+};
 
 const projectFormSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -184,6 +189,11 @@ export default function ProjectsPage() {
   // Blueprints query
   const { data: blueprints = [], isLoading: blueprintsLoading } = useQuery<CollaborationBlueprint[]>({
     queryKey: ["/api/blueprints"],
+  });
+
+  // Project tags query
+  const { data: projectTags = [] } = useQuery<ProjectTag[]>({
+    queryKey: ["/api/project-tags"],
   });
 
   // Project mutations
@@ -1022,32 +1032,38 @@ export default function ProjectsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tags</FormLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {projectTags.map((tag) => (
-                        <label
-                          key={tag}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${
-                            field.value?.includes(tag)
-                              ? "bg-primary/10 border-primary text-primary"
-                              : "bg-muted/50 border-border hover:bg-muted"
-                          }`}
-                        >
-                          <Checkbox
-                            checked={field.value?.includes(tag)}
-                            onCheckedChange={(checked) => {
-                              const current = field.value || [];
-                              if (checked) {
-                                field.onChange([...current, tag]);
-                              } else {
-                                field.onChange(current.filter((t) => t !== tag));
-                              }
-                            }}
-                            data-testid={`checkbox-tag-${tag.toLowerCase()}`}
-                          />
-                          <span className="text-sm">{tag}</span>
-                        </label>
-                      ))}
-                    </div>
+                    {projectTags.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No tags available. <Link href="/manage-tags" className="text-primary hover:underline">Create tags</Link> first.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {projectTags.map((tag) => (
+                          <label
+                            key={tag.id}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${
+                              field.value?.includes(tag.name)
+                                ? "bg-primary/10 border-primary text-primary"
+                                : "bg-muted/50 border-border hover:bg-muted"
+                            }`}
+                          >
+                            <Checkbox
+                              checked={field.value?.includes(tag.name)}
+                              onCheckedChange={(checked) => {
+                                const current = field.value || [];
+                                if (checked) {
+                                  field.onChange([...current, tag.name]);
+                                } else {
+                                  field.onChange(current.filter((t) => t !== tag.name));
+                                }
+                              }}
+                              data-testid={`checkbox-tag-${tag.name.toLowerCase()}`}
+                            />
+                            <span className="text-sm">{tag.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

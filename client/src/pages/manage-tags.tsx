@@ -36,14 +36,13 @@ export default function ManageTagsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<ProjectTag | null>(null);
   const [tagName, setTagName] = useState("");
-  const [tagColor, setTagColor] = useState("#6366f1");
 
   const { data: tags = [], isLoading } = useQuery<ProjectTag[]>({
     queryKey: ["/api/project-tags"],
   });
 
   const createTagMutation = useMutation({
-    mutationFn: (data: { name: string; color: string }) =>
+    mutationFn: (data: { name: string }) =>
       apiRequest("POST", "/api/project-tags", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/project-tags"] });
@@ -60,7 +59,7 @@ export default function ManageTagsPage() {
   });
 
   const updateTagMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string; color: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { name: string } }) =>
       apiRequest("PATCH", `/api/project-tags/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/project-tags"] });
@@ -82,7 +81,6 @@ export default function ManageTagsPage() {
 
   const resetForm = () => {
     setTagName("");
-    setTagColor("#6366f1");
     setEditingTag(null);
   };
 
@@ -94,7 +92,6 @@ export default function ManageTagsPage() {
   const openEditDialog = (tag: ProjectTag) => {
     setEditingTag(tag);
     setTagName(tag.name);
-    setTagColor(tag.color || "#6366f1");
     setDialogOpen(true);
   };
 
@@ -104,10 +101,10 @@ export default function ManageTagsPage() {
     if (editingTag) {
       updateTagMutation.mutate({ 
         id: editingTag.id, 
-        data: { name: tagName, color: tagColor } 
+        data: { name: tagName } 
       });
     } else {
-      createTagMutation.mutate({ name: tagName, color: tagColor });
+      createTagMutation.mutate({ name: tagName });
     }
   };
 
@@ -145,7 +142,6 @@ export default function ManageTagsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Color</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -154,12 +150,6 @@ export default function ManageTagsPage() {
               <TableBody>
                 {tags.map((tag) => (
                   <TableRow key={tag.id} data-testid={`row-tag-${tag.id}`}>
-                    <TableCell>
-                      <div 
-                        className="w-6 h-6 rounded-full border"
-                        style={{ backgroundColor: tag.color || "#6366f1" }}
-                      />
-                    </TableCell>
                     <TableCell className="font-medium">{tag.name}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(tag.createdAt).toLocaleDateString()}
@@ -209,25 +199,6 @@ export default function ManageTagsPage() {
                 placeholder="Enter tag name"
                 data-testid="input-tag-name"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tag-color">Color</Label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  id="tag-color"
-                  value={tagColor}
-                  onChange={(e) => setTagColor(e.target.value)}
-                  className="w-12 h-10 rounded cursor-pointer border"
-                  data-testid="input-tag-color"
-                />
-                <Input
-                  value={tagColor}
-                  onChange={(e) => setTagColor(e.target.value)}
-                  placeholder="#6366f1"
-                  className="flex-1"
-                />
-              </div>
             </div>
           </div>
           <DialogFooter>
