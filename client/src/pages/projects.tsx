@@ -922,7 +922,7 @@ export default function ProjectsPage() {
                         <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger data-testid="select-blocked-by">
-                              <SelectValue placeholder="Who is blocking?" />
+                              <SelectValue placeholder="Dependency owner" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -946,7 +946,7 @@ export default function ProjectsPage() {
                   name="blockedReason"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Blocking Description</FormLabel>
+                      <FormLabel>Dependency</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="Describe what's blocking this task..."
