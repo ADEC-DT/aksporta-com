@@ -201,9 +201,7 @@ export default function ProjectsPage() {
   const createProjectMutation = useMutation({
     mutationFn: (data: ProjectFormValues) => apiRequest("POST", "/api/projects", data),
     onSuccess: async (response: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      
-      // If an initial assignee was selected, assign them to the project
+      // If an initial assignee was selected, assign them to the project FIRST
       if (initialAssignee && response?.id) {
         try {
           await apiRequest("POST", `/api/projects/${response.id}/assignments`, { userId: initialAssignee });
@@ -211,6 +209,9 @@ export default function ProjectsPage() {
           console.error("Failed to assign user:", error);
         }
       }
+      
+      // Invalidate projects query AFTER assignment is complete
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       
       setProjectDialogOpen(false);
       setInitialAssignee("");
