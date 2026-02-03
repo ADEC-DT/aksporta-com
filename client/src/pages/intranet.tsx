@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
-  Clock,
   Ticket,
   Headphones,
   Plus,
@@ -99,17 +98,6 @@ export default function IntranetPage() {
           </Card>
         </Link>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Announcements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">No announcements at this time.</p>
-          </CardContent>
-        </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
