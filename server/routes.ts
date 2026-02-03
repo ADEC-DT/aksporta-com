@@ -1625,6 +1625,29 @@ export async function registerRoutes(
     }
   });
 
+  // Close sprint (archives completed tasks)
+  app.post("/api/sprints/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const result = await storage.closeSprint(req.params.id);
+      if (!result) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      res.json({ 
+        success: true, 
+        sprint: result.sprint, 
+        archivedCount: result.archivedCount,
+        message: `Sprint closed. ${result.archivedCount} completed tasks archived.`
+      });
+    } catch (error) {
+      console.error("Error closing sprint:", error);
+      res.status(500).json({ message: "Failed to close sprint" });
+    }
+  });
+
   // ========================
   // Projects API Routes
   // ========================

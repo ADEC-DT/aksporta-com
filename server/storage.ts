@@ -142,6 +142,7 @@ export interface IStorage {
   createSprint(sprint: InsertSprint): Promise<Sprint>;
   updateSprint(id: string, data: Partial<InsertSprint>): Promise<Sprint | undefined>;
   deleteSprint(id: string): Promise<boolean>;
+  closeSprint(id: string): Promise<{ sprint: Sprint; archivedCount: number } | undefined>;
   
   // User services (access control)
   getUserServices(userId: string): Promise<string[]>;
@@ -751,6 +752,34 @@ export class DatabaseStorage implements IStorage {
   async deleteSprint(id: string): Promise<boolean> {
     await db.delete(sprints).where(eq(sprints.id, id));
     return true;
+  }
+
+  async closeSprint(id: string): Promise<{ sprint: Sprint; archivedCount: number } | undefined> {
+    const sprint = await this.getSprint(id);
+    if (!sprint) return undefined;
+
+    // Use transaction to ensure data integrity
+    return await db.transaction(async (tx) => {
+      // Count completed tasks from this sprint
+      const completedTasks = await tx.select({ id: projects.id })
+        .from(projects)
+        .where(and(eq(projects.sprintId, id), eq(projects.status, "completed")));
+      
+      const archivedCount = completedTasks.length;
+      
+      // Mark sprint as closed first
+      const [updated] = await tx.update(sprints)
+        .set({ isClosed: true, isActive: false })
+        .where(eq(sprints.id, id))
+        .returning();
+
+      // Delete the completed tasks after sprint is closed
+      if (archivedCount > 0) {
+        await tx.delete(projects).where(and(eq(projects.sprintId, id), eq(projects.status, "completed")));
+      }
+
+      return { sprint: updated, archivedCount };
+    });
   }
 
   // User services (access control) methods

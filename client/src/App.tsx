@@ -34,6 +34,7 @@ import LegalPage from "@/pages/legal";
 import PerformanceKPIPage from "@/pages/performance-kpi";
 import OpsFMPage from "@/pages/ops-fm";
 import ITDTPage from "@/pages/it-dt";
+import SprintManagementPage from "@/pages/sprint-management";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import LoginPage from "@/pages/login";
@@ -137,6 +138,7 @@ function ProtectedRoutes() {
               <Route path="/performance-kpi" component={PerformanceKPIPage} />
               <Route path="/ops-fm" component={OpsFMPage} />
               <Route path="/it-dt" component={ITDTPage} />
+              <Route path="/sprint-management" component={SprintManagementPage} />
               <Route path="/projects" component={ProjectsPage} />
               <Route path="/manage-tags" component={ManageTagsPage} />
               <Route path="/applications/customer-db" component={CustomerDBPage} />

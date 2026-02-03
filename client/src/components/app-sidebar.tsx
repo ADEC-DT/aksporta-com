@@ -26,6 +26,7 @@ import {
   Monitor,
   Pin,
   PinOff,
+  Calendar,
   type LucideIcon
 } from "lucide-react";
 import {
@@ -328,6 +329,20 @@ export function AppSidebar() {
                     <Link href="/it-dt">
                       <Monitor className="h-4 w-4" />
                       <span>IT & DT</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/sprint-management"}
+                    className="h-10 px-3 rounded-lg"
+                    data-testid="nav-item-sprint-management"
+                    tooltip="Sprint Management"
+                  >
+                    <Link href="/sprint-management">
+                      <Calendar className="h-4 w-4" />
+                      <span>Sprint Management</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

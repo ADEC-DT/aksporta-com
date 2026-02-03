@@ -208,6 +208,9 @@ export default function ProjectsPage() {
     queryKey: ["/api/sprints"],
   });
 
+  // Get active sprint from sprints data
+  const activeSprint = sprintsData.find((s) => s.isActive && !s.isClosed);
+
   // Project mutations
   const createProjectMutation = useMutation({
     mutationFn: (data: ProjectFormValues) => apiRequest("POST", "/api/projects", data),
@@ -647,7 +650,15 @@ export default function ProjectsPage() {
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold font-outfit">Task Management</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-semibold font-outfit">Task Management</h1>
+            {activeSprint && (
+              <Badge variant="secondary">
+                <Calendar className="w-3 h-3 mr-1" />
+                {activeSprint.name} ({format(new Date(activeSprint.startDate), "MMM d")} - {format(new Date(activeSprint.endDate), "MMM d, yyyy")})
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">Manage tasks, assignments, and deadlines</p>
         </div>
       </div>

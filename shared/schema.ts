@@ -436,6 +436,7 @@ export const sprints = pgTable("sprints", {
   startDate: varchar("start_date").notNull(),
   endDate: varchar("end_date").notNull(),
   isActive: boolean("is_active").notNull().default(false),
+  isClosed: boolean("is_closed").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
