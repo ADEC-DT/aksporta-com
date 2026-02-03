@@ -124,6 +124,7 @@ const projectFormSchema = z.object({
   startDate: z.string().optional(),
   deadline: z.string().optional(),
   blocked: z.boolean().optional(),
+  blockedBy: z.string().optional(),
   blockedReason: z.string().optional(),
 });
 
@@ -349,6 +350,7 @@ export default function ProjectsPage() {
       startDate: "",
       deadline: "",
       blocked: false,
+      blockedBy: "",
       blockedReason: "",
     },
   });
@@ -378,6 +380,7 @@ export default function ProjectsPage() {
         startDate: editingProject.startDate || "",
         deadline: editingProject.deadline || "",
         blocked: (editingProject as any).blocked || false,
+        blockedBy: (editingProject as any).blockedBy || "",
         blockedReason: (editingProject as any).blockedReason || "",
       });
     } else {
@@ -390,6 +393,7 @@ export default function ProjectsPage() {
         startDate: "",
         deadline: "",
         blocked: false,
+        blockedBy: "",
         blockedReason: "",
       });
     }
@@ -912,21 +916,48 @@ export default function ProjectsPage() {
                 {projectForm.watch("blocked") && (
                   <FormField
                     control={projectForm.control}
-                    name="blockedReason"
+                    name="blockedBy"
                     render={({ field }) => (
                       <FormItem className="flex-1">
-                        <FormControl>
-                          <Input
-                            placeholder="Describe what's blocking this task..."
-                            {...field}
-                            data-testid="input-blocked-reason"
-                          />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-blocked-by">
+                              <SelectValue placeholder="Who is blocking?" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {allUsers.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.firstName && user.lastName 
+                                  ? `${user.firstName} ${user.lastName}` 
+                                  : user.username}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormItem>
                     )}
                   />
                 )}
               </div>
+              {projectForm.watch("blocked") && (
+                <FormField
+                  control={projectForm.control}
+                  name="blockedReason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Blocking Description</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Describe what's blocking this task..."
+                          {...field}
+                          data-testid="input-blocked-reason"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={projectForm.control}

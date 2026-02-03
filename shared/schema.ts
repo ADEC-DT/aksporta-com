@@ -423,6 +423,7 @@ export const projects = pgTable("projects", {
   startDate: varchar("start_date"),
   deadline: varchar("deadline"),
   blocked: boolean("blocked").default(false),
+  blockedBy: varchar("blocked_by"),
   blockedReason: text("blocked_reason"),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
