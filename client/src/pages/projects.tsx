@@ -114,11 +114,14 @@ const portalSections = [
   { name: "it_dt", title: "IT & DT" },
 ];
 
+const projectTags = ["Dashboard", "NetSuite", "Equestrian"] as const;
+
 const projectFormSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
   status: z.enum(["not_started", "in_progress", "on_hold", "completed", "cancelled"]),
   priority: z.enum(["low", "medium", "high", "critical"]),
+  tags: z.array(z.string()).optional(),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
 });
@@ -331,6 +334,7 @@ export default function ProjectsPage() {
       description: "",
       status: "not_started",
       priority: "medium",
+      tags: [],
       startDate: "",
       deadline: "",
     },
@@ -357,6 +361,7 @@ export default function ProjectsPage() {
         description: editingProject.description || "",
         status: editingProject.status as ProjectStatus,
         priority: editingProject.priority as ProjectPriority,
+        tags: (editingProject as any).tags || [],
         startDate: editingProject.startDate || "",
         deadline: editingProject.deadline || "",
       });
@@ -366,6 +371,7 @@ export default function ProjectsPage() {
         description: "",
         status: "not_started",
         priority: "medium",
+        tags: [],
         startDate: "",
         deadline: "",
       });
@@ -757,6 +763,15 @@ export default function ProjectsPage() {
                                             {project.description && (
                                               <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{project.description}</p>
                                             )}
+                                            {(project as any).tags?.length > 0 && (
+                                              <div className="flex flex-wrap gap-1 mt-1">
+                                                {(project as any).tags.map((tag: string) => (
+                                                  <Badge key={tag} variant="outline" className="text-[9px] px-1 py-0">
+                                                    {tag}
+                                                  </Badge>
+                                                ))}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                         
@@ -831,6 +846,16 @@ export default function ProjectsPage() {
                       
                       {project.description && (
                         <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>
+                      )}
+                      
+                      {(project as any).tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {(project as any).tags.map((tag: string) => (
+                            <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                       
                       <div className="flex items-center gap-2">
@@ -958,6 +983,42 @@ export default function ProjectsPage() {
                   )}
                 />
               </div>
+              <FormField
+                control={projectForm.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags</FormLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {projectTags.map((tag) => (
+                        <label
+                          key={tag}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${
+                            field.value?.includes(tag)
+                              ? "bg-primary/10 border-primary text-primary"
+                              : "bg-muted/50 border-border hover:bg-muted"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={field.value?.includes(tag)}
+                            onCheckedChange={(checked) => {
+                              const current = field.value || [];
+                              if (checked) {
+                                field.onChange([...current, tag]);
+                              } else {
+                                field.onChange(current.filter((t) => t !== tag));
+                              }
+                            }}
+                            data-testid={`checkbox-tag-${tag.toLowerCase()}`}
+                          />
+                          <span className="text-sm">{tag}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={projectForm.control}
@@ -1230,6 +1291,22 @@ export default function ProjectsPage() {
             <DialogTitle className="font-outfit">Assign Team Members</DialogTitle>
             <DialogDescription>Select users to assign to this project.</DialogDescription>
           </DialogHeader>
+          {/* Quick self-assign button */}
+          {currentUser && selectedProject && !selectedProject.assignments.some(a => a.userId === currentUser.id) && (
+            <Button
+              variant="outline"
+              className="w-full mb-2"
+              onClick={() => {
+                addAssignmentMutation.mutate({ projectId: selectedProject.id, userId: currentUser.id });
+                setAssignDialogOpen(false);
+                toast({ title: "You have been assigned to this project" });
+              }}
+              data-testid="button-assign-myself"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Assign Myself
+            </Button>
+          )}
           <ScrollArea className="h-[300px]">
             <div className="space-y-2">
               {getUnassignedUsers().map((user) => (

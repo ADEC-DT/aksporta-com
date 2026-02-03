@@ -410,12 +410,16 @@ export const projectPriorities = ["low", "medium", "high", "critical"] as const;
 export type ProjectPriority = typeof projectPriorities[number];
 
 // Projects table
+export const projectTags = ["Dashboard", "NetSuite", "Equestrian"] as const;
+export type ProjectTag = typeof projectTags[number];
+
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
   status: varchar("status").notNull().default("not_started"),
   priority: varchar("priority").notNull().default("medium"),
+  tags: text("tags").array().default(sql`'{}'::text[]`),
   startDate: varchar("start_date"),
   deadline: varchar("deadline"),
   createdBy: varchar("created_by").notNull(),
