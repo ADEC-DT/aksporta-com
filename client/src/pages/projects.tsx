@@ -547,8 +547,8 @@ export default function ProjectsPage() {
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold font-outfit">Projects</h1>
-          <p className="text-muted-foreground">Manage projects, assignments, and deadlines</p>
+          <h1 className="text-2xl font-semibold font-outfit">Task Management</h1>
+          <p className="text-muted-foreground">Manage tasks, assignments, and deadlines</p>
         </div>
       </div>
 
@@ -556,7 +556,7 @@ export default function ProjectsPage() {
         <TabsList>
           <TabsTrigger value="projects" data-testid="tab-projects">
             <Target className="w-4 h-4 mr-2" />
-            Projects
+            Tasks
           </TabsTrigger>
         </TabsList>
 
@@ -570,7 +570,7 @@ export default function ProjectsPage() {
                 onClick={() => setViewFilter("all")}
                 data-testid="button-view-all"
               >
-                All Projects
+                All Tasks
               </Button>
               <Button
                 variant={viewFilter === "mine" ? "secondary" : "outline"}
@@ -579,7 +579,7 @@ export default function ProjectsPage() {
                 data-testid="button-view-mine"
               >
                 <User className="h-4 w-4 mr-1" />
-                My Projects
+                My Tasks
               </Button>
             </div>
             <Button 
@@ -590,7 +590,7 @@ export default function ProjectsPage() {
               data-testid="button-new-project"
             >
               <Plus className="mr-2 h-4 w-4" />
-              New Project
+              New Task
             </Button>
           </div>
 
@@ -603,7 +603,7 @@ export default function ProjectsPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Projects</p>
+                  <p className="text-sm text-muted-foreground">Total Tasks</p>
                 </div>
               </CardContent>
             </Card>
@@ -805,10 +805,10 @@ export default function ProjectsPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-outfit">
-              {editingProject ? "Edit Project" : "Create New Project"}
+              {editingProject ? "Edit Task" : "Create New Task"}
             </DialogTitle>
             <DialogDescription>
-              {editingProject ? "Update project details below." : "Fill in the details to create a new project."}
+              {editingProject ? "Update task details below." : "Fill in the details to create a new task."}
             </DialogDescription>
           </DialogHeader>
           <Form {...projectForm}>
