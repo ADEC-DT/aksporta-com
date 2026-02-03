@@ -850,21 +850,14 @@ export default function ProjectsPage() {
                       <SelectValue placeholder="Select user" />
                     </SelectTrigger>
                     <SelectContent>
-                      {currentUser && (
-                        <SelectItem value={currentUser.id}>
-                          Myself ({currentUser.firstName || currentUser.username})
+                      {allUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}` 
+                            : user.username}
+                          {user.id === currentUser?.id && " (me)"}
                         </SelectItem>
-                      )}
-                      {allUsers
-                        .filter(u => u.id !== currentUser?.id)
-                        .map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.firstName && user.lastName 
-                              ? `${user.firstName} ${user.lastName}` 
-                              : user.username}
-                          </SelectItem>
-                        ))
-                      }
+                      ))}
                     </SelectContent>
                   </Select>
                   {editingProject && (
