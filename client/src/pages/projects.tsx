@@ -148,6 +148,7 @@ type SimpleUser = {
 export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState<string>("all");
   const [viewFilter, setViewFilter] = useState<"all" | "mine">("all");
   const [activeTab, setActiveTab] = useState("projects");
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
@@ -334,12 +335,13 @@ export default function ProjectsPage() {
     }
   };
 
-  // Filter projects - only apply search filter (status is shown in kanban columns)
+  // Filter projects - apply search and tag filters (status is shown in kanban columns)
   const filteredProjects = projectsData.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesSearch;
+    const matchesTag = tagFilter === "all" || (project.tags && project.tags.includes(tagFilter));
+    return matchesSearch && matchesTag;
   });
 
   const stats = {
@@ -709,6 +711,18 @@ export default function ProjectsPage() {
                 <SelectItem value="all">All Statuses</SelectItem>
                 {Object.entries(statusConfig).map(([key, config]) => (
                   <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={tagFilter} onValueChange={setTagFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-tag-filter">
+                <Tag className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tags</SelectItem>
+                {projectTags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
