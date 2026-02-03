@@ -1570,11 +1570,18 @@ export async function registerRoutes(
         });
       }
       
-      // Fetch assignments for each project
+      // Fetch assignments with user data for each project
       const projectsWithAssignments = await Promise.all(
         projectList.map(async (project) => {
           const assignments = await storage.getProjectAssignments(project.id);
-          return { ...project, assignments };
+          // Include user data in each assignment
+          const assignmentsWithUsers = await Promise.all(
+            assignments.map(async (assignment) => {
+              const user = await storage.getManagedUser(assignment.userId);
+              return { ...assignment, user };
+            })
+          );
+          return { ...project, assignments: assignmentsWithUsers };
         })
       );
       
