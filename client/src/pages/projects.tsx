@@ -49,8 +49,6 @@ import {
   CalendarClock,
   User,
   X,
-  LayoutGrid,
-  Kanban,
   GripVertical
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -154,7 +152,6 @@ export default function ProjectsPage() {
   const [deadlineJustification, setDeadlineJustification] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUsersToAssign, setSelectedUsersToAssign] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const { toast } = useToast();
 
   // Current user
@@ -310,13 +307,12 @@ export default function ProjectsPage() {
     }
   };
 
-  // Filter projects - for Kanban view, only apply search filter, not status filter
+  // Filter projects - only apply search filter (status is shown in kanban columns)
   const filteredProjects = projectsData.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesStatus = viewMode === "kanban" || statusFilter === "all" || project.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const stats = {
@@ -585,23 +581,6 @@ export default function ProjectsPage() {
                 <User className="h-4 w-4 mr-1" />
                 My Projects
               </Button>
-              <div className="h-6 w-px bg-border mx-2" />
-              <Button
-                variant={viewMode === "list" ? "secondary" : "outline"}
-                size="icon"
-                onClick={() => setViewMode("list")}
-                data-testid="button-view-list"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "kanban" ? "secondary" : "outline"}
-                size="icon"
-                onClick={() => setViewMode("kanban")}
-                data-testid="button-view-kanban"
-              >
-                <Kanban className="h-4 w-4" />
-              </Button>
             </div>
             <Button 
               onClick={() => {
@@ -708,7 +687,7 @@ export default function ProjectsPage() {
                 Create Project
               </Button>
             </Card>
-          ) : viewMode === "kanban" ? (
+          ) : (
             <DragDropContext onDragEnd={handleDragEnd}>
               <div className="flex gap-4 overflow-x-auto pb-4">
                 {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
@@ -816,77 +795,6 @@ export default function ProjectsPage() {
                 })}
               </div>
             </DragDropContext>
-          ) : filteredProjects.length === 0 ? (
-            <Card className="p-12 text-center">
-              <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No projects match your filters</h3>
-              <p className="text-muted-foreground mb-4">Try adjusting your search or filters.</p>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredProjects.map((project) => {
-                const status = statusConfig[project.status as ProjectStatus] || statusConfig.not_started;
-                const timeline = getTimelineStatus(project.deadline);
-                const assignedUsers = getAssignedUsers(project);
-                
-                return (
-                  <Card 
-                    key={project.id} 
-                    className="hover-elevate cursor-pointer" 
-                    onClick={() => openProjectDetail(project)}
-                    data-testid={`card-project-${project.id}`}
-                  >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-medium leading-tight">{project.name}</h3>
-                        <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-xs shrink-0`}>
-                          {project.priority}
-                        </Badge>
-                      </div>
-                      
-                      {project.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>
-                      )}
-                      
-                      {(project as any).tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {(project as any).tags.map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-2">
-                        <status.icon className={`h-4 w-4 ${status.color}`} />
-                        <span className={`text-xs ${status.color}`}>{status.label}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex -space-x-2">
-                          {assignedUsers.slice(0, 3).map((assignment: any) => (
-                            <Avatar key={assignment.id} className="h-6 w-6 border-2 border-background">
-                              <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
-                                {getUserInitials(assignment.user)}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
-                          {assignedUsers.length > 3 && (
-                            <Avatar className="h-6 w-6 border-2 border-background">
-                              <AvatarFallback className="text-[10px] bg-muted">
-                                +{assignedUsers.length - 3}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                        <span className={`text-xs ${timeline.color}`}>{timeline.text}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
           )}
         </TabsContent>
 
