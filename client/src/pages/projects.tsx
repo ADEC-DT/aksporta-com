@@ -164,6 +164,9 @@ export default function ProjectsPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUsersToAssign, setSelectedUsersToAssign] = useState<string[]>([]);
   const [initialAssignee, setInitialAssignee] = useState<string>("");
+  const [manageTagsDialogOpen, setManageTagsDialogOpen] = useState(false);
+  const [editingTag, setEditingTag] = useState<ProjectTag | null>(null);
+  const [newTagName, setNewTagName] = useState("");
   const { toast } = useToast();
 
   // Current user
@@ -314,6 +317,50 @@ export default function ProjectsPage() {
     },
     onError: () => toast({ title: "Failed to update blueprint", variant: "destructive" }),
   });
+
+  // Tag mutations
+  const createTagMutation = useMutation({
+    mutationFn: (data: { name: string }) => apiRequest("POST", "/api/project-tags", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/project-tags"] });
+      setNewTagName("");
+      setEditingTag(null);
+      toast({ title: "Tag created successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: error?.message || "Failed to create tag", variant: "destructive" });
+    },
+  });
+
+  const updateTagMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name: string } }) =>
+      apiRequest("PATCH", `/api/project-tags/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/project-tags"] });
+      setNewTagName("");
+      setEditingTag(null);
+      toast({ title: "Tag updated successfully" });
+    },
+    onError: () => toast({ title: "Failed to update tag", variant: "destructive" }),
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/project-tags/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/project-tags"] });
+      toast({ title: "Tag deleted successfully" });
+    },
+    onError: () => toast({ title: "Failed to delete tag", variant: "destructive" }),
+  });
+
+  const handleTagSubmit = () => {
+    if (!newTagName.trim()) return;
+    if (editingTag) {
+      updateTagMutation.mutate({ id: editingTag.id, data: { name: newTagName } });
+    } else {
+      createTagMutation.mutate({ name: newTagName });
+    }
+  };
 
   const deleteBlueprintMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/blueprints/${id}`),
@@ -620,16 +667,15 @@ export default function ProjectsPage() {
                 <User className="h-4 w-4 mr-1" />
                 My Tasks
               </Button>
-              <Link href="/manage-tags">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-manage-tags"
-                >
-                  <Tag className="h-4 w-4 mr-1" />
-                  Manage Tags
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManageTagsDialogOpen(true)}
+                data-testid="button-manage-tags"
+              >
+                <Tag className="h-4 w-4 mr-1" />
+                Manage Tags
+              </Button>
             </div>
             <Button 
               onClick={() => {
@@ -1543,6 +1589,88 @@ export default function ProjectsPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Tags Dialog */}
+      <Dialog open={manageTagsDialogOpen} onOpenChange={setManageTagsDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-outfit">Manage Tags</DialogTitle>
+            <DialogDescription>Create and manage task tags</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Create/Edit Tag Form */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter tag name"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                data-testid="input-new-tag-name"
+              />
+              <Button
+                onClick={handleTagSubmit}
+                disabled={!newTagName.trim() || createTagMutation.isPending || updateTagMutation.isPending}
+                data-testid="button-submit-tag"
+              >
+                {editingTag ? "Update" : "Add"}
+              </Button>
+              {editingTag && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingTag(null);
+                    setNewTagName("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+
+            {/* Tags List */}
+            <div className="border rounded-md max-h-[300px] overflow-y-auto">
+              {projectTags.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-4 text-center">
+                  No tags created yet. Add your first tag above.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {projectTags.map((tag) => (
+                    <div key={tag.id} className="flex items-center justify-between p-3" data-testid={`row-tag-${tag.id}`}>
+                      <span className="font-medium">{tag.name}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingTag(tag);
+                            setNewTagName(tag.name);
+                          }}
+                          data-testid={`button-edit-tag-${tag.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteTagMutation.mutate(tag.id)}
+                          data-testid={`button-delete-tag-${tag.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageTagsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
