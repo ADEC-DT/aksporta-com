@@ -429,6 +429,24 @@ export type ProjectTagRecord = typeof projectTagsTable.$inferSelect;
 export const projectTags = ["Dashboard", "NetSuite", "Equestrian"] as const;
 export type ProjectTag = typeof projectTags[number];
 
+// Sprints table
+export const sprints = pgTable("sprints", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  startDate: varchar("start_date").notNull(),
+  endDate: varchar("end_date").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSprintSchema = createInsertSchema(sprints).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSprint = z.infer<typeof insertSprintSchema>;
+export type Sprint = typeof sprints.$inferSelect;
+
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
@@ -436,6 +454,7 @@ export const projects = pgTable("projects", {
   status: varchar("status").notNull().default("not_started"),
   priority: varchar("priority").notNull().default("medium"),
   tags: text("tags").array().default(sql`'{}'::text[]`),
+  sprintId: varchar("sprint_id"),
   startDate: varchar("start_date"),
   deadline: varchar("deadline"),
   blocked: boolean("blocked").default(false),
@@ -447,6 +466,7 @@ export const projects = pgTable("projects", {
 }, (table) => ({
   statusIdx: index("projects_status_idx").on(table.status),
   createdByIdx: index("projects_created_by_idx").on(table.createdBy),
+  sprintIdx: index("projects_sprint_idx").on(table.sprintId),
 }));
 
 export const insertProjectSchema = createInsertSchema(projects).omit({

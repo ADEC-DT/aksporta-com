@@ -58,7 +58,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { CollaborationStamp, CollaborationStampMini } from "@/components/collaboration-stamp";
-import type { CollaborationBlueprint, InsertBlueprint, Project, ProjectWithAssignments, ProjectComment, ManagedUser } from "@shared/schema";
+import type { CollaborationBlueprint, InsertBlueprint, Project, ProjectWithAssignments, ProjectComment, ManagedUser, Sprint } from "@shared/schema";
 import { insertBlueprintSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -127,6 +127,7 @@ const projectFormSchema = z.object({
   status: z.enum(["not_started", "in_progress", "on_hold", "completed", "cancelled"]),
   priority: z.enum(["low", "medium", "high", "critical"]),
   tags: z.array(z.string()).optional(),
+  sprintId: z.string().optional().nullable(),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
   blocked: z.boolean().optional(),
@@ -149,7 +150,9 @@ export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
   const [viewFilter, setViewFilter] = useState<"all" | "mine">("all");
+  const [sprintsDialogOpen, setSprintsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("projects");
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
   const [editingBlueprint, setEditingBlueprint] = useState<CollaborationBlueprint | null>(null);
@@ -198,6 +201,11 @@ export default function ProjectsPage() {
   // Project tags query
   const { data: projectTags = [] } = useQuery<ProjectTag[]>({
     queryKey: ["/api/project-tags"],
+  });
+
+  // Sprints query
+  const { data: sprintsData = [] } = useQuery<Sprint[]>({
+    queryKey: ["/api/sprints"],
   });
 
   // Project mutations
@@ -389,7 +397,10 @@ export default function ProjectsPage() {
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesTag = tagFilter === "all" || (project.tags && project.tags.includes(tagFilter));
-    return matchesSearch && matchesTag;
+    const matchesSprint = sprintFilter === "all" || 
+      (sprintFilter === "backlog" && !project.sprintId) ||
+      project.sprintId === sprintFilter;
+    return matchesSearch && matchesTag && matchesSprint;
   });
 
   const stats = {
@@ -408,6 +419,7 @@ export default function ProjectsPage() {
       status: "not_started",
       priority: "medium",
       tags: [],
+      sprintId: null,
       startDate: "",
       deadline: "",
       blocked: false,
@@ -438,6 +450,7 @@ export default function ProjectsPage() {
         status: editingProject.status as ProjectStatus,
         priority: editingProject.priority as ProjectPriority,
         tags: (editingProject as any).tags || [],
+        sprintId: (editingProject as any).sprintId || null,
         startDate: editingProject.startDate || "",
         deadline: editingProject.deadline || "",
         blocked: (editingProject as any).blocked || false,
@@ -451,6 +464,7 @@ export default function ProjectsPage() {
         status: "not_started",
         priority: "medium",
         tags: [],
+        sprintId: null,
         startDate: "",
         deadline: "",
         blocked: false,
@@ -770,6 +784,21 @@ export default function ProjectsPage() {
                 <SelectItem value="all">All Tags</SelectItem>
                 {projectTags.map((tag) => (
                   <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sprintFilter} onValueChange={setSprintFilter}>
+              <SelectTrigger className="w-[220px]" data-testid="select-sprint-filter">
+                <Calendar className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by sprint" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sprints</SelectItem>
+                <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
+                {sprintsData.map((sprint) => (
+                  <SelectItem key={sprint.id} value={sprint.id}>
+                    {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1125,6 +1154,34 @@ export default function ProjectsPage() {
                         ))}
                       </div>
                     )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={projectForm.control}
+                name="sprintId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sprint</FormLabel>
+                    <Select 
+                      value={field.value || "none"} 
+                      onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-project-sprint">
+                          <SelectValue placeholder="Select sprint" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Backlog (No Sprint)</SelectItem>
+                        {sprintsData.map((sprint) => (
+                          <SelectItem key={sprint.id} value={sprint.id}>
+                            {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

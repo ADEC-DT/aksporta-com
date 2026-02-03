@@ -1552,6 +1552,80 @@ export async function registerRoutes(
   });
 
   // ========================
+  // Sprints API Routes
+  // ========================
+
+  // Get all sprints
+  app.get("/api/sprints", isAuthenticated, async (req, res) => {
+    try {
+      const sprints = await storage.getAllSprints();
+      res.json(sprints);
+    } catch (error) {
+      console.error("Error fetching sprints:", error);
+      res.status(500).json({ message: "Failed to fetch sprints" });
+    }
+  });
+
+  // Get active sprint
+  app.get("/api/sprints/active", isAuthenticated, async (req, res) => {
+    try {
+      const sprint = await storage.getActiveSprint();
+      res.json(sprint || null);
+    } catch (error) {
+      console.error("Error fetching active sprint:", error);
+      res.status(500).json({ message: "Failed to fetch active sprint" });
+    }
+  });
+
+  // Create sprint
+  app.post("/api/sprints", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const sprint = await storage.createSprint(req.body);
+      res.status(201).json(sprint);
+    } catch (error) {
+      console.error("Error creating sprint:", error);
+      res.status(500).json({ message: "Failed to create sprint" });
+    }
+  });
+
+  // Update sprint
+  app.patch("/api/sprints/:id", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const sprint = await storage.updateSprint(req.params.id, req.body);
+      if (!sprint) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      res.json(sprint);
+    } catch (error) {
+      console.error("Error updating sprint:", error);
+      res.status(500).json({ message: "Failed to update sprint" });
+    }
+  });
+
+  // Delete sprint
+  app.delete("/api/sprints/:id", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      await storage.deleteSprint(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting sprint:", error);
+      res.status(500).json({ message: "Failed to delete sprint" });
+    }
+  });
+
+  // ========================
   // Projects API Routes
   // ========================
   

@@ -12,6 +12,7 @@ import {
   customerProfiles, type CustomerProfile, type InsertCustomerProfile,
   type CustomerWithProfile,
   collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint,
+  sprints, type Sprint, type InsertSprint,
   projects, type Project, type InsertProject, type ProjectWithAssignments,
   projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
   projectComments, type ProjectComment, type InsertProjectComment,
@@ -133,6 +134,14 @@ export interface IStorage {
   createProjectTag(tag: InsertProjectTag): Promise<ProjectTagRecord>;
   updateProjectTag(id: string, data: Partial<InsertProjectTag>): Promise<ProjectTagRecord | undefined>;
   deleteProjectTag(id: string): Promise<boolean>;
+  
+  // Sprints
+  getAllSprints(): Promise<Sprint[]>;
+  getSprint(id: string): Promise<Sprint | undefined>;
+  getActiveSprint(): Promise<Sprint | undefined>;
+  createSprint(sprint: InsertSprint): Promise<Sprint>;
+  updateSprint(id: string, data: Partial<InsertSprint>): Promise<Sprint | undefined>;
+  deleteSprint(id: string): Promise<boolean>;
   
   // User services (access control)
   getUserServices(userId: string): Promise<string[]>;
@@ -708,6 +717,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProjectTag(id: string): Promise<boolean> {
     const result = await db.delete(projectTagsTable).where(eq(projectTagsTable.id, id));
+    return true;
+  }
+
+  // Sprint methods
+  async getAllSprints(): Promise<Sprint[]> {
+    return await db.select().from(sprints).orderBy(asc(sprints.startDate));
+  }
+
+  async getSprint(id: string): Promise<Sprint | undefined> {
+    const [sprint] = await db.select().from(sprints).where(eq(sprints.id, id));
+    return sprint;
+  }
+
+  async getActiveSprint(): Promise<Sprint | undefined> {
+    const [sprint] = await db.select().from(sprints).where(eq(sprints.isActive, true));
+    return sprint;
+  }
+
+  async createSprint(sprint: InsertSprint): Promise<Sprint> {
+    const [created] = await db.insert(sprints).values(sprint).returning();
+    return created;
+  }
+
+  async updateSprint(id: string, data: Partial<InsertSprint>): Promise<Sprint | undefined> {
+    const [updated] = await db.update(sprints)
+      .set(data)
+      .where(eq(sprints.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSprint(id: string): Promise<boolean> {
+    await db.delete(sprints).where(eq(sprints.id, id));
     return true;
   }
 
