@@ -152,6 +152,7 @@ export default function ProjectsPage() {
   const [deadlineJustification, setDeadlineJustification] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUsersToAssign, setSelectedUsersToAssign] = useState<string[]>([]);
+  const [initialAssignee, setInitialAssignee] = useState<string>("");
   const { toast } = useToast();
 
   // Current user
@@ -183,12 +184,23 @@ export default function ProjectsPage() {
   // Project mutations
   const createProjectMutation = useMutation({
     mutationFn: (data: ProjectFormValues) => apiRequest("POST", "/api/projects", data),
-    onSuccess: () => {
+    onSuccess: async (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      
+      // If an initial assignee was selected, assign them to the project
+      if (initialAssignee && response?.id) {
+        try {
+          await apiRequest("POST", `/api/projects/${response.id}/assignments`, { userId: initialAssignee });
+        } catch (error) {
+          console.error("Failed to assign user:", error);
+        }
+      }
+      
       setProjectDialogOpen(false);
-      toast({ title: "Project created successfully" });
+      setInitialAssignee("");
+      toast({ title: "Task created successfully" });
     },
-    onError: () => toast({ title: "Failed to create project", variant: "destructive" }),
+    onError: () => toast({ title: "Failed to create task", variant: "destructive" }),
   });
 
   const updateProjectMutation = useMutation({
@@ -813,19 +825,53 @@ export default function ProjectsPage() {
           </DialogHeader>
           <Form {...projectForm}>
             <form onSubmit={projectForm.handleSubmit(handleProjectSubmit)} className="space-y-4">
-              <FormField
-                control={projectForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter project name" {...field} data-testid="input-project-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={projectForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Task Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter task name" {...field} data-testid="input-project-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormItem>
+                  <FormLabel>Assign to</FormLabel>
+                  <Select 
+                    value={initialAssignee} 
+                    onValueChange={setInitialAssignee}
+                    disabled={!!editingProject}
+                  >
+                    <SelectTrigger data-testid="select-assignee">
+                      <SelectValue placeholder="Select user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currentUser && (
+                        <SelectItem value={currentUser.id}>
+                          Myself ({currentUser.firstName || currentUser.username})
+                        </SelectItem>
+                      )}
+                      {allUsers
+                        .filter(u => u.id !== currentUser?.id)
+                        .map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.firstName && user.lastName 
+                              ? `${user.firstName} ${user.lastName}` 
+                              : user.username}
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  {editingProject && (
+                    <p className="text-xs text-muted-foreground mt-1">Use the Assign button to modify assignments</p>
+                  )}
+                </FormItem>
+              </div>
               <FormField
                 control={projectForm.control}
                 name="description"
