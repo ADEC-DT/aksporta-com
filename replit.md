@@ -78,12 +78,20 @@ The portal includes a Collaboration Stamp feature for tracking development statu
 - **Management UI**: Projects page → Collaboration Stamps tab for creating/editing stamps
 - **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects, legal, performance_kpi, ops_fm, it_dt
 
+### Reusable UI Components
+- **ExpandableSection** (`components/expandable-section.tsx`): Wraps content sections with a fullscreen expand/minimize toggle. Used on dashboard for Power BI embed and on 8 service pages for data grids. Supports optional maxHeight for iframe content.
+- **DetailPanel** (`components/detail-panel.tsx`): Right-side slide-in panel for previewing items (announcements, records). Supports Escape key, backdrop click to close, header/content/footer zones.
+- **NotificationDropdown** (`components/notification-dropdown.tsx`): Bell icon popover in the header showing notifications with read/unread states and mark-all-read action.
+- **NotificationReminder** (`components/notification-reminder.tsx`): Floating bottom-right popup with Snooze/Dismiss actions, Microsoft Outlook-style reminder system.
+
 ### Key Design Decisions
 1. **Monorepo Structure**: Client and server share types through `shared/` directory
 2. **Enterprise Glassmorphism**: Professional, high-tech design with glassmorphism effects
-3. **Collapsible Sidebar**: Fixed-width sidebar navigation matching Linear/Retool patterns
+3. **Collapsible Sidebar**: Fixed-width sidebar navigation matching Linear/Retool patterns, h-9 nav items, 10px section labels
 4. **Global Search**: Universal search in header for systems, reports, or employees
-5. **Notification System**: Bell icon with badge count in header
+5. **Notification System**: Bell dropdown popover + floating reminder popup with Snooze/Dismiss
+6. **Sticky Header**: 56px (h-14) sticky header with search, notifications, and theme toggle
+7. **Dashboard Layout**: Dark hero section, 3-column grid (2+1), business app cards, intranet updates with slide-in detail panel, Power BI in ExpandableSection
 
 ## External Dependencies
 
