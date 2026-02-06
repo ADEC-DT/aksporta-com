@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { 
   Building,
   Wrench,
@@ -121,6 +122,7 @@ export default function OpsFMPage() {
         ))}
       </div>
 
+      <ExpandableSection title="Operations & FM" icon={Wrench} defaultExpanded={true}>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -240,6 +242,7 @@ export default function OpsFMPage() {
           </Card>
         </div>
       </div>
+      </ExpandableSection>
     </div>
   );
 }

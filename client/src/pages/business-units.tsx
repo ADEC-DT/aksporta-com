@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { Store, CircleDot, Building2, BarChart3, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 
@@ -72,37 +73,39 @@ export default function BusinessUnitsPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {businessUnits.map((unit) => (
-          <Link key={unit.id} href={unit.url}>
-            <Card className="hover-elevate cursor-pointer h-full overflow-hidden" data-testid={`card-unit-${unit.id}`}>
-              <div className={`h-1 bg-gradient-to-r ${unit.accentColor}`} />
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${unit.iconBg} text-white`}>
-                    <unit.icon className="h-6 w-6" />
-                  </div>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
-                    {unit.status}
-                  </Badge>
-                </div>
-                
-                <h3 className="text-xl font-semibold mb-2 font-outfit">{unit.name}</h3>
-                <p className="text-sm text-muted-foreground mb-6">{unit.description}</p>
-                
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                  {unit.metrics.map((metric) => (
-                    <div key={metric.label}>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide">{metric.label}</p>
-                      <p className="text-lg font-bold">{metric.value}</p>
+      <ExpandableSection title="Business Units" icon={Building2} defaultExpanded>
+        <div className="grid gap-6 md:grid-cols-3">
+          {businessUnits.map((unit) => (
+            <Link key={unit.id} href={unit.url}>
+              <Card className="hover-elevate cursor-pointer h-full overflow-hidden" data-testid={`card-unit-${unit.id}`}>
+                <div className={`h-1 bg-gradient-to-r ${unit.accentColor}`} />
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${unit.iconBg} text-white`}>
+                      <unit.icon className="h-6 w-6" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+                      {unit.status}
+                    </Badge>
+                  </div>
+                  
+                  <h3 className="text-xl font-semibold mb-2 font-outfit">{unit.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-6">{unit.description}</p>
+                  
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    {unit.metrics.map((metric) => (
+                      <div key={metric.label}>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide">{metric.label}</p>
+                        <p className="text-lg font-bold">{metric.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </ExpandableSection>
 
       <Card>
         <CardContent className="p-6">

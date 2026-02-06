@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { 
   TrendingUp,
   TrendingDown,
@@ -117,84 +118,86 @@ export default function PerformanceKPIPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-              <CardTitle className="text-lg font-outfit">KPI Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {kpiCategories.map((category) => (
-                  <div 
-                    key={category.id}
-                    className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
-                    data-testid={`category-${category.id}`}
-                  >
-                    <div className={`p-2.5 rounded-lg ${category.iconBg}`}>
-                      <category.icon className="h-5 w-5" />
+      <ExpandableSection title="KPI Dashboard" icon={Target} defaultExpanded>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                <CardTitle className="text-lg font-outfit">KPI Categories</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {kpiCategories.map((category) => (
+                    <div 
+                      key={category.id}
+                      className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
+                      data-testid={`category-${category.id}`}
+                    >
+                      <div className={`p-2.5 rounded-lg ${category.iconBg}`}>
+                        <category.icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{category.name}</p>
+                        <p className="text-xs text-muted-foreground">{category.count} metrics</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{category.name}</p>
-                      <p className="text-xs text-muted-foreground">{category.count} metrics</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-outfit flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                Performance Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {performanceAlerts.map((alert) => (
-                  <div 
-                    key={alert.id}
-                    className="p-3 rounded-lg border space-y-2"
-                    data-testid={`alert-${alert.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-sm">{alert.title}</p>
-                      {getPriorityBadge(alert.priority)}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-outfit flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  Performance Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {performanceAlerts.map((alert) => (
+                    <div 
+                      key={alert.id}
+                      className="p-3 rounded-lg border space-y-2"
+                      data-testid={`alert-${alert.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm">{alert.title}</p>
+                        {getPriorityBadge(alert.priority)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{alert.description}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{alert.description}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-outfit">Quick Reports</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {quickReports.map((report) => (
-                  <Button 
-                    key={report.name}
-                    variant="outline" 
-                    className="w-full justify-start gap-3"
-                    data-testid={`report-${report.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    <report.icon className="h-4 w-4" />
-                    {report.name}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-outfit">Quick Reports</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {quickReports.map((report) => (
+                    <Button 
+                      key={report.name}
+                      variant="outline" 
+                      className="w-full justify-start gap-3"
+                      data-testid={`report-${report.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <report.icon className="h-4 w-4" />
+                      {report.name}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </ExpandableSection>
     </div>
   );
 }

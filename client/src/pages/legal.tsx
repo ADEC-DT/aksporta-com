@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { 
   Search, 
   FileText,
@@ -129,127 +130,129 @@ export default function LegalPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-              <CardTitle className="text-lg font-outfit">Document Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {legalCategories.map((category) => (
-                  <div 
-                    key={category.id}
-                    className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
-                    data-testid={`category-${category.id}`}
-                  >
-                    <div className={`p-2.5 rounded-lg ${category.iconBg}`}>
-                      <category.icon className="h-5 w-5" />
+      <ExpandableSection title="Legal Documents" icon={Scale} defaultExpanded>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                <CardTitle className="text-lg font-outfit">Document Categories</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {legalCategories.map((category) => (
+                    <div 
+                      key={category.id}
+                      className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
+                      data-testid={`category-${category.id}`}
+                    >
+                      <div className={`p-2.5 rounded-lg ${category.iconBg}`}>
+                        <category.icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{category.name}</p>
+                        <p className="text-xs text-muted-foreground">{category.count} documents</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{category.name}</p>
-                      <p className="text-xs text-muted-foreground">{category.count} documents</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-              <CardTitle className="text-lg font-outfit">Recent Documents</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-view-all-documents">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentDocuments.map((doc) => (
-                  <div 
-                    key={doc.id}
-                    className="flex items-center gap-4 p-3 rounded-lg border hover-elevate"
-                    data-testid={`document-${doc.id}`}
-                  >
-                    <div className="p-2 rounded-lg bg-muted">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                <CardTitle className="text-lg font-outfit">Recent Documents</CardTitle>
+                <Button variant="ghost" size="sm" data-testid="button-view-all-documents">
+                  View All
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentDocuments.map((doc) => (
+                    <div 
+                      key={doc.id}
+                      className="flex items-center gap-4 p-3 rounded-lg border hover-elevate"
+                      data-testid={`document-${doc.id}`}
+                    >
+                      <div className="p-2 rounded-lg bg-muted">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{doc.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{doc.type}</span>
+                          <span className="text-muted-foreground/50">|</span>
+                          <span>{doc.size}</span>
+                          <span className="text-muted-foreground/50">|</span>
+                          <span>{doc.date}</span>
+                        </div>
+                      </div>
+                      {getStatusBadge(doc.status)}
+                      <Button variant="ghost" size="icon" data-testid={`button-download-${doc.id}`}>
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{doc.name}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{doc.type}</span>
-                        <span className="text-muted-foreground/50">|</span>
-                        <span>{doc.size}</span>
-                        <span className="text-muted-foreground/50">|</span>
-                        <span>{doc.date}</span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-outfit flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  Compliance Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {complianceAlerts.map((alert) => (
+                    <div 
+                      key={alert.id}
+                      className="p-3 rounded-lg border space-y-2"
+                      data-testid={`alert-${alert.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm">{alert.title}</p>
+                        {getPriorityBadge(alert.priority)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{alert.description}</p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Due: {alert.dueDate}
                       </div>
                     </div>
-                    {getStatusBadge(doc.status)}
-                    <Button variant="ghost" size="icon" data-testid={`button-download-${doc.id}`}>
-                      <Download className="h-4 w-4" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-outfit">Quick Links</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {quickLinks.map((link) => (
+                    <Button 
+                      key={link.name}
+                      variant="outline" 
+                      className="w-full justify-start gap-3"
+                      data-testid={`link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <link.icon className="h-4 w-4" />
+                      {link.name}
                     </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-outfit flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                Compliance Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {complianceAlerts.map((alert) => (
-                  <div 
-                    key={alert.id}
-                    className="p-3 rounded-lg border space-y-2"
-                    data-testid={`alert-${alert.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-sm">{alert.title}</p>
-                      {getPriorityBadge(alert.priority)}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{alert.description}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      Due: {alert.dueDate}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-outfit">Quick Links</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {quickLinks.map((link) => (
-                  <Button 
-                    key={link.name}
-                    variant="outline" 
-                    className="w-full justify-start gap-3"
-                    data-testid={`link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    <link.icon className="h-4 w-4" />
-                    {link.name}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </ExpandableSection>
     </div>
   );
 }

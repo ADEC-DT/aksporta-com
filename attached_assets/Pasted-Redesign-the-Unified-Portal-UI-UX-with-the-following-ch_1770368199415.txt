@@ -1,0 +1,117 @@
+Redesign the Unified Portal UI/UX with the following changes. Work through each section systematically. Preserve all existing functionality, routes, data, and backend logic -- only change the visual presentation, layout, and interaction patterns.
+
+1. GLOBAL LAYOUT: Adopt Microsoft-Inspired 3-Zone Clean Layout
+Refactor client/src/App.tsx and client/src/components/app-sidebar.tsx:
+
+Top Header Bar (Zone B - 56px height):
+
+Clean up the existing header: make it exactly 56px, tighter spacing, more refined
+Left: sidebar toggle + search input (keep existing) but refine the search to have a cleaner border treatment, slightly rounded, subtle placeholder text
+Right: keep bell icon + theme toggle, but add better spacing (gap-3)
+Make the header sticky with a high z-index so it stays fixed during scroll
+Left Sidebar (Zone A):
+
+Keep the existing Shadcn sidebar with all current nav items, sections (main nav, administration, system), and the user footer
+Refine spacing: make each nav item exactly 40px height, consistent padding (px-3), cleaner icon + label alignment
+Tighten the section labels ("ADMINISTRATION", "SYSTEM") -- make them smaller (text-xs), uppercase, more muted, with more top margin for separation
+When collapsed to icon rail (72px), show only icons centered, with tooltips on hover
+The sidebar background, borders, and active states should use the existing CSS variables (--sidebar, --sidebar-accent, etc.) -- do not change colors
+Active/selected nav item: use the existing primary-blue highlight, but ensure the border-radius is consistent (rounded-md) and the text turns white on active
+Main Content (Zone C):
+
+Keep the existing scrollable main area
+Ensure consistent page padding across all pages: px-6 py-6 on all service pages
+2. DASHBOARD PAGE REFINEMENT
+Refactor client/src/pages/dashboard.tsx:
+
+Hero Section:
+
+Keep the dark gradient hero but make it cleaner/tighter: reduce vertical padding slightly (py-8 instead of py-10)
+Keep "Welcome back, [name]" badge, "Enterprise Operations" heading, "Unified Portal" subheading, description, and "View Profile" button
+Make the abstract background pattern more subtle
+Content Grid (below hero):
+
+Use a 2-column layout: left ~65% (lg:col-span-2), right ~35% (lg:col-span-1)
+Left column:
+"Business Applications" header with "View All Apps" link (keep existing)
+Power BI Dashboard section (keep existing iframe) but ADD the expand/minimize control (see section 5 below)
+Right column:
+"Intranet Updates" card: populate with 3-4 sample announcement items. Each item should have: a small colored dot (blue/green/amber), a title (semibold), a date, and a one-line preview. Each item should be clickable (for now, just make them look interactive with hover-elevate)
+"Quick Links" card below it with the wrench icon and link items (keep existing)
+3. NOTIFICATION SYSTEM (Microsoft Reminder-Style)
+A) Notification Bell Dropdown (in header):
+
+When clicking the bell icon in the header (App.tsx), show a dropdown panel (~360px wide, max-height 480px) anchored to the bell button
+Panel header: "Notifications" title on the left, "Mark all read" text button on the right
+List of notification items. Each item:
+Left: colored circle with initials or icon
+Middle: title (semibold), description preview (muted, text-sm), timestamp ("2 hours ago", "Yesterday")
+Right: unread dot indicator (small blue circle for unread items)
+The whole item is clickable with hover-elevate
+Empty state: centered icon + "No new notifications" message
+Use existing announcement data from the intranet/announcement system if available, otherwise create a simple static list for now
+Footer: "View All Notifications" link
+B) Floating Reminder Popup (bottom-right):
+
+Create a new component client/src/components/notification-reminder.tsx
+Fixed position bottom-right of viewport (bottom-6 right-6), floating above all content with shadow-lg
+Header bar: primary blue background, white text: "[N] Reminders"
+Stacked reminder cards (2-3 items):
+Each card: icon/avatar on left, title (bold) + source/type + timestamp on right
+"Overdue" label in destructive red for past-due items
+Footer: "Snooze" button (secondary/outline) and "Dismiss" button (primary blue filled)
+Include a close "X" button on the header
+This popup should be toggleable -- show it when there are active reminders, dismissible by user
+Link reminder items to announcement elements: clicking a reminder title navigates to the relevant section
+4. SERVICE PAGES: Consistent Layout Pattern
+Apply to ALL service pages (ERP, HRMS, Legal, Events, Equestrian, Asset & Lease, Media & Marketing, OPS & FM, IT & DT, Performance & KPIs, Projects, etc.):
+
+Keep the existing PageCollaborationStamp at the top of each page
+Standardize the page header: title (Outfit 2xl font-semibold), subtitle (muted-foreground), action buttons aligned right -- all using flex-wrap and gap-4
+Summary metric cards row: keep existing metrics but ensure consistent card height and spacing across all pages
+Main content (tables, iframes, card grids): keep existing but add the expand/minimize control to any section containing an iframe, Power BI embed, or large visualization
+5. UNIVERSAL EXPAND / MINIMIZE PATTERN (Critical Feature)
+Create a reusable component client/src/components/expandable-section.tsx:
+
+Props: title (string), icon (optional LucideIcon), children (ReactNode), defaultExpanded (boolean), allowClose (boolean)
+
+Default (inline) state:
+
+Section renders inline within the page flow at a constrained height (e.g., max-h-[500px] with overflow-hidden, or a configurable height)
+Section header row: icon + title on left, three control buttons on right:
+Expand button: uses Maximize2 icon from lucide-react (two diagonal outward arrows) -- clicking enters expanded state
+Minimize button (only visible when already expanded): uses Minimize2 icon (two diagonal inward arrows)
+Close button: "X" icon -- collapses/hides the section entirely (if allowClose is true)
+Expanded (fullscreen) state:
+
+The section takes over the entire main content area using a fixed/absolute overlay within the content zone
+A floating toolbar at the top: section title on left, minimize icon + close "X" on right
+Content fills the available space (full height and width of the main content area, sidebar remains visible)
+Background of the rest dims slightly (optional subtle overlay)
+Pressing Escape or clicking minimize returns to inline state
+Apply this component to:
+
+Power BI iframe on the Dashboard
+Any iframe embeds on service pages (ERP NetSuite, HRMS, etc.)
+Any large data visualization or chart section
+Basically wrap any content block that a user might want to focus on in this expandable container
+6. DETAIL OVERLAY / EXPANDED ITEM VIEW
+Create a reusable component client/src/components/detail-panel.tsx:
+
+When clicking on list items (announcements, tickets, project rows, etc.), open a slide-in panel from the right side (~400-500px wide) or a centered modal
+Panel header: item title (bold), action icons on right (close X)
+Content area: full details of the clicked item
+Footer: contextual action buttons
+Clicking outside or pressing X closes the panel
+This creates a Microsoft-style "read without navigating away" pattern -- the list stays visible behind
+Apply this to: Intranet Updates items on dashboard, ticket lists on admin tickets page, and any future list-detail interactions
+7. VISUAL POLISH
+Across the entire app:
+
+Ensure all Cards use consistent padding (p-4 or p-6, pick one and apply everywhere)
+Ensure all page headers follow the same pattern: title size, subtitle style, button alignment
+Remove any remaining placeholder or commented-out content blocks
+Verify dark mode works correctly for all new components (notification dropdown, reminder popup, expandable sections, detail panel)
+All new interactive elements should have data-testid attributes
+Use existing color variables exclusively -- do not introduce new hard-coded colors
+Keep existing fonts (Inter for body, Outfit for headings, JetBrains Mono for technical data)

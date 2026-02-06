@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { WhatsAppDialog } from "@/components/whatsapp-dialog";
 import { 
   Calendar, 
@@ -113,6 +114,7 @@ export default function EventsPage() {
         </CardContent>
       </Card>
 
+      <ExpandableSection title="Events Overview" icon={Calendar} defaultExpanded={true}>
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="hover-elevate cursor-pointer" onClick={handleLaunchPlatinumList} data-testid="card-platinum-list">
           <CardContent className="p-6">
@@ -498,6 +500,7 @@ export default function EventsPage() {
           </div>
         </CardContent>
       </Card>
+      </ExpandableSection>
 
       <WhatsAppDialog 
         open={whatsappDialogOpen} 

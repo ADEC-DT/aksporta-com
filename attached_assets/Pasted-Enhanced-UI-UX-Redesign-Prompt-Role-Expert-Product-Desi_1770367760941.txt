@@ -1,0 +1,94 @@
+Enhanced UI/UX Redesign Prompt
+Role: Expert Product Designer & UI/UX Specialist
+Goal: Redesign an existing "Unified Operations Portal" to adopt a modern 3-Column Productivity Layout (inspired by Microsoft Outlook/Teams) while strictly adhering to the established "System-Based Design System" defined below.
+
+1. Core Layout Structure (The "Microsoft" Pattern)
+
+Column 1 (App Rail - 60px): Fixed dark/light rail. Contains only high-level app icons (Home, Email, Portal, Settings).
+
+Column 2 (Context Sidebar - 250px): Collapsible vertical navigation tree. Contains the module-specific hierarchy (e.g., Dashboard > Business Units > NetSuite).
+
+Column 3 (Main Workspace - Fluid): The primary interactive area. Displays grids, dashboards, or detail views.
+
+Right Panel (Contextual - 350px): A slide-out "Preview Pane" that appears when clicking a row in a table (Project/Ticket/Task), keeping the list visible in Column 3.
+
+2. Visual Design System (Strict Adherence)
+
+Typography:
+
+Headings: Inter (SemiBold 600-700). Sizes: text-xl (headers), text-2xl (page titles).
+
+Body: Inter (Regular 400-500). Sizes: text-sm (tables/dense data), text-base (content).
+
+Technical: JetBrains Mono (for API keys, IDs, Logs). text-xs.
+
+Spacing & Grid:
+
+Base unit: 4px (gap-1). Use p-4, p-6, gap-6 as standard.
+
+Container: max-w-7xl, mx-auto.
+
+Components:
+
+Cards: White background, subtle border (border-gray-200), no hero images. Header row with title + trend indicator.
+
+Tables: Sticky headers, zebra striping (even:bg-gray-50), dense rows (py-2), hover lift effect.
+
+Buttons: Primary (Solid Blue #1e40af), Secondary (Outlined), Ghost (Text only).
+
+Status Badges: Pill-shaped, pastel background + dark text (e.g., bg-green-100 text-green-800).
+
+3. Specific UI Patterns to Implement
+
+Power BI Embed Container:
+
+Default State: A standard card widget within the dashboard grid.
+
+Action: "Expand" icon button in the header.
+
+Expanded State: The widget overlays Column 3 (and optionally Column 2), filling the screen for deep analysis.
+
+Dashboard Grid:
+
+Top Row: 4 Metric Cards (Total Revenue, Active Users, Uptime, Open Tickets).
+
+Middle Row: Power BI Container + "Recent Alerts" List.
+
+Bottom Row: "Quick Actions" (New Ticket, New Project).
+
+Task/Project Views:
+
+List View: Dense table. Clicking a row opens the Right Panel (don't navigate away).
+
+Kanban View: Swimlanes with drag-and-drop cards.
+
+4. Screens to Generate
+
+Home Dashboard: 3-Column Layout. App Rail -> Module Nav -> Main Dashboard (Metrics + Power BI).
+
+Project List with Preview: Main Workspace shows a dense table of projects. Right Panel is open showing "Cloud Migration" details.
+
+Expanded Analytics: The Power BI widget is "Maximized" covering the main workspace.
+
+Output:
+
+High-fidelity, pixel-perfect UI mockups.
+
+Clean, layer-named design file (Figma compatible).
+
+No code, purely visual design.
+
+How to use:
+Copy the prompt above.
+
+Paste into your AI design tool.
+
+Attach your screenshots as reference:
+
+Style Ref: The "Microsoft" screenshot (for layout structure).
+
+Content Ref: Your current dashboard screenshot (for specific metrics/data).
+
+Component Ref: The Power BI screenshot (to show what goes inside the container).
+
+Prepared using Gemini 3 Pro

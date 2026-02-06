@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { 
   Store, 
   Building, 
@@ -85,6 +86,7 @@ export default function AssetLeasePage() {
         </CardContent>
       </Card>
 
+      <ExpandableSection title="Assets & Leases" icon={Store} defaultExpanded={true}>
       <div className="grid gap-6 lg:grid-cols-3">
         {floorSummary.map((floor) => (
           <Card key={floor.floor} className="hover-elevate" data-testid={`card-floor-${floor.floor}`}>
@@ -223,6 +225,7 @@ export default function AssetLeasePage() {
           </CardContent>
         </Card>
       </div>
+      </ExpandableSection>
     </div>
   );
 }

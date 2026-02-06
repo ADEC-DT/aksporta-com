@@ -38,9 +38,10 @@ import SprintManagementPage from "@/pages/sprint-management";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import LoginPage from "@/pages/login";
-import { Loader2, Search, Bell, Settings } from "lucide-react";
+import { NotificationDropdown } from "@/components/notification-dropdown";
+import { NotificationReminder } from "@/components/notification-reminder";
+import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 
 const ALLOWED_ROUTES_FOR_NON_ADMIN = [
   "/dashboard",
@@ -89,23 +90,20 @@ function ProtectedRoutes() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex h-14 items-center justify-between gap-4 border-b border-border px-4 lg:px-6">
-            <div className="flex items-center gap-4">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4 lg:px-6">
+            <div className="flex items-center gap-3">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   placeholder="Search systems, reports, or employees..." 
-                  className="w-80 pl-10 bg-muted/50"
+                  className="w-80 pl-10 bg-muted/40 border-border/60"
                   data-testid="input-global-search"
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
-                <Bell className="h-4 w-4" />
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">2</span>
-              </Button>
+            <div className="flex items-center gap-3">
+              <NotificationDropdown />
               <ThemeToggle />
             </div>
           </header>
@@ -163,6 +161,7 @@ function App() {
               <ProtectedRoutes />
             </Route>
           </Switch>
+          <NotificationReminder />
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>

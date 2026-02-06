@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { 
   Users, 
   DollarSign, 
@@ -152,8 +153,7 @@ export default function HRMSPage() {
         </CardContent>
       </Card>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-4 font-outfit">HR Modules</h2>
+      <ExpandableSection title="HR Modules" icon={Users} defaultExpanded>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {hrModules.map((module) => (
             <Card key={module.id} className="hover-elevate cursor-pointer" data-testid={`card-module-${module.id}`}>
@@ -179,7 +179,7 @@ export default function HRMSPage() {
             </Card>
           ))}
         </div>
-      </div>
+      </ExpandableSection>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

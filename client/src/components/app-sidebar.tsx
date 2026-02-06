@@ -216,14 +216,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="bg-sidebar border-r border-sidebar-border">
-      <SidebarHeader className="px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary flex-shrink-0">
-              <span className="text-lg font-bold text-primary-foreground">U</span>
+      <SidebarHeader className="px-3 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary flex-shrink-0">
+              <span className="text-sm font-bold text-primary-foreground">U</span>
             </div>
             {state === "expanded" && (
-              <span className="text-base font-semibold text-sidebar-foreground font-outfit whitespace-nowrap">Unified Portal</span>
+              <span className="text-sm font-semibold text-sidebar-foreground font-outfit whitespace-nowrap">Unified Portal</span>
             )}
           </Link>
           {state === "expanded" && (
@@ -233,9 +233,9 @@ export function AppSidebar() {
               onClick={togglePinned}
               className="h-7 w-7 flex-shrink-0"
               data-testid="button-pin-sidebar"
-              title={isPinned ? "Открепить меню" : "Закрепить меню"}
+              title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
             >
-              {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+              {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
             </Button>
           )}
         </div>
@@ -248,13 +248,13 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   isActive={location === "/dashboard" || location === "/"}
-                  className="h-10 px-3 rounded-lg"
+                  className="h-9 px-3 rounded-md"
                   data-testid="nav-item-dashboard"
                   tooltip="Dashboard"
                 >
                   <Link href="/dashboard">
                     <LayoutDashboard className="h-4 w-4" />
-                    <span className="font-medium text-sm">Dashboard</span>
+                    <span className="text-sm">Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -267,13 +267,13 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className="h-10 px-3 rounded-lg"
+                      className="h-9 px-3 rounded-md"
                       data-testid={`nav-item-${service.name.toLowerCase().replace(/[()&]/g, '').replace(/\s+/g, '-')}`}
                       tooltip={service.name}
                     >
                       <Link href={service.url || "#"}>
                         <IconComponent className="h-4 w-4" />
-                        <span className="font-medium text-sm">{service.name}</span>
+                        <span className="text-sm">{service.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -284,8 +284,8 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <SidebarGroup className="mt-4">
+            <SidebarGroupLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
               Administration
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -294,13 +294,13 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === "/admin"}
-                    className="h-10 px-3 rounded-lg"
+                    className="h-9 px-3 rounded-md"
                     data-testid="nav-item-admin"
                     tooltip="User Management"
                   >
                     <Link href="/admin">
                       <Shield className="h-4 w-4" />
-                      <span>User Management</span>
+                      <span className="text-sm">User Management</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -308,13 +308,13 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === "/admin/tickets"}
-                    className="h-10 px-3 rounded-lg"
+                    className="h-9 px-3 rounded-md"
                     data-testid="nav-item-admin-tickets"
                     tooltip="Ticket Management"
                   >
                     <Link href="/admin/tickets">
                       <Ticket className="h-4 w-4" />
-                      <span>Ticket Management</span>
+                      <span className="text-sm">Ticket Management</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -322,13 +322,13 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === "/it-dt" || location.startsWith("/it-dt")}
-                    className="h-10 px-3 rounded-lg"
+                    className="h-9 px-3 rounded-md"
                     data-testid="nav-item-it-dt"
                     tooltip="IT & DT"
                   >
                     <Link href="/it-dt">
                       <Monitor className="h-4 w-4" />
-                      <span>IT & DT</span>
+                      <span className="text-sm">IT & DT</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -336,13 +336,13 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === "/sprint-management"}
-                    className="h-10 px-3 rounded-lg"
+                    className="h-9 px-3 rounded-md"
                     data-testid="nav-item-sprint-management"
                     tooltip="Sprint Management"
                   >
                     <Link href="/sprint-management">
                       <Calendar className="h-4 w-4" />
-                      <span>Sprint Management</span>
+                      <span className="text-sm">Sprint Management</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -351,8 +351,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <SidebarGroup className="mt-auto pt-4">
+          <SidebarGroupLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
             System
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -364,13 +364,13 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === item.url}
-                    className="h-10 px-3 rounded-lg"
+                    className="h-9 px-3 rounded-md"
                     data-testid={`nav-item-${item.title.toLowerCase()}`}
                     tooltip={item.title}
                   >
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span className="text-sm">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -379,13 +379,13 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
+      <SidebarFooter className="border-t border-sidebar-border px-3 py-2.5">
         {authLoading ? (
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="h-8 w-8 rounded-full" />
             {state === "expanded" && (
               <div className="flex flex-col gap-1">
-                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3.5 w-20" />
                 <Skeleton className="h-3 w-28" />
               </div>
             )}
@@ -394,16 +394,16 @@ export function AppSidebar() {
           <div className="flex items-center justify-between gap-2">
             <Link 
               href="/settings" 
-              className="flex items-center gap-3 flex-1 rounded-lg p-1 -m-1 hover-elevate cursor-pointer"
+              className="flex items-center gap-2.5 flex-1 rounded-md p-1 -m-1 hover-elevate cursor-pointer"
               data-testid="link-user-profile"
             >
-              <Avatar className="h-9 w-9 bg-primary/10 flex-shrink-0">
+              <Avatar className="h-8 w-8 bg-primary/10 flex-shrink-0">
                 <AvatarFallback className="text-xs bg-primary/20 text-primary">{getInitials()}</AvatarFallback>
               </Avatar>
               {state === "expanded" && (
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{getDisplayName()}</span>
-                  <span className="text-xs text-muted-foreground">{getJobTitle()}</span>
+                  <span className="text-sm font-medium leading-tight">{getDisplayName()}</span>
+                  <span className="text-[11px] text-muted-foreground">{getJobTitle()}</span>
                 </div>
               )}
             </Link>

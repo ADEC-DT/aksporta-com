@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+import { ExpandableSection } from "@/components/expandable-section";
 import { 
   CircleDot, 
   Home, 
@@ -87,6 +88,7 @@ export default function EquestrianPage() {
         </CardContent>
       </Card>
 
+      <ExpandableSection title="Equestrian Services" icon={CircleDot} defaultExpanded={true}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-5 w-full max-w-3xl">
           <TabsTrigger value="livery" data-testid="tab-livery">
@@ -274,6 +276,7 @@ export default function EquestrianPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </ExpandableSection>
     </div>
   );
 }
