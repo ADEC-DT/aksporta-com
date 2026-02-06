@@ -78,8 +78,17 @@ The portal includes a Collaboration Stamp feature for tracking development statu
 - **Management UI**: Projects page → Collaboration Stamps tab for creating/editing stamps
 - **Section Names**: dashboard, business_units, erp, hrms, customer_db, equestrian, asset_lease, events, media_marketing, intranet, projects, legal, performance_kpi, ops_fm, it_dt
 
+### Unified Section-Based Page Architecture
+All service pages use a unified architecture driven by backend-configured sections:
+- **Database Tables**: `section_templates` (12 reusable template types) and `page_sections` (35+ sections linked to services)
+- **Section Templates**: cards_grid, data_table, list, metrics_row, iframe_embed, hero_banner, tabs, activity_feed, quick_links
+- **ServicePageLayout** (`components/service-page-layout.tsx`): Unified wrapper that fetches sections from `/api/services/:id/sections`, renders page header, sub-sidebar, and section content
+- **ServiceSubSidebar** (`components/service-sub-sidebar.tsx`): Secondary collapsible sidebar inside service pages showing subsections, independent from main sidebar
+- **Refactored Pages**: performance-kpi, ops-fm, business-units, equestrian, asset-lease, events, legal, hrms, media-marketing all use ServicePageLayout with renderSection pattern
+- **Admin Management**: System Settings → Page Sections tab for managing templates and section assignments per service
+
 ### Reusable UI Components
-- **ExpandableSection** (`components/expandable-section.tsx`): Wraps content sections with a fullscreen expand/minimize toggle. Used on dashboard for Power BI embed and on 8 service pages for data grids. Supports optional maxHeight for iframe content.
+- **ExpandableSection** (`components/expandable-section.tsx`): Desktop-window style 3-state system: normal (inline), expanded (fills page area with larger card), minimized (collapses to bottom taskbar strip). MinimizedSectionsProvider context manages minimized sections globally. MinimizedTaskbar shows all minimized sections for quick restore. Cleanup on unmount prevents stale taskbar entries.
 - **DetailPanel** (`components/detail-panel.tsx`): Right-side slide-in panel for previewing items (announcements, records). Supports Escape key, backdrop click to close, header/content/footer zones.
 - **NotificationDropdown** (`components/notification-dropdown.tsx`): Bell icon popover in the header showing notifications with read/unread states and mark-all-read action.
 - **NotificationReminder** (`components/notification-reminder.tsx`): Floating bottom-right popup with Snooze/Dismiss actions, Microsoft Outlook-style reminder system.
@@ -92,6 +101,7 @@ The portal includes a Collaboration Stamp feature for tracking development statu
 5. **Notification System**: Bell dropdown popover + floating reminder popup with Snooze/Dismiss
 6. **Sticky Header**: 56px (h-14) sticky header with search, notifications, and theme toggle
 7. **Dashboard Layout**: Dark hero section, 3-column grid (2+1), business app cards, intranet updates with slide-in detail panel, Power BI in ExpandableSection
+8. **Section-Based Architecture**: All service pages built from configurable section templates stored in backend, with enable/disable and ordering controls
 
 ## External Dependencies
 

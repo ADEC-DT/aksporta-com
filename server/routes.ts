@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1908,6 +1908,134 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // ===== SECTION TEMPLATES (Admin only) =====
+
+  app.get("/api/admin/section-templates", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const templates = await storage.getAllSectionTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching section templates:", error);
+      res.status(500).json({ message: "Failed to fetch section templates" });
+    }
+  });
+
+  app.post("/api/admin/section-templates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const parsed = insertSectionTemplateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const template = await storage.createSectionTemplate(parsed.data);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating section template:", error);
+      res.status(500).json({ message: "Failed to create section template" });
+    }
+  });
+
+  app.patch("/api/admin/section-templates/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const parsed = insertSectionTemplateSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const template = await storage.updateSectionTemplate(req.params.id, parsed.data);
+      if (!template) {
+        return res.status(404).json({ message: "Section template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating section template:", error);
+      res.status(500).json({ message: "Failed to update section template" });
+    }
+  });
+
+  app.delete("/api/admin/section-templates/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteSectionTemplate(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Section template not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting section template:", error);
+      res.status(500).json({ message: "Failed to delete section template" });
+    }
+  });
+
+  // ===== PAGE SECTIONS =====
+
+  app.get("/api/services/:serviceId/sections", isAuthenticated, async (req, res) => {
+    try {
+      const sections = await storage.getPageSectionsByService(req.params.serviceId);
+      res.json(sections);
+    } catch (error) {
+      console.error("Error fetching page sections:", error);
+      res.status(500).json({ message: "Failed to fetch page sections" });
+    }
+  });
+
+  app.post("/api/admin/services/:serviceId/sections", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const data = { ...req.body, serviceId: req.params.serviceId };
+      const parsed = insertPageSectionSchema.safeParse(data);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const section = await storage.createPageSection(parsed.data);
+      res.status(201).json(section);
+    } catch (error) {
+      console.error("Error creating page section:", error);
+      res.status(500).json({ message: "Failed to create page section" });
+    }
+  });
+
+  app.patch("/api/admin/sections/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const parsed = insertPageSectionSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      const section = await storage.updatePageSection(req.params.id, parsed.data);
+      if (!section) {
+        return res.status(404).json({ message: "Page section not found" });
+      }
+      res.json(section);
+    } catch (error) {
+      console.error("Error updating page section:", error);
+      res.status(500).json({ message: "Failed to update page section" });
+    }
+  });
+
+  app.delete("/api/admin/sections/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deletePageSection(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Page section not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting page section:", error);
+      res.status(500).json({ message: "Failed to delete page section" });
+    }
+  });
+
+  app.put("/api/admin/services/:serviceId/sections/reorder", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({ sectionIds: z.array(z.string()) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      await storage.reorderPageSections(req.params.serviceId, parsed.data.sectionIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering page sections:", error);
+      res.status(500).json({ message: "Failed to reorder page sections" });
     }
   });
 

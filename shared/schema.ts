@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, index, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -528,4 +528,55 @@ export type ProjectComment = typeof projectComments.$inferSelect;
 export type ProjectWithAssignments = Project & {
   assignments: (ProjectAssignment & { user?: ManagedUser })[];
   comments?: ProjectComment[];
+};
+
+// Section templates table (reusable section template types)
+export const sectionTemplates = pgTable("section_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  sectionType: varchar("section_type").notNull().default("cards_grid"),
+  icon: varchar("icon"),
+  defaultConfig: jsonb("default_config"),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSectionTemplateSchema = createInsertSchema(sectionTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSectionTemplate = z.infer<typeof insertSectionTemplateSchema>;
+export type SectionTemplate = typeof sectionTemplates.$inferSelect;
+
+// Page sections table (links section templates to service pages)
+export const pageSections = pgTable("page_sections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceId: varchar("service_id").notNull().references(() => externalServices.id, { onDelete: "cascade" }),
+  sectionTemplateId: varchar("section_template_id").references(() => sectionTemplates.id, { onDelete: "set null" }),
+  title: varchar("title").notNull(),
+  subtitle: text("subtitle"),
+  icon: varchar("icon"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  isExpandable: boolean("is_expandable").notNull().default(true),
+  config: jsonb("config"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  serviceIdx: index("page_sections_service_id_idx").on(table.serviceId),
+}));
+
+export const insertPageSectionSchema = createInsertSchema(pageSections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPageSection = z.infer<typeof insertPageSectionSchema>;
+export type PageSection = typeof pageSections.$inferSelect;
+
+export type PageSectionWithTemplate = PageSection & {
+  template?: SectionTemplate | null;
 };

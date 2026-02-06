@@ -1,10 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageCollaborationStamp } from "@/components/collaboration-stamp";
-import { ExpandableSection } from "@/components/expandable-section";
-import { Store, CircleDot, Building2, BarChart3, ExternalLink } from "lucide-react";
+import { ServicePageLayout } from "@/components/service-page-layout";
+import { Store, CircleDot, Building2, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
+import type { PageSectionWithTemplate } from "@shared/schema";
+
+const SERVICE_ID = "3d747f1c-fcb5-4596-8f6e-b8ab2447f645";
 
 const businessUnits = [
   {
@@ -54,82 +55,85 @@ const businessUnits = [
   },
 ];
 
-export default function BusinessUnitsPage() {
-  const handleLaunchPowerBI = () => {
-    window.open("https://app.powerbi.com", "_blank");
-  };
-
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageCollaborationStamp sectionName="business_units" />
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold font-outfit">Business Units</h1>
-          <p className="text-muted-foreground">Overview of all operational divisions and their performance.</p>
-        </div>
-        <Button variant="outline" onClick={handleLaunchPowerBI} data-testid="button-launch-powerbi">
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Launch Power BI
-        </Button>
-      </div>
-
-      <ExpandableSection title="Business Units" icon={Building2} defaultExpanded>
-        <div className="grid gap-6 md:grid-cols-3">
-          {businessUnits.map((unit) => (
-            <Link key={unit.id} href={unit.url}>
-              <Card className="hover-elevate cursor-pointer h-full overflow-hidden" data-testid={`card-unit-${unit.id}`}>
-                <div className={`h-1 bg-gradient-to-r ${unit.accentColor}`} />
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${unit.iconBg} text-white`}>
-                      <unit.icon className="h-6 w-6" />
-                    </div>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
-                      {unit.status}
-                    </Badge>
-                  </div>
-                  
-                  <h3 className="text-xl font-semibold mb-2 font-outfit">{unit.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-6">{unit.description}</p>
-                  
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    {unit.metrics.map((metric) => (
-                      <div key={metric.label}>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">{metric.label}</p>
-                        <p className="text-lg font-bold">{metric.value}</p>
+function renderSection(section: PageSectionWithTemplate) {
+  switch (section.title) {
+    case "Business Units Overview":
+      return (
+        <>
+          <div className="grid gap-6 md:grid-cols-3">
+            {businessUnits.map((unit) => (
+              <Link key={unit.id} href={unit.url}>
+                <Card className="hover-elevate cursor-pointer h-full overflow-hidden" data-testid={`card-unit-${unit.id}`}>
+                  <div className={`h-1 bg-gradient-to-r ${unit.accentColor}`} />
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${unit.iconBg} text-white`}>
+                        <unit.icon className="h-6 w-6" />
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </ExpandableSection>
-
-      <Card>
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4 font-outfit">Cross-Unit Analytics</h2>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-3xl font-bold text-primary">$1.65M</p>
-              <p className="text-sm text-muted-foreground">Combined Revenue</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-3xl font-bold text-primary">297</p>
-              <p className="text-sm text-muted-foreground">Total Employees</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-3xl font-bold text-primary">94%</p>
-              <p className="text-sm text-muted-foreground">Avg. Occupancy</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-3xl font-bold text-primary">12</p>
-              <p className="text-sm text-muted-foreground">Active Projects</p>
-            </div>
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+                        {unit.status}
+                      </Badge>
+                    </div>
+                    
+                    <h3 className="text-xl font-semibold mb-2 font-outfit">{unit.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-6">{unit.description}</p>
+                    
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                      {unit.metrics.map((metric) => (
+                        <div key={metric.label}>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{metric.label}</p>
+                          <p className="text-lg font-bold">{metric.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4 font-outfit">Cross-Unit Analytics</h2>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold text-primary">$1.65M</p>
+                  <p className="text-sm text-muted-foreground">Combined Revenue</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold text-primary">297</p>
+                  <p className="text-sm text-muted-foreground">Total Employees</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold text-primary">94%</p>
+                  <p className="text-sm text-muted-foreground">Avg. Occupancy</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <p className="text-3xl font-bold text-primary">12</p>
+                  <p className="text-sm text-muted-foreground">Active Projects</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      );
+
+    default:
+      return null;
+  }
+}
+
+export default function BusinessUnitsPage() {
+  return (
+    <ServicePageLayout
+      serviceId={SERVICE_ID}
+      title="Business Units"
+      subtitle="Overview of all operational divisions and their performance."
+      collaborationSection="business_units"
+      externalLinks={[
+        { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },
+      ]}
+      renderSection={renderSection}
+    />
   );
 }

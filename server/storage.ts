@@ -16,7 +16,9 @@ import {
   projects, type Project, type InsertProject, type ProjectWithAssignments,
   projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
   projectComments, type ProjectComment, type InsertProjectComment,
-  projectTagsTable, type ProjectTagRecord, type InsertProjectTag
+  projectTagsTable, type ProjectTagRecord, type InsertProjectTag,
+  sectionTemplates, type SectionTemplate, type InsertSectionTemplate,
+  pageSections, type PageSection, type InsertPageSection, type PageSectionWithTemplate
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -147,6 +149,21 @@ export interface IStorage {
   // User services (access control)
   getUserServices(userId: string): Promise<string[]>;
   setUserServices(userId: string, serviceIds: string[]): Promise<void>;
+
+  // Section templates CRUD
+  getAllSectionTemplates(): Promise<SectionTemplate[]>;
+  getSectionTemplate(id: string): Promise<SectionTemplate | undefined>;
+  createSectionTemplate(template: InsertSectionTemplate): Promise<SectionTemplate>;
+  updateSectionTemplate(id: string, data: Partial<InsertSectionTemplate>): Promise<SectionTemplate | undefined>;
+  deleteSectionTemplate(id: string): Promise<boolean>;
+
+  // Page sections CRUD
+  getPageSectionsByService(serviceId: string): Promise<PageSectionWithTemplate[]>;
+  getPageSection(id: string): Promise<PageSection | undefined>;
+  createPageSection(section: InsertPageSection): Promise<PageSection>;
+  updatePageSection(id: string, data: Partial<InsertPageSection>): Promise<PageSection | undefined>;
+  deletePageSection(id: string): Promise<boolean>;
+  reorderPageSections(serviceId: string, sectionIds: string[]): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -797,6 +814,87 @@ export class DatabaseStorage implements IStorage {
         serviceIds.map(serviceId => ({ userId, serviceId }))
       );
     }
+  }
+
+  // Section templates methods
+  async getAllSectionTemplates(): Promise<SectionTemplate[]> {
+    return await db.select().from(sectionTemplates).orderBy(asc(sectionTemplates.name));
+  }
+
+  async getSectionTemplate(id: string): Promise<SectionTemplate | undefined> {
+    const [template] = await db.select().from(sectionTemplates).where(eq(sectionTemplates.id, id));
+    return template;
+  }
+
+  async createSectionTemplate(template: InsertSectionTemplate): Promise<SectionTemplate> {
+    const [created] = await db.insert(sectionTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateSectionTemplate(id: string, data: Partial<InsertSectionTemplate>): Promise<SectionTemplate | undefined> {
+    const [updated] = await db
+      .update(sectionTemplates)
+      .set(data)
+      .where(eq(sectionTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSectionTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(sectionTemplates).where(eq(sectionTemplates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Page sections methods
+  async getPageSectionsByService(serviceId: string): Promise<PageSectionWithTemplate[]> {
+    const rows = await db
+      .select({
+        section: pageSections,
+        template: sectionTemplates,
+      })
+      .from(pageSections)
+      .leftJoin(sectionTemplates, eq(pageSections.sectionTemplateId, sectionTemplates.id))
+      .where(eq(pageSections.serviceId, serviceId))
+      .orderBy(asc(pageSections.sortOrder));
+
+    return rows.map(row => ({
+      ...row.section,
+      template: row.template || null,
+    }));
+  }
+
+  async getPageSection(id: string): Promise<PageSection | undefined> {
+    const [section] = await db.select().from(pageSections).where(eq(pageSections.id, id));
+    return section;
+  }
+
+  async createPageSection(section: InsertPageSection): Promise<PageSection> {
+    const [created] = await db.insert(pageSections).values(section).returning();
+    return created;
+  }
+
+  async updatePageSection(id: string, data: Partial<InsertPageSection>): Promise<PageSection | undefined> {
+    const [updated] = await db
+      .update(pageSections)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(pageSections.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePageSection(id: string): Promise<boolean> {
+    const result = await db.delete(pageSections).where(eq(pageSections.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async reorderPageSections(serviceId: string, sectionIds: string[]): Promise<boolean> {
+    for (let i = 0; i < sectionIds.length; i++) {
+      await db
+        .update(pageSections)
+        .set({ sortOrder: i, updatedAt: new Date() })
+        .where(and(eq(pageSections.id, sectionIds[i]), eq(pageSections.serviceId, serviceId)));
+    }
+    return true;
   }
 }
 

@@ -40,6 +40,7 @@ import CustomerProfilePage from "@/pages/customer-profile";
 import LoginPage from "@/pages/login";
 import { NotificationDropdown } from "@/components/notification-dropdown";
 import { NotificationReminder } from "@/components/notification-reminder";
+import { MinimizedSectionsProvider, MinimizedTaskbar } from "@/components/expandable-section";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -86,67 +87,70 @@ function ProtectedRoutes() {
   };
 
   return (
-    <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4 lg:px-6">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search systems, reports, or employees..." 
-                  className="w-80 pl-10 bg-muted/40 border-border/60"
-                  data-testid="input-global-search"
-                />
+    <MinimizedSectionsProvider>
+      <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <SidebarInset className="flex flex-col flex-1 overflow-hidden">
+            <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4 lg:px-6">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+                <div className="relative hidden md:block">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search systems, reports, or employees..." 
+                    className="w-80 pl-10 bg-muted/40 border-border/60"
+                    data-testid="input-global-search"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <NotificationDropdown />
-              <ThemeToggle />
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto bg-background">
-            <Switch>
-              <Route path="/">
-                <Redirect to="/dashboard" />
-              </Route>
-              <Route path="/dashboard" component={Dashboard} />
-              <Route path="/erp" component={ERPDashboard} />
-              <Route path="/netsuite" component={ERPDashboard} />
-              <Route path="/hr" component={HRMSPage} />
-              <Route path="/livery" component={LiveryDashboard} />
-              <Route path="/admin" component={AdminDashboard} />
-              <Route path="/admin/tickets" component={AdminTicketsPage} />
-              <Route path="/settings" component={SettingsPage} />
-              <Route path="/system-settings" component={SystemSettingsPage} />
-              <Route path="/help" component={HelpCenterPage} />
-              <Route path="/tickets" component={MyTicketsPage} />
-              <Route path="/tickets/new" component={MyTicketsPage} />
-              <Route path="/my-tickets" component={MyTicketsPage} />
-              <Route path="/other-systems" component={OtherSystemsPage} />
-              <Route path="/business-units" component={BusinessUnitsPage} />
-              <Route path="/asset-lease" component={AssetLeasePage} />
-              <Route path="/equestrian" component={EquestrianPage} />
-              <Route path="/events" component={EventsPage} />
-              <Route path="/media-marketing" component={MediaMarketingPage} />
-              <Route path="/intranet" component={IntranetPage} />
-              <Route path="/legal" component={LegalPage} />
-              <Route path="/performance-kpi" component={PerformanceKPIPage} />
-              <Route path="/ops-fm" component={OpsFMPage} />
-              <Route path="/it-dt" component={ITDTPage} />
-              <Route path="/sprint-management" component={SprintManagementPage} />
-              <Route path="/projects" component={ProjectsPage} />
-              <Route path="/manage-tags" component={ManageTagsPage} />
-              <Route path="/applications/customer-db" component={CustomerDBPage} />
-              <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />
-              <Route component={NotFound} />
-            </Switch>
-          </main>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+              <div className="flex items-center gap-3">
+                <NotificationDropdown />
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="flex-1 overflow-auto bg-background">
+              <Switch>
+                <Route path="/">
+                  <Redirect to="/dashboard" />
+                </Route>
+                <Route path="/dashboard" component={Dashboard} />
+                <Route path="/erp" component={ERPDashboard} />
+                <Route path="/netsuite" component={ERPDashboard} />
+                <Route path="/hr" component={HRMSPage} />
+                <Route path="/livery" component={LiveryDashboard} />
+                <Route path="/admin" component={AdminDashboard} />
+                <Route path="/admin/tickets" component={AdminTicketsPage} />
+                <Route path="/settings" component={SettingsPage} />
+                <Route path="/system-settings" component={SystemSettingsPage} />
+                <Route path="/help" component={HelpCenterPage} />
+                <Route path="/tickets" component={MyTicketsPage} />
+                <Route path="/tickets/new" component={MyTicketsPage} />
+                <Route path="/my-tickets" component={MyTicketsPage} />
+                <Route path="/other-systems" component={OtherSystemsPage} />
+                <Route path="/business-units" component={BusinessUnitsPage} />
+                <Route path="/asset-lease" component={AssetLeasePage} />
+                <Route path="/equestrian" component={EquestrianPage} />
+                <Route path="/events" component={EventsPage} />
+                <Route path="/media-marketing" component={MediaMarketingPage} />
+                <Route path="/intranet" component={IntranetPage} />
+                <Route path="/legal" component={LegalPage} />
+                <Route path="/performance-kpi" component={PerformanceKPIPage} />
+                <Route path="/ops-fm" component={OpsFMPage} />
+                <Route path="/it-dt" component={ITDTPage} />
+                <Route path="/sprint-management" component={SprintManagementPage} />
+                <Route path="/projects" component={ProjectsPage} />
+                <Route path="/manage-tags" component={ManageTagsPage} />
+                <Route path="/applications/customer-db" component={CustomerDBPage} />
+                <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />
+                <Route component={NotFound} />
+              </Switch>
+            </main>
+          </SidebarInset>
+        </div>
+        <MinimizedTaskbar />
+      </SidebarProvider>
+    </MinimizedSectionsProvider>
   );
 }
 

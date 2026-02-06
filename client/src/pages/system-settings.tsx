@@ -48,10 +48,11 @@ import {
   X,
   AlertTriangle,
   Shield,
-  Search
+  Search,
+  LayoutGrid
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
-import type { SystemSetting, AuditLog, IntegrationHealth, ManagedUser, ExternalService } from "@shared/schema";
+import type { SystemSetting, AuditLog, IntegrationHealth, ManagedUser, ExternalService, SectionTemplate, PageSectionWithTemplate } from "@shared/schema";
 
 export default function SystemSettingsPage() {
   const [, setLocation] = useLocation();
@@ -84,6 +85,8 @@ export default function SystemSettingsPage() {
     isExternal: true,
   });
   const [editingService, setEditingService] = useState<ExternalService | null>(null);
+
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
 
   const { data: currentUser, isLoading: currentUserLoading } = useQuery<ManagedUser>({
     queryKey: ["/api/admin/users/current"],
@@ -126,6 +129,42 @@ export default function SystemSettingsPage() {
   const { data: services, isLoading: servicesLoading } = useQuery<ExternalService[]>({
     queryKey: ["/api/admin/services"],
     enabled: !!authUser && currentUser?.role === "admin",
+  });
+
+  const { data: sectionTemplates, isLoading: templatesLoading } = useQuery<SectionTemplate[]>({
+    queryKey: ["/api/admin/section-templates"],
+    enabled: !!authUser && currentUser?.role === "admin",
+  });
+
+  const { data: serviceSections, isLoading: serviceSectionsLoading } = useQuery<PageSectionWithTemplate[]>({
+    queryKey: [`/api/services/${selectedServiceId}/sections`],
+    enabled: !!authUser && currentUser?.role === "admin" && !!selectedServiceId,
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<SectionTemplate> }) => {
+      return apiRequest("PATCH", `/api/admin/section-templates/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/section-templates"] });
+      toast({ title: "Template updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update template", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateSectionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      return apiRequest("PATCH", `/api/admin/sections/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/services/${selectedServiceId}/sections`] });
+      toast({ title: "Section updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update section", description: error.message, variant: "destructive" });
+    },
   });
 
   const createServiceMutation = useMutation({
@@ -365,6 +404,10 @@ export default function SystemSettingsPage() {
           <TabsTrigger value="services" data-testid="tab-services">
             <Activity className="mr-2 h-4 w-4" />
             Services
+          </TabsTrigger>
+          <TabsTrigger value="sections" data-testid="tab-sections">
+            <LayoutGrid className="mr-2 h-4 w-4" />
+            Page Sections
           </TabsTrigger>
         </TabsList>
 
@@ -755,6 +798,173 @@ export default function SystemSettingsPage() {
                     Add external services to enable them for production
                   </p>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sections" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Section Templates</CardTitle>
+              <CardDescription>Manage reusable section template types</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : sectionTemplates && sectionTemplates.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Icon</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sectionTemplates.map((template) => (
+                      <TableRow key={template.id} data-testid={`row-template-${template.id}`}>
+                        <TableCell className="font-medium">{template.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{template.sectionType}</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {template.icon || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={template.isEnabled}
+                              onCheckedChange={(checked) =>
+                                updateTemplateMutation.mutate({ id: template.id, data: { isEnabled: checked } })
+                              }
+                              data-testid={`switch-template-${template.id}`}
+                            />
+                            <span className="text-sm">
+                              {template.isEnabled ? "Enabled" : "Disabled"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`button-edit-template-${template.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <LayoutGrid className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">No section templates</h3>
+                  <p className="text-muted-foreground">
+                    Section templates will appear here once created
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Section Assignments</CardTitle>
+              <CardDescription>Configure which sections appear on each service page</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Select
+                value={selectedServiceId}
+                onValueChange={setSelectedServiceId}
+              >
+                <SelectTrigger data-testid="select-section-service">
+                  <SelectValue placeholder="Select a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {services?.map((service) => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedServiceId && (
+                <>
+                  {serviceSectionsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : serviceSections && serviceSections.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Template</TableHead>
+                          <TableHead>Sort Order</TableHead>
+                          <TableHead>Enabled</TableHead>
+                          <TableHead>Expandable</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {serviceSections.map((section) => (
+                          <TableRow key={section.id} data-testid={`row-section-${section.id}`}>
+                            <TableCell className="font-medium">{section.title}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {section.template?.name || "-"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{section.sortOrder}</TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={section.isEnabled}
+                                onCheckedChange={(checked) =>
+                                  updateSectionMutation.mutate({ id: section.id, data: { isEnabled: checked } })
+                                }
+                                data-testid={`switch-section-enabled-${section.id}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={section.isExpandable}
+                                onCheckedChange={(checked) =>
+                                  updateSectionMutation.mutate({ id: section.id, data: { isExpandable: checked } })
+                                }
+                                data-testid={`switch-section-expandable-${section.id}`}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid={`button-edit-section-${section.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <LayoutGrid className="h-12 w-12 text-muted-foreground" />
+                      <h3 className="mt-4 text-lg font-medium">No sections assigned</h3>
+                      <p className="text-muted-foreground">
+                        No page sections have been assigned to this service
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

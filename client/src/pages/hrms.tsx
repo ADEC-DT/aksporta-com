@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageCollaborationStamp } from "@/components/collaboration-stamp";
-import { ExpandableSection } from "@/components/expandable-section";
+import { ServicePageLayout } from "@/components/service-page-layout";
 import { 
   Users, 
   DollarSign, 
@@ -17,6 +16,9 @@ import {
   ExternalLink,
   BarChart3
 } from "lucide-react";
+import type { PageSectionWithTemplate } from "@shared/schema";
+
+const SERVICE_ID = "cbaee07b-b446-4980-b1cb-6d434939b23f";
 
 const hrModules = [
   {
@@ -101,59 +103,36 @@ const hrModules = [
   },
 ];
 
-export default function HRMSPage() {
-  const handleLaunchHRMS = () => {
-    window.open("https://hrms.example.com", "_blank");
-  };
-
-  const handleLaunchPowerBI = () => {
-    window.open("https://app.powerbi.com", "_blank");
-  };
-
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageCollaborationStamp sectionName="hrms" />
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold font-outfit">HRMS</h1>
-          <p className="text-muted-foreground">Human Resource Management System</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleLaunchPowerBI} data-testid="button-launch-powerbi">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Launch Power BI
-          </Button>
-          <Button onClick={handleLaunchHRMS} data-testid="button-launch-hrms">
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Launch HR System
-          </Button>
-        </div>
-      </div>
-
-      <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
-        <CardContent className="p-6">
-          <div className="grid gap-6 md:grid-cols-4">
-            <div>
-              <p className="text-blue-100 text-sm">Total Employees</p>
-              <p className="text-3xl font-bold">248</p>
+function renderSection(section: PageSectionWithTemplate) {
+  switch (section.title) {
+    case "HR Overview":
+      return (
+        <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
+          <CardContent className="p-6">
+            <div className="grid gap-6 md:grid-cols-4">
+              <div>
+                <p className="text-blue-100 text-sm">Total Employees</p>
+                <p className="text-3xl font-bold">248</p>
+              </div>
+              <div>
+                <p className="text-blue-100 text-sm">Active Today</p>
+                <p className="text-3xl font-bold">231</p>
+              </div>
+              <div>
+                <p className="text-blue-100 text-sm">On Leave</p>
+                <p className="text-3xl font-bold">12</p>
+              </div>
+              <div>
+                <p className="text-blue-100 text-sm">Open Positions</p>
+                <p className="text-3xl font-bold">5</p>
+              </div>
             </div>
-            <div>
-              <p className="text-blue-100 text-sm">Active Today</p>
-              <p className="text-3xl font-bold">231</p>
-            </div>
-            <div>
-              <p className="text-blue-100 text-sm">On Leave</p>
-              <p className="text-3xl font-bold">12</p>
-            </div>
-            <div>
-              <p className="text-blue-100 text-sm">Open Positions</p>
-              <p className="text-3xl font-bold">5</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      );
 
-      <ExpandableSection title="HR Modules" icon={Users} defaultExpanded>
+    case "HR Modules":
+      return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {hrModules.map((module) => (
             <Card key={module.id} className="hover-elevate cursor-pointer" data-testid={`card-module-${module.id}`}>
@@ -179,69 +158,77 @@ export default function HRMSPage() {
             </Card>
           ))}
         </div>
-      </ExpandableSection>
+      );
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">New employee onboarded</p>
-                  <p className="text-xs text-muted-foreground">Ahmed Hassan joined IT Department</p>
-                </div>
-                <span className="text-xs text-muted-foreground">2h ago</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-blue-500" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Leave request approved</p>
-                  <p className="text-xs text-muted-foreground">Sara Al-Mahmoud - Annual Leave</p>
-                </div>
-                <span className="text-xs text-muted-foreground">4h ago</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-orange-500" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Payroll processed</p>
-                  <p className="text-xs text-muted-foreground">January 2026 salaries disbursed</p>
-                </div>
-                <span className="text-xs text-muted-foreground">Yesterday</span>
-              </div>
+    case "Recent Activity":
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">New employee onboarded</p>
+              <p className="text-xs text-muted-foreground">Ahmed Hassan joined IT Department</p>
             </div>
-          </CardContent>
-        </Card>
+            <span className="text-xs text-muted-foreground">2h ago</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-blue-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Leave request approved</p>
+              <p className="text-xs text-muted-foreground">Sara Al-Mahmoud - Annual Leave</p>
+            </div>
+            <span className="text-xs text-muted-foreground">4h ago</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-orange-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Payroll processed</p>
+              <p className="text-xs text-muted-foreground">January 2026 salaries disbursed</p>
+            </div>
+            <span className="text-xs text-muted-foreground">Yesterday</span>
+          </div>
+        </div>
+      );
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Reports & Analytics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" data-testid="button-report-headcount">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Headcount Report
-              </Button>
-              <Button variant="outline" className="w-full justify-start" data-testid="button-report-attendance">
-                <Clock className="mr-2 h-4 w-4" />
-                Attendance Summary
-              </Button>
-              <Button variant="outline" className="w-full justify-start" data-testid="button-report-payroll">
-                <DollarSign className="mr-2 h-4 w-4" />
-                Payroll Analytics
-              </Button>
-              <Button variant="outline" className="w-full justify-start" data-testid="button-report-turnover">
-                <Users className="mr-2 h-4 w-4" />
-                Turnover Analysis
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    case "Reports & Analytics":
+      return (
+        <div className="space-y-3">
+          <Button variant="outline" className="w-full justify-start" data-testid="button-report-headcount">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Headcount Report
+          </Button>
+          <Button variant="outline" className="w-full justify-start" data-testid="button-report-attendance">
+            <Clock className="mr-2 h-4 w-4" />
+            Attendance Summary
+          </Button>
+          <Button variant="outline" className="w-full justify-start" data-testid="button-report-payroll">
+            <DollarSign className="mr-2 h-4 w-4" />
+            Payroll Analytics
+          </Button>
+          <Button variant="outline" className="w-full justify-start" data-testid="button-report-turnover">
+            <Users className="mr-2 h-4 w-4" />
+            Turnover Analysis
+          </Button>
+        </div>
+      );
+
+    default:
+      return null;
+  }
+}
+
+export default function HRMSPage() {
+  return (
+    <ServicePageLayout
+      serviceId={SERVICE_ID}
+      title="Kayan HRMS"
+      subtitle="Human Resources Management System"
+      collaborationSection="hrms"
+      externalLinks={[
+        { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },
+        { label: "Launch HR System", url: "https://hrms.example.com", icon: ExternalLink },
+      ]}
+      renderSection={renderSection}
+    />
   );
 }
