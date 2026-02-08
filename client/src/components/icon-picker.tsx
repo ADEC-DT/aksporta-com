@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import * as LucideIcons from "lucide-react";
+import * as AllLucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Search, Plus, Info, Check, X, Loader2 } from "lucide-react";
+import { resolveIconOrNull, registerIcon } from "@/lib/icon-resolver";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,8 +25,15 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { IconLibraryEntry, ExternalService } from "@shared/schema";
 
 function getIconComponent(name: string): LucideIcon | undefined {
-  const icons = LucideIcons as Record<string, unknown>;
-  return icons[name] as LucideIcon | undefined;
+  const fromRegistry = resolveIconOrNull(name);
+  if (fromRegistry) return fromRegistry;
+  const fromLucide = (AllLucideIcons as Record<string, unknown>)[name];
+  if (fromLucide && typeof fromLucide === "function") return fromLucide as LucideIcon;
+  return undefined;
+}
+
+function getIconForDisplay(name: string): LucideIcon | undefined {
+  return getIconComponent(name);
 }
 
 interface IconPickerProps {
@@ -125,6 +133,7 @@ export function IconPicker({ value, onChange, currentServiceId }: IconPickerProp
       });
       return;
     }
+    registerIcon(newIconForm.name, IconComp);
     addIconMutation.mutate(newIconForm);
   }
 

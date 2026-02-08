@@ -1,11 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import * as LucideIcons from "lucide-react";
+import { resolveIcon } from "@/lib/icon-resolver";
 import { 
   LayoutDashboard, 
-  Settings, 
-  HelpCircle, 
   Shield, 
   LogOut, 
   Ticket,
@@ -13,7 +11,7 @@ import {
   Pin,
   PinOff,
   Calendar,
-  type LucideIcon
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,117 +31,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ExternalService } from "@shared/schema";
 
-function getIconComponent(name: string): LucideIcon {
-  if (!name) return HelpCircle;
-  const icon = (LucideIcons as Record<string, unknown>)[name];
-  if (icon && typeof icon === "function") return icon as LucideIcon;
-  return HelpCircle;
-}
-
-const mainNavItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-    adminOnly: false,
-  },
-  {
-    title: "Business Units",
-    url: "/business-units",
-    icon: getIconComponent("Building2"),
-    adminOnly: true,
-  },
-  {
-    title: "Customer DB",
-    url: "/applications/customer-db",
-    icon: getIconComponent("Contact"),
-    adminOnly: false,
-  },
-  {
-    title: "Projects",
-    url: "/projects",
-    icon: getIconComponent("FolderKanban"),
-    adminOnly: false,
-  },
-  {
-    title: "HRMS",
-    url: "/hr",
-    icon: getIconComponent("Users"),
-    adminOnly: true,
-  },
-  {
-    title: "ERP",
-    url: "/erp",
-    icon: getIconComponent("DollarSign"),
-    adminOnly: false,
-  },
-  {
-    title: "Asset and Lease Management",
-    url: "/asset-lease",
-    icon: getIconComponent("Store"),
-    adminOnly: true,
-  },
-  {
-    title: "Equestrian",
-    url: "/equestrian",
-    icon: getIconComponent("CircleDot"),
-    adminOnly: true,
-  },
-  {
-    title: "Events & Entertainment",
-    url: "/events",
-    icon: getIconComponent("PartyPopper"),
-    adminOnly: false,
-  },
-  {
-    title: "Media & Marketing",
-    url: "/media-marketing",
-    icon: getIconComponent("Megaphone"),
-    adminOnly: true,
-  },
-  {
-    title: "DT Support",
-    url: "/intranet",
-    icon: getIconComponent("Headphones"),
-    adminOnly: false,
-  },
-  {
-    title: "Legal",
-    url: "/legal",
-    icon: getIconComponent("Scale"),
-    adminOnly: true,
-  },
-  {
-    title: "Performance & KPIs",
-    url: "/performance-kpi",
-    icon: getIconComponent("Target"),
-    adminOnly: true,
-  },
-  {
-    title: "OPS & FM",
-    url: "/ops-fm",
-    icon: getIconComponent("Wrench"),
-    adminOnly: true,
-  },
-  {
-    title: "IT & DT",
-    url: "/it-dt",
-    icon: getIconComponent("Cpu"),
-    adminOnly: true,
-  },
-];
-
 const secondaryNavItems = [
   {
     title: "Users Profile",
     url: "/settings",
-    icon: getIconComponent("UserCircle"),
+    icon: resolveIcon("UserCircle"),
   },
   {
     title: "Settings",
     url: "/system-settings",
     icon: Settings,
-    adminOnly: true,
+    adminOnly: false,
   },
 ];
 
@@ -228,7 +126,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {enabledServices?.map((service) => {
-                const IconComponent = getIconComponent(service.icon || "");
+                const IconComponent = resolveIcon(service.icon || "");
                 const isActive = location === service.url || 
                   (!!service.url && location.startsWith(service.url));
                 return (
