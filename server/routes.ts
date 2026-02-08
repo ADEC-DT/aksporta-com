@@ -2072,5 +2072,53 @@ export async function registerRoutes(
     }
   });
 
+  // Icon Library endpoints
+  app.get("/api/icons", isAuthenticated, async (_req, res) => {
+    try {
+      const icons = await storage.getAllIcons();
+      res.json(icons);
+    } catch (error) {
+      console.error("Error fetching icons:", error);
+      res.status(500).json({ message: "Failed to fetch icons" });
+    }
+  });
+
+  app.post("/api/admin/icons", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { name, label, category, description } = req.body;
+      if (!name || !label) {
+        return res.status(400).json({ message: "Name and label are required" });
+      }
+      const existing = await storage.getIconByName(name);
+      if (existing) {
+        return res.status(409).json({ message: "An icon with this name already exists in the library" });
+      }
+      const icon = await storage.createIcon({
+        name,
+        label,
+        category: category || "custom",
+        description: description || null,
+        isCustom: true,
+      });
+      res.status(201).json(icon);
+    } catch (error) {
+      console.error("Error creating icon:", error);
+      res.status(500).json({ message: "Failed to create icon" });
+    }
+  });
+
+  app.delete("/api/admin/icons/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteIcon(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Icon not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting icon:", error);
+      res.status(500).json({ message: "Failed to delete icon" });
+    }
+  });
+
   return httpServer;
 }

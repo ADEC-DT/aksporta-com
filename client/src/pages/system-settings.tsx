@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { IconPicker } from "@/components/icon-picker";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1108,7 +1109,7 @@ export default function SystemSettingsPage() {
       </Tabs>
 
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingService ? "Edit Service" : "Add Service"}</DialogTitle>
             <DialogDescription>
@@ -1147,6 +1148,14 @@ export default function SystemSettingsPage() {
                 onChange={(e) => setServiceForm({ ...serviceForm, url: e.target.value })}
                 placeholder="https://..."
                 data-testid="input-service-url"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Icon</Label>
+              <IconPicker
+                value={serviceForm.icon}
+                onChange={(iconName) => setServiceForm({ ...serviceForm, icon: iconName })}
+                currentServiceId={editingService?.id}
               />
             </div>
             <div className="space-y-2">

@@ -102,6 +102,7 @@ All service pages use a unified architecture driven by backend-configured sectio
 6. **Sticky Header**: 56px (h-14) sticky header with search, notifications, and theme toggle
 7. **Dashboard Layout**: Dark hero section, 3-column grid (2+1), business app cards, intranet updates with slide-in detail panel, Power BI in ExpandableSection
 8. **Section-Based Architecture**: All service pages built from configurable section templates stored in backend, with enable/disable and ordering controls
+9. **Icon Library System**: Backend-managed `icon_library` table with 29 pre-seeded Lucide icons. IconPicker component shows all icons in a categorized grid; icons already assigned to other services are grayed out (unique per service). Admins can add custom Lucide icons with live preview and validation. Integrated into service create/edit dialogs.
 
 ## External Dependencies
 
