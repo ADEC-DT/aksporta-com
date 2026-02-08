@@ -1,28 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
+import * as LucideIcons from "lucide-react";
 import { 
   LayoutDashboard, 
-  Users, 
-  Building2,
-  Contact, 
   Settings, 
   HelpCircle, 
   Shield, 
   LogOut, 
   Ticket,
-  FolderKanban,
-  DollarSign,
-  Store,
-  CircleDot,
-  Headphones,
-  PartyPopper,
-  Megaphone,
-  Scale,
-  UserCircle,
-  Target,
-  Wrench,
-  Cpu,
   Monitor,
   Pin,
   PinOff,
@@ -47,29 +33,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ExternalService } from "@shared/schema";
 
-const iconMap: Record<string, LucideIcon> = {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Contact,
-  Settings,
-  HelpCircle,
-  Shield,
-  LogOut,
-  Ticket,
-  FolderKanban,
-  DollarSign,
-  Store,
-  CircleDot,
-  Headphones,
-  PartyPopper,
-  Megaphone,
-  Scale,
-  UserCircle,
-  Target,
-  Wrench,
-  Cpu,
-};
+function getIconComponent(name: string): LucideIcon {
+  if (!name) return HelpCircle;
+  const icon = (LucideIcons as Record<string, unknown>)[name];
+  if (icon && typeof icon === "function") return icon as LucideIcon;
+  return HelpCircle;
+}
 
 const mainNavItems = [
   {
@@ -81,85 +50,85 @@ const mainNavItems = [
   {
     title: "Business Units",
     url: "/business-units",
-    icon: Building2,
+    icon: getIconComponent("Building2"),
     adminOnly: true,
   },
   {
     title: "Customer DB",
     url: "/applications/customer-db",
-    icon: Contact,
+    icon: getIconComponent("Contact"),
     adminOnly: false,
   },
   {
     title: "Projects",
     url: "/projects",
-    icon: FolderKanban,
+    icon: getIconComponent("FolderKanban"),
     adminOnly: false,
   },
   {
     title: "HRMS",
     url: "/hr",
-    icon: Users,
+    icon: getIconComponent("Users"),
     adminOnly: true,
   },
   {
     title: "ERP",
     url: "/erp",
-    icon: DollarSign,
+    icon: getIconComponent("DollarSign"),
     adminOnly: false,
   },
   {
     title: "Asset and Lease Management",
     url: "/asset-lease",
-    icon: Store,
+    icon: getIconComponent("Store"),
     adminOnly: true,
   },
   {
     title: "Equestrian",
     url: "/equestrian",
-    icon: CircleDot,
+    icon: getIconComponent("CircleDot"),
     adminOnly: true,
   },
   {
     title: "Events & Entertainment",
     url: "/events",
-    icon: PartyPopper,
+    icon: getIconComponent("PartyPopper"),
     adminOnly: false,
   },
   {
     title: "Media & Marketing",
     url: "/media-marketing",
-    icon: Megaphone,
+    icon: getIconComponent("Megaphone"),
     adminOnly: true,
   },
   {
     title: "DT Support",
     url: "/intranet",
-    icon: Headphones,
+    icon: getIconComponent("Headphones"),
     adminOnly: false,
   },
   {
     title: "Legal",
     url: "/legal",
-    icon: Scale,
+    icon: getIconComponent("Scale"),
     adminOnly: true,
   },
   {
     title: "Performance & KPIs",
     url: "/performance-kpi",
-    icon: Target,
+    icon: getIconComponent("Target"),
     adminOnly: true,
   },
   {
     title: "OPS & FM",
     url: "/ops-fm",
-    icon: Wrench,
+    icon: getIconComponent("Wrench"),
     adminOnly: true,
   },
   {
     title: "IT & DT",
     url: "/it-dt",
-    icon: Cpu,
+    icon: getIconComponent("Cpu"),
     adminOnly: true,
   },
 ];
@@ -168,7 +137,7 @@ const secondaryNavItems = [
   {
     title: "Users Profile",
     url: "/settings",
-    icon: UserCircle,
+    icon: getIconComponent("UserCircle"),
   },
   {
     title: "Settings",
@@ -259,7 +228,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {enabledServices?.map((service) => {
-                const IconComponent = iconMap[service.icon || ""] || HelpCircle;
+                const IconComponent = getIconComponent(service.icon || "");
                 const isActive = location === service.url || 
                   (!!service.url && location.startsWith(service.url));
                 return (
