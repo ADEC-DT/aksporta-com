@@ -94,7 +94,6 @@ export default function SystemSettingsPage() {
   const [sectionForm, setSectionForm] = useState({
     title: "",
     subtitle: "",
-    icon: "",
     sectionTemplateId: "",
     isEnabled: true,
     isExpandable: true,
@@ -332,7 +331,6 @@ export default function SystemSettingsPage() {
     setSectionForm({
       title: "",
       subtitle: "",
-      icon: "",
       sectionTemplateId: "",
       isEnabled: true,
       isExpandable: true,
@@ -355,7 +353,6 @@ export default function SystemSettingsPage() {
     setSectionForm({
       title: section.title,
       subtitle: section.subtitle || "",
-      icon: section.icon || "",
       sectionTemplateId: section.sectionTemplateId || "",
       isEnabled: section.isEnabled,
       isExpandable: section.isExpandable,
@@ -372,7 +369,6 @@ export default function SystemSettingsPage() {
         data: {
           title: sectionForm.title,
           subtitle: sectionForm.subtitle || null,
-          icon: sectionForm.icon || null,
           sectionTemplateId: sectionForm.sectionTemplateId || null,
           isEnabled: sectionForm.isEnabled,
           isExpandable: sectionForm.isExpandable,
@@ -385,7 +381,6 @@ export default function SystemSettingsPage() {
       createSectionMutation.mutate({
         title: sectionForm.title,
         subtitle: sectionForm.subtitle || null,
-        icon: sectionForm.icon || null,
         sectionTemplateId: sectionForm.sectionTemplateId || null,
         isEnabled: sectionForm.isEnabled,
         isExpandable: sectionForm.isExpandable,
@@ -1330,28 +1325,10 @@ export default function SystemSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="section-icon">Icon Name</Label>
-              <Input
-                id="section-icon"
-                value={sectionForm.icon}
-                onChange={(e) => setSectionForm({ ...sectionForm, icon: e.target.value })}
-                placeholder="e.g. BarChart3, Table, Grid3X3"
-                data-testid="input-section-icon"
-              />
-              <p className="text-xs text-muted-foreground">Use a Lucide icon name (e.g. BarChart3, Clock, Settings)</p>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="section-template">Section Template</Label>
               <Select
                 value={sectionForm.sectionTemplateId}
-                onValueChange={(value) => {
-                  const template = sectionTemplates?.find(t => t.id === value);
-                  setSectionForm({
-                    ...sectionForm,
-                    sectionTemplateId: value,
-                    icon: sectionForm.icon || template?.icon || "",
-                  });
-                }}
+                onValueChange={(value) => setSectionForm({ ...sectionForm, sectionTemplateId: value })}
               >
                 <SelectTrigger data-testid="select-section-template">
                   <SelectValue placeholder="Choose a template type" />
