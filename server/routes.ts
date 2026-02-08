@@ -2015,6 +2015,19 @@ export async function registerRoutes(
   app.post("/api/admin/services/:serviceId/sections", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const data = { ...req.body, serviceId: req.params.serviceId };
+
+      if (data.sectionTemplateId) {
+        const template = await storage.getSectionTemplate(data.sectionTemplateId);
+        if (template) {
+          if (!data.icon && template.icon) {
+            data.icon = template.icon;
+          }
+          if (!data.config && template.defaultConfig) {
+            data.config = template.defaultConfig;
+          }
+        }
+      }
+
       const parsed = insertPageSectionSchema.safeParse(data);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });

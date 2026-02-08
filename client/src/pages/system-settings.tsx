@@ -1344,7 +1344,14 @@ export default function SystemSettingsPage() {
               <Label htmlFor="section-template">Section Template</Label>
               <Select
                 value={sectionForm.sectionTemplateId}
-                onValueChange={(value) => setSectionForm({ ...sectionForm, sectionTemplateId: value })}
+                onValueChange={(value) => {
+                  const template = sectionTemplates?.find(t => t.id === value);
+                  setSectionForm({
+                    ...sectionForm,
+                    sectionTemplateId: value,
+                    icon: sectionForm.icon || template?.icon || "",
+                  });
+                }}
               >
                 <SelectTrigger data-testid="select-section-template">
                   <SelectValue placeholder="Choose a template type" />

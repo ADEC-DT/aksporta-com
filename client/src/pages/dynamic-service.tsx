@@ -3,6 +3,7 @@ import { useRoute } from "wouter";
 import { ServicePageLayout } from "@/components/service-page-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle } from "lucide-react";
+import { resolveIconOrNull } from "@/lib/icon-resolver";
 import type { ExternalService, PageSectionWithTemplate } from "@shared/schema";
 
 export default function DynamicServicePage() {
@@ -38,13 +39,24 @@ export default function DynamicServicePage() {
     const templateType = section.template?.sectionType;
 
     switch (templateType) {
-      case "hero_banner":
+      case "hero_banner": {
+        const HeroIcon = section.icon ? resolveIconOrNull(section.icon) : null;
         return (
           <div className="rounded-md border border-border bg-muted/30 p-6" data-testid={`section-hero-${section.id}`}>
-            <h2 className="text-xl font-semibold font-outfit">{section.title}</h2>
-            {section.subtitle && <p className="text-muted-foreground mt-1">{section.subtitle}</p>}
+            <div className="flex items-center gap-3">
+              {HeroIcon && (
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <HeroIcon className="h-6 w-6 text-primary" />
+                </div>
+              )}
+              <div>
+                <h2 className="text-xl font-semibold font-outfit">{section.title}</h2>
+                {section.subtitle && <p className="text-muted-foreground mt-1">{section.subtitle}</p>}
+              </div>
+            </div>
           </div>
         );
+      }
       case "cards_grid":
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid={`section-cards-${section.id}`}>
