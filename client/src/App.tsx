@@ -37,6 +37,7 @@ import ITDTPage from "@/pages/it-dt";
 import SprintManagementPage from "@/pages/sprint-management";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
+import DynamicServicePage from "@/pages/dynamic-service";
 import LoginPage from "@/pages/login";
 import { NotificationDropdown } from "@/components/notification-dropdown";
 import { NotificationReminder } from "@/components/notification-reminder";
@@ -143,6 +144,7 @@ function ProtectedRoutes() {
                 <Route path="/manage-tags" component={ManageTagsPage} />
                 <Route path="/applications/customer-db" component={CustomerDBPage} />
                 <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />
+                <Route path="/services/:id" component={DynamicServicePage} />
                 <Route component={NotFound} />
               </Switch>
             </main>

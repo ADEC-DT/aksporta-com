@@ -153,6 +153,7 @@ export interface IStorage {
   // Section templates CRUD
   getAllSectionTemplates(): Promise<SectionTemplate[]>;
   getSectionTemplate(id: string): Promise<SectionTemplate | undefined>;
+  getSectionTemplateByType(sectionType: string): Promise<SectionTemplate | undefined>;
   createSectionTemplate(template: InsertSectionTemplate): Promise<SectionTemplate>;
   updateSectionTemplate(id: string, data: Partial<InsertSectionTemplate>): Promise<SectionTemplate | undefined>;
   deleteSectionTemplate(id: string): Promise<boolean>;
@@ -823,6 +824,11 @@ export class DatabaseStorage implements IStorage {
 
   async getSectionTemplate(id: string): Promise<SectionTemplate | undefined> {
     const [template] = await db.select().from(sectionTemplates).where(eq(sectionTemplates.id, id));
+    return template;
+  }
+
+  async getSectionTemplateByType(sectionType: string): Promise<SectionTemplate | undefined> {
+    const [template] = await db.select().from(sectionTemplates).where(eq(sectionTemplates.sectionType, sectionType));
     return template;
   }
 

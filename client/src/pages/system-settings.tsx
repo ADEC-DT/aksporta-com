@@ -88,6 +88,18 @@ export default function SystemSettingsPage() {
 
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
 
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const [editingSection, setEditingSection] = useState<PageSectionWithTemplate | null>(null);
+  const [sectionForm, setSectionForm] = useState({
+    title: "",
+    subtitle: "",
+    icon: "",
+    sectionTemplateId: "",
+    isEnabled: true,
+    isExpandable: true,
+    sortOrder: 0,
+  });
+
   const { data: currentUser, isLoading: currentUserLoading } = useQuery<ManagedUser>({
     queryKey: ["/api/admin/users/current"],
     queryFn: async () => {
@@ -164,6 +176,34 @@ export default function SystemSettingsPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to update section", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createSectionMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      return apiRequest("POST", `/api/admin/services/${selectedServiceId}/sections`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/services/${selectedServiceId}/sections`] });
+      setSectionDialogOpen(false);
+      resetSectionForm();
+      toast({ title: "Section added" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add section", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/admin/sections/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/services/${selectedServiceId}/sections`] });
+      toast({ title: "Section removed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to remove section", description: error.message, variant: "destructive" });
     },
   });
 
@@ -285,6 +325,72 @@ export default function SystemSettingsPage() {
       isExternal: true,
     });
     setEditingService(null);
+  }
+
+  function resetSectionForm() {
+    setSectionForm({
+      title: "",
+      subtitle: "",
+      icon: "",
+      sectionTemplateId: "",
+      isEnabled: true,
+      isExpandable: true,
+      sortOrder: 0,
+    });
+    setEditingSection(null);
+  }
+
+  function handleOpenCreateSection() {
+    resetSectionForm();
+    setSectionForm(prev => ({
+      ...prev,
+      sortOrder: (serviceSections?.length || 0),
+    }));
+    setSectionDialogOpen(true);
+  }
+
+  function handleOpenEditSection(section: PageSectionWithTemplate) {
+    setEditingSection(section);
+    setSectionForm({
+      title: section.title,
+      subtitle: section.subtitle || "",
+      icon: section.icon || "",
+      sectionTemplateId: section.sectionTemplateId || "",
+      isEnabled: section.isEnabled,
+      isExpandable: section.isExpandable,
+      sortOrder: section.sortOrder,
+    });
+    setSectionDialogOpen(true);
+  }
+
+  function handleSectionSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (editingSection) {
+      updateSectionMutation.mutate({
+        id: editingSection.id,
+        data: {
+          title: sectionForm.title,
+          subtitle: sectionForm.subtitle || null,
+          icon: sectionForm.icon || null,
+          sectionTemplateId: sectionForm.sectionTemplateId || null,
+          isEnabled: sectionForm.isEnabled,
+          isExpandable: sectionForm.isExpandable,
+          sortOrder: sectionForm.sortOrder,
+        },
+      });
+      setSectionDialogOpen(false);
+      resetSectionForm();
+    } else {
+      createSectionMutation.mutate({
+        title: sectionForm.title,
+        subtitle: sectionForm.subtitle || null,
+        icon: sectionForm.icon || null,
+        sectionTemplateId: sectionForm.sectionTemplateId || null,
+        isEnabled: sectionForm.isEnabled,
+        isExpandable: sectionForm.isExpandable,
+        sortOrder: sectionForm.sortOrder,
+      });
+    }
   }
 
   function handleOpenCreateService() {
@@ -875,9 +981,21 @@ export default function SystemSettingsPage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Section Assignments</CardTitle>
-              <CardDescription>Configure which sections appear on each service page</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>Section Assignments</CardTitle>
+                <CardDescription>Configure which sections appear on each service page</CardDescription>
+              </div>
+              {selectedServiceId && (
+                <Button
+                  size="sm"
+                  onClick={handleOpenCreateSection}
+                  data-testid="button-add-section"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Section
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <Select
@@ -917,10 +1035,17 @@ export default function SystemSettingsPage() {
                       <TableBody>
                         {serviceSections.map((section) => (
                           <TableRow key={section.id} data-testid={`row-section-${section.id}`}>
-                            <TableCell className="font-medium">{section.title}</TableCell>
+                            <TableCell>
+                              <div>
+                                <span className="font-medium">{section.title}</span>
+                                {section.subtitle && (
+                                  <p className="text-xs text-muted-foreground">{section.subtitle}</p>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline">
-                                {section.template?.name || "-"}
+                                {section.template?.name || "None"}
                               </Badge>
                             </TableCell>
                             <TableCell>{section.sortOrder}</TableCell>
@@ -943,13 +1068,24 @@ export default function SystemSettingsPage() {
                               />
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                data-testid={`button-edit-section-${section.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleOpenEditSection(section)}
+                                  data-testid={`button-edit-section-${section.id}`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteSectionMutation.mutate(section.id)}
+                                  data-testid={`button-delete-section-${section.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -960,7 +1096,7 @@ export default function SystemSettingsPage() {
                       <LayoutGrid className="h-12 w-12 text-muted-foreground" />
                       <h3 className="mt-4 text-lg font-medium">No sections assigned</h3>
                       <p className="text-muted-foreground">
-                        No page sections have been assigned to this service
+                        Click "Add Section" to assign section templates to this service
                       </p>
                     </div>
                   )}
@@ -1146,6 +1282,116 @@ export default function SystemSettingsPage() {
               >
                 {upsertSettingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingSetting ? "Update" : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingSection ? "Edit Section" : "Add Section"}</DialogTitle>
+            <DialogDescription>
+              {editingSection
+                ? "Update this section's title, template, and settings"
+                : "Add a new section to this service page"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSectionSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="section-title">Section Title</Label>
+              <Input
+                id="section-title"
+                value={sectionForm.title}
+                onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
+                placeholder="e.g. Key Metrics, Reports, Overview"
+                required
+                data-testid="input-section-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-subtitle">Subtitle</Label>
+              <Input
+                id="section-subtitle"
+                value={sectionForm.subtitle}
+                onChange={(e) => setSectionForm({ ...sectionForm, subtitle: e.target.value })}
+                placeholder="Brief description of this section"
+                data-testid="input-section-subtitle"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-icon">Icon Name</Label>
+              <Input
+                id="section-icon"
+                value={sectionForm.icon}
+                onChange={(e) => setSectionForm({ ...sectionForm, icon: e.target.value })}
+                placeholder="e.g. BarChart3, Table, Grid3X3"
+                data-testid="input-section-icon"
+              />
+              <p className="text-xs text-muted-foreground">Use a Lucide icon name (e.g. BarChart3, Clock, Settings)</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-template">Section Template</Label>
+              <Select
+                value={sectionForm.sectionTemplateId}
+                onValueChange={(value) => setSectionForm({ ...sectionForm, sectionTemplateId: value })}
+              >
+                <SelectTrigger data-testid="select-section-template">
+                  <SelectValue placeholder="Choose a template type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sectionTemplates?.filter(t => t.isEnabled).map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name} ({template.sectionType})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-sort">Sort Order</Label>
+              <Input
+                id="section-sort"
+                type="number"
+                value={sectionForm.sortOrder}
+                onChange={(e) => setSectionForm({ ...sectionForm, sortOrder: parseInt(e.target.value) || 0 })}
+                data-testid="input-section-sort"
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="section-enabled"
+                  checked={sectionForm.isEnabled}
+                  onCheckedChange={(checked) => setSectionForm({ ...sectionForm, isEnabled: checked })}
+                  data-testid="switch-section-form-enabled"
+                />
+                <Label htmlFor="section-enabled">Enabled</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="section-expandable"
+                  checked={sectionForm.isExpandable}
+                  onCheckedChange={(checked) => setSectionForm({ ...sectionForm, isExpandable: checked })}
+                  data-testid="switch-section-form-expandable"
+                />
+                <Label htmlFor="section-expandable">Expandable</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setSectionDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                data-testid="button-save-section"
+              >
+                {(createSectionMutation.isPending || updateSectionMutation.isPending) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {editingSection ? "Update" : "Add Section"}
               </Button>
             </DialogFooter>
           </form>

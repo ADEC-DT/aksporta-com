@@ -789,6 +789,19 @@ export async function registerRoutes(
     }
   });
   
+  app.get("/api/services/:id", isAuthenticated, async (req, res) => {
+    try {
+      const service = await storage.getExternalService(req.params.id);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      res.json(service);
+    } catch (error) {
+      console.error("Error fetching service:", error);
+      res.status(500).json({ message: "Failed to fetch service" });
+    }
+  });
+
   app.get("/api/admin/services", isAuthenticated, isAdmin, async (_req, res) => {
     try {
       const services = await storage.getExternalServices();
@@ -802,7 +815,27 @@ export async function registerRoutes(
   app.post("/api/admin/services", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const currentUser = (req as any).managedUser as ManagedUser;
-      const service = await storage.createExternalService(req.body);
+      let service = await storage.createExternalService(req.body);
+      
+      if (!service.url) {
+        const updated = await storage.updateExternalService(service.id, { url: `/services/${service.id}` });
+        if (updated) service = updated;
+      }
+      
+      const heroTemplate = await storage.getSectionTemplateByType("hero_banner");
+      if (heroTemplate) {
+        await storage.createPageSection({
+          serviceId: service.id,
+          sectionTemplateId: heroTemplate.id,
+          title: service.name,
+          subtitle: service.description || "",
+          icon: "LayoutDashboard",
+          sortOrder: 0,
+          isEnabled: true,
+          isExpandable: false,
+          config: null,
+        });
+      }
       
       await storage.createAuditLog({
         action: "service_created",
