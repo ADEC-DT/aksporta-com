@@ -18,7 +18,8 @@ import {
   projectComments, type ProjectComment, type InsertProjectComment,
   projectTagsTable, type ProjectTagRecord, type InsertProjectTag,
   sectionTemplates, type SectionTemplate, type InsertSectionTemplate,
-  pageSections, type PageSection, type InsertPageSection, type PageSectionWithTemplate
+  pageSections, type PageSection, type InsertPageSection, type PageSectionWithTemplate,
+  iconLibrary, type IconLibraryEntry, type InsertIconLibrary
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -165,6 +166,13 @@ export interface IStorage {
   updatePageSection(id: string, data: Partial<InsertPageSection>): Promise<PageSection | undefined>;
   deletePageSection(id: string): Promise<boolean>;
   reorderPageSections(serviceId: string, sectionIds: string[]): Promise<boolean>;
+
+  // Icon library CRUD
+  getAllIcons(): Promise<IconLibraryEntry[]>;
+  getIcon(id: string): Promise<IconLibraryEntry | undefined>;
+  getIconByName(name: string): Promise<IconLibraryEntry | undefined>;
+  createIcon(icon: InsertIconLibrary): Promise<IconLibraryEntry>;
+  deleteIcon(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -901,6 +909,30 @@ export class DatabaseStorage implements IStorage {
         .where(and(eq(pageSections.id, sectionIds[i]), eq(pageSections.serviceId, serviceId)));
     }
     return true;
+  }
+
+  async getAllIcons(): Promise<IconLibraryEntry[]> {
+    return await db.select().from(iconLibrary).orderBy(iconLibrary.category, iconLibrary.label);
+  }
+
+  async getIcon(id: string): Promise<IconLibraryEntry | undefined> {
+    const [icon] = await db.select().from(iconLibrary).where(eq(iconLibrary.id, id));
+    return icon;
+  }
+
+  async getIconByName(name: string): Promise<IconLibraryEntry | undefined> {
+    const [icon] = await db.select().from(iconLibrary).where(eq(iconLibrary.name, name));
+    return icon;
+  }
+
+  async createIcon(icon: InsertIconLibrary): Promise<IconLibraryEntry> {
+    const [created] = await db.insert(iconLibrary).values(icon).returning();
+    return created;
+  }
+
+  async deleteIcon(id: string): Promise<boolean> {
+    const result = await db.delete(iconLibrary).where(eq(iconLibrary.id, id)).returning();
+    return result.length > 0;
   }
 }
 

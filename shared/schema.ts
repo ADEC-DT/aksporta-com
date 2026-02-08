@@ -580,3 +580,21 @@ export type PageSection = typeof pageSections.$inferSelect;
 export type PageSectionWithTemplate = PageSection & {
   template?: SectionTemplate | null;
 };
+
+export const iconLibrary = pgTable("icon_library", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  label: varchar("label").notNull(),
+  category: varchar("category").notNull().default("general"),
+  description: text("description"),
+  isCustom: boolean("is_custom").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertIconLibrarySchema = createInsertSchema(iconLibrary).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertIconLibrary = z.infer<typeof insertIconLibrarySchema>;
+export type IconLibraryEntry = typeof iconLibrary.$inferSelect;
