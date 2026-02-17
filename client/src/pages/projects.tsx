@@ -1223,7 +1223,9 @@ export default function ProjectsPage() {
                                       <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                     )}
                                     <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    <span className="font-medium text-sm">{pg.name}</span>
+                                    <Link href={`/projects/group/${pg.id}`} onClick={(e: any) => e.stopPropagation()}>
+                                      <span className="font-medium text-sm hover:underline" data-testid={`link-project-group-${pg.id}`}>{pg.name}</span>
+                                    </Link>
                                     {pg.color && (
                                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: pg.color }} />
                                     )}
