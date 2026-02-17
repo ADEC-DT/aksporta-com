@@ -1299,14 +1299,12 @@ export default function ProjectsPage() {
                                             data-testid={`kanban-card-${project.id}`}
                                           >
                                             <CardContent className="p-3 space-y-2">
-                                              {pgInfo && (
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: pgInfo.color }} />
-                                                  <span className="text-[10px] text-muted-foreground truncate">
-                                                    {pgInfo.spaceName} / {pgInfo.name}
-                                                  </span>
-                                                </div>
-                                              )}
+                                              <div className="flex items-center gap-1.5 mb-1">
+                                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: pgInfo ? pgInfo.color : "#94a3b8" }} />
+                                                <span className="text-[10px] text-muted-foreground truncate">
+                                                  {pgInfo ? `${pgInfo.spaceName} / ${pgInfo.name}` : "Unassigned"}
+                                                </span>
+                                              </div>
                                               <div className="flex items-start gap-2">
                                                 <div
                                                   {...provided.dragHandleProps}

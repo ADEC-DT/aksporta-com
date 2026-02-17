@@ -45,18 +45,20 @@ export function CreateSpaceDialog() {
 
   return (
     <>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-5 w-5 shrink-0"
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex items-center justify-center h-5 w-5 shrink-0 rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
+          e.preventDefault();
           setOpen(true);
         }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setOpen(true); } }}
         data-testid="button-sidebar-new-space"
       >
         <Plus className="h-3.5 w-3.5" />
-      </Button>
+      </div>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setName(""); setDescription(""); setColor("#6366f1"); } }}>
         <DialogContent>
