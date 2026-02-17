@@ -936,8 +936,8 @@ export default function ProjectsPage() {
         </>
       )}
 
-      {activeView === "monday" && (
-        <div className="space-y-4" data-testid="monday-view">
+      {(activeView === "monday" || activeView === "tuesday") && (
+        <div className="space-y-4" data-testid={`${activeView}-view`}>
             <div className="flex items-center gap-3">
               <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
                 <Plus className="h-4 w-4 mr-2" />
@@ -1301,67 +1301,6 @@ export default function ProjectsPage() {
                 </div>
               );
             })()}
-        </div>
-      )}
-
-      {activeView === "tuesday" && (
-        <div className="space-y-4" data-testid="tuesday-view">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="text-lg font-semibold font-outfit">Tuesday View</h2>
-              <p className="text-sm text-muted-foreground">Timeline and schedule overview</p>
-            </div>
-          </div>
-          {projectsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">Loading...</p>
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="grid grid-cols-[1fr_120px_120px_150px_150px] gap-2 px-4 py-3 text-xs font-medium text-muted-foreground border-b">
-                  <span>Task Name</span>
-                  <span>Status</span>
-                  <span>Priority</span>
-                  <span>Start Date</span>
-                  <span>Deadline</span>
-                </div>
-                {filteredProjects.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">No tasks found</div>
-                ) : (
-                  filteredProjects.map((project) => {
-                    const timeline = getTimelineStatus(project.deadline);
-                    return (
-                      <div
-                        key={project.id}
-                        className="grid grid-cols-[1fr_120px_120px_150px_150px] gap-2 px-4 py-2.5 items-center border-b last:border-b-0 hover-elevate"
-                        data-testid={`tuesday-row-${project.id}`}
-                      >
-                        <span
-                          className="font-medium text-sm truncate cursor-pointer"
-                          onClick={() => openProjectDetail(project)}
-                        >
-                          {project.name}
-                        </span>
-                        <Badge className={`${statusConfig[project.status as ProjectStatus]?.bgColor} border-0 text-xs`}>
-                          {statusConfig[project.status as ProjectStatus]?.label}
-                        </Badge>
-                        <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-xs capitalize`}>
-                          {project.priority}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {project.startDate ? format(new Date(project.startDate), "MMM d, yyyy") : "-"}
-                        </span>
-                        <span className={`text-xs ${timeline.color}`}>
-                          {project.deadline ? format(new Date(project.deadline), "MMM d, yyyy") : "-"}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       )}
 
