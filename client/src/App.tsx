@@ -144,7 +144,6 @@ function ProtectedRoutes() {
                 <Route path="/projects/group/:groupId" component={ProjectGroupPage} />
                 <Route path="/projects/monday" component={ProjectsPage} />
                 <Route path="/projects/tuesday" component={ProjectsPage} />
-                <Route path="/projects/kanban" component={ProjectsPage} />
                 <Route path="/projects">
                   <Redirect to="/projects/monday" />
                 </Route>

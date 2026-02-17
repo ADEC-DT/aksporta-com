@@ -171,14 +171,6 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild isActive={location === "/projects/kanban"} data-testid="nav-sub-projects-kanban">
-                                <Link href="/projects/kanban">
-                                  <Target className="h-3.5 w-3.5" />
-                                  <span>Kanban</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>

@@ -163,7 +163,8 @@ export default function ProjectsPage() {
   const [viewFilter, setViewFilter] = useState<"all" | "mine">("all");
   const [sprintsDialogOpen, setSprintsDialogOpen] = useState(false);
   const [location] = useLocation();
-  const activeView = location.includes("/kanban") ? "kanban" : location.includes("/tuesday") ? "tuesday" : "monday";
+  const activeView = location.includes("/tuesday") ? "tuesday" : "monday";
+  const [tuesdayDisplayMode, setTuesdayDisplayMode] = useState<"table" | "kanban">("table");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
   const [editingBlueprint, setEditingBlueprint] = useState<CollaborationBlueprint | null>(null);
@@ -772,173 +773,32 @@ export default function ProjectsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {activeView === "kanban" && (
-        <>
-          <div className="flex items-center gap-4">
-            <Link href="/other-systems">
-              <Button variant="ghost" size="icon" data-testid="button-back-other-systems">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div className="flex-1">
-              <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-semibold font-outfit">Task Management</h1>
-                {activeSprint && (
-                  <Badge variant="secondary">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {activeSprint.name} ({format(new Date(activeSprint.startDate), "MMM d")} - {format(new Date(activeSprint.endDate), "MMM d, yyyy")})
-                  </Badge>
-                )}
-              </div>
-              <p className="text-muted-foreground">Manage tasks, assignments, and deadlines</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewFilter === "all" ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setViewFilter("all")}
-                data-testid="button-view-all"
-              >
-                All Tasks
-              </Button>
-              <Button
-                variant={viewFilter === "mine" ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setViewFilter("mine")}
-                data-testid="button-view-mine"
-              >
-                <User className="h-4 w-4 mr-1" />
-                My Tasks
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setManageTagsDialogOpen(true)}
-                data-testid="button-manage-tags"
-              >
-                <Tag className="h-4 w-4 mr-1" />
-                Manage Tags
-              </Button>
-            </div>
-            <Button 
-              onClick={() => {
-                setEditingProject(null);
-                setProjectDialogOpen(true);
-              }}
-              data-testid="button-new-project"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Task
-            </Button>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card data-testid="stat-total-projects">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Tasks</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="stat-in-progress">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Clock className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.inProgress}</p>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="stat-on-hold">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                  <AlertCircle className="h-6 w-6 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.onHold}</p>
-                  <p className="text-sm text-muted-foreground">On Hold</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="stat-completed">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.completed}</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search projects..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search-projects"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(statusConfig).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={tagFilter} onValueChange={setTagFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-tag-filter">
-                <Tag className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tags</SelectItem>
-                {projectTags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sprintFilter} onValueChange={setSprintFilter}>
-              <SelectTrigger className="w-[220px]" data-testid="select-sprint-filter">
-                <Calendar className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by sprint" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sprints</SelectItem>
-                <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
-                {sprintsData.map((sprint) => (
-                  <SelectItem key={sprint.id} value={sprint.id}>
-                    {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </>
-      )}
 
       {(activeView === "monday" || activeView === "tuesday") && (
         <div className="space-y-4" data-testid={`${activeView}-view`}>
             <div className="flex items-center gap-3">
+              {activeView === "tuesday" && (
+                <div className="flex items-center border rounded-md overflow-visible">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={`rounded-none rounded-l-md ${tuesdayDisplayMode === "table" ? "bg-muted" : ""} toggle-elevate ${tuesdayDisplayMode === "table" ? "toggle-elevated" : ""}`}
+                    onClick={() => setTuesdayDisplayMode("table")}
+                    data-testid="button-tuesday-table-view"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={`rounded-none rounded-r-md ${tuesdayDisplayMode === "kanban" ? "bg-muted" : ""} toggle-elevate ${tuesdayDisplayMode === "kanban" ? "toggle-elevated" : ""}`}
+                    onClick={() => setTuesdayDisplayMode("kanban")}
+                    data-testid="button-tuesday-kanban-view"
+                  >
+                    <Layers className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
                 <Plus className="h-4 w-4 mr-2" />
                 New Space
@@ -948,7 +808,7 @@ export default function ProjectsPage() {
                 New Project
               </Button>
             </div>
-            {hierarchyLoading ? (
+            {(activeView === "monday" || tuesdayDisplayMode === "table") ? (hierarchyLoading ? (
               <div className="flex items-center justify-center py-12">
                 <p className="text-muted-foreground">Loading projects...</p>
               </div>
@@ -1300,139 +1160,139 @@ export default function ProjectsPage() {
                   )}
                 </div>
               );
-            })()}
-        </div>
-      )}
+            })()) : null}
 
-      {activeView === "kanban" && (
-        <div className="space-y-6" data-testid="kanban-view">
-          {projectsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">Loading projects...</p>
-            </div>
-          ) : projectsData.length === 0 ? (
-            <Card className="p-12 text-center">
-              <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No projects found</h3>
-              <p className="text-muted-foreground mb-4">
-                {viewFilter === "mine" 
-                  ? "You don't have any assigned projects yet." 
-                  : "Create your first project to get started."}
-              </p>
-              <Button onClick={() => setProjectDialogOpen(true)} data-testid="button-create-first-project">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Project
-              </Button>
-            </Card>
-          ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
-                  const columnProjects = filteredProjects.filter(p => p.status === statusKey);
-                  return (
-                    <div key={statusKey} className="flex-shrink-0 w-[300px]">
-                      <div className={`${config.bgColor} rounded-t-lg p-3 flex items-center gap-2`}>
-                        <config.icon className={`h-4 w-4 ${config.color}`} />
-                        <span className={`font-medium text-sm ${config.color}`}>{config.label}</span>
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {columnProjects.length}
-                        </Badge>
-                      </div>
-                      <Droppable droppableId={statusKey}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className={`min-h-[400px] p-2 space-y-2 border border-t-0 rounded-b-lg ${
-                              snapshot.isDraggingOver ? "bg-muted/50" : "bg-background"
-                            }`}
-                          >
-                            {columnProjects.map((project, index) => {
-                              const timeline = getTimelineStatus(project.deadline);
-                              const assignedUsers = getAssignedUsers(project);
-                              
-                              return (
-                                <Draggable key={project.id} draggableId={project.id} index={index}>
-                                  {(provided, snapshot) => (
-                                    <Card
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      className={`cursor-pointer ${snapshot.isDragging ? "shadow-lg" : "hover-elevate"}`}
-                                      onClick={() => openProjectDetail(project)}
-                                      data-testid={`kanban-card-${project.id}`}
-                                    >
-                                      <CardContent className="p-3 space-y-2">
-                                        <div className="flex items-start gap-2">
-                                          <div
-                                            {...provided.dragHandleProps}
-                                            className="mt-1 text-muted-foreground hover:text-foreground"
+            {activeView === "tuesday" && tuesdayDisplayMode === "kanban" && (
+              <div className="space-y-6" data-testid="tuesday-kanban-view">
+                {projectsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <p className="text-muted-foreground">Loading projects...</p>
+                  </div>
+                ) : projectsData.length === 0 ? (
+                  <Card className="p-12 text-center">
+                    <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {viewFilter === "mine" 
+                        ? "You don't have any assigned projects yet." 
+                        : "Create your first project to get started."}
+                    </p>
+                    <Button onClick={() => setProjectDialogOpen(true)} data-testid="button-create-first-project">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Project
+                    </Button>
+                  </Card>
+                ) : (
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <div className="flex gap-4 overflow-x-auto pb-4">
+                      {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
+                        const columnProjects = filteredProjects.filter(p => p.status === statusKey);
+                        return (
+                          <div key={statusKey} className="flex-shrink-0 w-[300px]">
+                            <div className={`${config.bgColor} rounded-t-lg p-3 flex items-center gap-2`}>
+                              <config.icon className={`h-4 w-4 ${config.color}`} />
+                              <span className={`font-medium text-sm ${config.color}`}>{config.label}</span>
+                              <Badge variant="secondary" className="ml-auto text-xs">
+                                {columnProjects.length}
+                              </Badge>
+                            </div>
+                            <Droppable droppableId={statusKey}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.droppableProps}
+                                  className={`min-h-[400px] p-2 space-y-2 border border-t-0 rounded-b-lg ${
+                                    snapshot.isDraggingOver ? "bg-muted/50" : "bg-background"
+                                  }`}
+                                >
+                                  {columnProjects.map((project, index) => {
+                                    const timeline = getTimelineStatus(project.deadline);
+                                    const assignedUsers = getAssignedUsers(project);
+                                    
+                                    return (
+                                      <Draggable key={project.id} draggableId={project.id} index={index}>
+                                        {(provided, snapshot) => (
+                                          <Card
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            className={`cursor-pointer ${snapshot.isDragging ? "shadow-lg" : "hover-elevate"}`}
+                                            onClick={() => openProjectDetail(project)}
+                                            data-testid={`kanban-card-${project.id}`}
                                           >
-                                            <GripVertical className="h-4 w-4" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2">
-                                              <h3 className="font-medium text-sm leading-tight truncate">{project.name}</h3>
-                                              <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-[10px] shrink-0`}>
-                                                {project.priority}
-                                              </Badge>
-                                            </div>
-                                            {project.description && (
-                                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{project.description}</p>
-                                            )}
-                                            {(project as any).tags?.length > 0 && (
-                                              <div className="flex flex-wrap gap-1 mt-1">
-                                                {(project as any).tags.map((tag: string) => (
-                                                  <Badge key={tag} variant="outline" className="text-[9px] px-1 py-0">
-                                                    {tag}
-                                                  </Badge>
-                                                ))}
+                                            <CardContent className="p-3 space-y-2">
+                                              <div className="flex items-start gap-2">
+                                                <div
+                                                  {...provided.dragHandleProps}
+                                                  className="mt-1 text-muted-foreground hover:text-foreground"
+                                                >
+                                                  <GripVertical className="h-4 w-4" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="flex items-start justify-between gap-2">
+                                                    <h3 className="font-medium text-sm leading-tight truncate">{project.name}</h3>
+                                                    <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-[10px] shrink-0`}>
+                                                      {project.priority}
+                                                    </Badge>
+                                                  </div>
+                                                  {project.description && (
+                                                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{project.description}</p>
+                                                  )}
+                                                  {(project as any).tags?.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                      {(project as any).tags.map((tag: string) => (
+                                                        <Badge key={tag} variant="outline" className="text-[9px] px-1 py-0">
+                                                          {tag}
+                                                        </Badge>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
                                               </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                        
-                                        <div className="flex items-center justify-between pl-6">
-                                          <div className="flex -space-x-2">
-                                            {assignedUsers.slice(0, 2).map((assignment: any) => (
-                                              <Avatar key={assignment.id} className="h-5 w-5 border-2 border-background">
-                                                <AvatarFallback className="text-[8px] bg-primary text-primary-foreground">
-                                                  {getUserInitials(assignment.user)}
-                                                </AvatarFallback>
-                                              </Avatar>
-                                            ))}
-                                            {assignedUsers.length > 2 && (
-                                              <Avatar className="h-5 w-5 border-2 border-background">
-                                                <AvatarFallback className="text-[8px] bg-muted">
-                                                  +{assignedUsers.length - 2}
-                                                </AvatarFallback>
-                                              </Avatar>
-                                            )}
-                                          </div>
-                                          {project.deadline && (
-                                            <span className={`text-[10px] ${timeline.color}`}>{timeline.text}</span>
-                                          )}
-                                        </div>
-                                      </CardContent>
-                                    </Card>
+                                              
+                                              <div className="flex items-center justify-between pl-6">
+                                                <div className="flex -space-x-2">
+                                                  {assignedUsers.slice(0, 2).map((assignment: any) => (
+                                                    <Avatar key={assignment.id} className="h-5 w-5 border-2 border-background">
+                                                      <AvatarFallback className="text-[8px] bg-primary text-primary-foreground">
+                                                        {getUserInitials(assignment.user)}
+                                                      </AvatarFallback>
+                                                    </Avatar>
+                                                  ))}
+                                                  {assignedUsers.length > 2 && (
+                                                    <Avatar className="h-5 w-5 border-2 border-background">
+                                                      <AvatarFallback className="text-[8px] bg-muted">
+                                                        +{assignedUsers.length - 2}
+                                                      </AvatarFallback>
+                                                    </Avatar>
+                                                  )}
+                                                </div>
+                                                {project.deadline && (
+                                                  <span className={`text-[10px] ${timeline.color}`}>{timeline.text}</span>
+                                                )}
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        )}
+                                      </Draggable>
+                                    );
+                                  })}
+                                  {provided.placeholder}
+                                  {columnProjects.length === 0 && (
+                                    <div className="flex items-center justify-center h-20 text-xs text-muted-foreground border-2 border-dashed rounded-lg">
+                                      Drop projects here
+                                    </div>
                                   )}
-                                </Draggable>
-                              );
-                            })}
-                            {provided.placeholder}
-                            {columnProjects.length === 0 && (
-                              <div className="flex items-center justify-center h-20 text-xs text-muted-foreground border-2 border-dashed rounded-lg">
-                                Drop projects here
-                              </div>
-                            )}
+                                </div>
+                              )}
+                            </Droppable>
                           </div>
-                        )}
-                      </Droppable>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </DragDropContext>
+                )}
               </div>
-            </DragDropContext>
-          )}
+            )}
         </div>
       )}
 
