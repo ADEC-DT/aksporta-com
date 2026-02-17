@@ -51,8 +51,12 @@ import {
   User,
   X,
   GripVertical,
-  Tag
+  Tag,
+  ChevronDown,
+  ChevronRight,
+  LayoutGrid
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -153,7 +157,8 @@ export default function ProjectsPage() {
   const [sprintFilter, setSprintFilter] = useState<string>("all");
   const [viewFilter, setViewFilter] = useState<"all" | "mine">("all");
   const [sprintsDialogOpen, setSprintsDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("projects");
+  const [activeTab, setActiveTab] = useState("monday");
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
   const [editingBlueprint, setEditingBlueprint] = useState<CollaborationBlueprint | null>(null);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
@@ -663,159 +668,358 @@ export default function ProjectsPage() {
         </div>
       </div>
 
+      {/* Actions Row */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewFilter === "all" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewFilter("all")}
+            data-testid="button-view-all"
+          >
+            All Tasks
+          </Button>
+          <Button
+            variant={viewFilter === "mine" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setViewFilter("mine")}
+            data-testid="button-view-mine"
+          >
+            <User className="h-4 w-4 mr-1" />
+            My Tasks
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setManageTagsDialogOpen(true)}
+            data-testid="button-manage-tags"
+          >
+            <Tag className="h-4 w-4 mr-1" />
+            Manage Tags
+          </Button>
+        </div>
+        <Button 
+          onClick={() => {
+            setEditingProject(null);
+            setProjectDialogOpen(true);
+          }}
+          data-testid="button-new-project"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          New Task
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card data-testid="stat-total-projects">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Calendar className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-sm text-muted-foreground">Total Tasks</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-in-progress">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Clock className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.inProgress}</p>
+              <p className="text-sm text-muted-foreground">In Progress</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-on-hold">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+              <AlertCircle className="h-6 w-6 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.onHold}</p>
+              <p className="text-sm text-muted-foreground">On Hold</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-completed">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.completed}</p>
+              <p className="text-sm text-muted-foreground">Completed</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search projects..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            data-testid="input-search-projects"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            {Object.entries(statusConfig).map(([key, config]) => (
+              <SelectItem key={key} value={key}>{config.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={tagFilter} onValueChange={setTagFilter}>
+          <SelectTrigger className="w-[180px]" data-testid="select-tag-filter">
+            <Tag className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Filter by tag" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Tags</SelectItem>
+            {projectTags.map((tag) => (
+              <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sprintFilter} onValueChange={setSprintFilter}>
+          <SelectTrigger className="w-[220px]" data-testid="select-sprint-filter">
+            <Calendar className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Filter by sprint" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sprints</SelectItem>
+            <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
+            {sprintsData.map((sprint) => (
+              <SelectItem key={sprint.id} value={sprint.id}>
+                {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="projects" data-testid="tab-projects">
+          <TabsTrigger value="monday" data-testid="tab-monday">
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Monday
+          </TabsTrigger>
+          <TabsTrigger value="kanban" data-testid="tab-kanban">
             <Target className="w-4 h-4 mr-2" />
-            Tasks
+            Kanban
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="projects" className="space-y-6">
-          {/* Actions Row */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewFilter === "all" ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setViewFilter("all")}
-                data-testid="button-view-all"
-              >
-                All Tasks
-              </Button>
-              <Button
-                variant={viewFilter === "mine" ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setViewFilter("mine")}
-                data-testid="button-view-mine"
-              >
-                <User className="h-4 w-4 mr-1" />
-                My Tasks
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setManageTagsDialogOpen(true)}
-                data-testid="button-manage-tags"
-              >
-                <Tag className="h-4 w-4 mr-1" />
-                Manage Tags
-              </Button>
-            </div>
-            <Button 
-              onClick={() => {
-                setEditingProject(null);
-                setProjectDialogOpen(true);
-              }}
-              data-testid="button-new-project"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Task
-            </Button>
-          </div>
+        <TabsContent value="monday" className="space-y-4">
+          <div data-testid="monday-view">
+            {projectsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">Loading projects...</p>
+              </div>
+            ) : projectsData.length === 0 ? (
+              <div className="p-12 text-center border rounded-md">
+                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+                <p className="text-muted-foreground mb-4">
+                  {viewFilter === "mine" 
+                    ? "You don't have any assigned projects yet." 
+                    : "Create your first project to get started."}
+                </p>
+                <Button onClick={() => setProjectDialogOpen(true)} data-testid="button-create-first-project-monday">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Project
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
+                  const groupProjects = filteredProjects.filter(p => {
+                    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+                    return p.status === statusKey;
+                  });
+                  if (statusFilter !== "all" && statusFilter !== statusKey) return null;
+                  const isCollapsed = collapsedGroups[statusKey] || false;
 
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card data-testid="stat-total-projects">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Tasks</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="stat-in-progress">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Clock className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.inProgress}</p>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="stat-on-hold">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                  <AlertCircle className="h-6 w-6 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.onHold}</p>
-                  <p className="text-sm text-muted-foreground">On Hold</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="stat-completed">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.completed}</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  return (
+                    <div key={statusKey} data-testid={`monday-group-${statusKey}`}>
+                      <div
+                        className="flex items-center gap-2 p-3 rounded-md cursor-pointer select-none"
+                        style={{ backgroundColor: undefined }}
+                        onClick={() => setCollapsedGroups(prev => ({ ...prev, [statusKey]: !isCollapsed }))}
+                      >
+                        <div className={`w-1 self-stretch rounded-full shrink-0`} style={{}} >
+                          <div className={`w-full h-full rounded-full ${config.bgColor}`} />
+                        </div>
+                        {isCollapsed ? (
+                          <ChevronRight className={`h-4 w-4 shrink-0 ${config.color}`} />
+                        ) : (
+                          <ChevronDown className={`h-4 w-4 shrink-0 ${config.color}`} />
+                        )}
+                        <config.icon className={`h-4 w-4 ${config.color}`} />
+                        <span className={`font-medium text-sm ${config.color}`}>{config.label}</span>
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search projects..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search-projects"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(statusConfig).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={tagFilter} onValueChange={setTagFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-tag-filter">
-                <Tag className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tags</SelectItem>
-                {projectTags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sprintFilter} onValueChange={setSprintFilter}>
-              <SelectTrigger className="w-[220px]" data-testid="select-sprint-filter">
-                <Calendar className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by sprint" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sprints</SelectItem>
-                <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
-                {sprintsData.map((sprint) => (
-                  <SelectItem key={sprint.id} value={sprint.id}>
-                    {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                      {!isCollapsed && (
+                        <div className="mt-1">
+                          <div className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+                            <span>Task Name</span>
+                            <span>Assignee</span>
+                            <span>Status</span>
+                            <span>Priority</span>
+                            <span>Deadline</span>
+                            <span>Tags</span>
+                            <span>Sprint</span>
+                          </div>
+                          {groupProjects.length === 0 ? (
+                            <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                              No tasks in this status
+                            </div>
+                          ) : (
+                            groupProjects.map((project) => {
+                              const timeline = getTimelineStatus(project.deadline);
+                              const assignedUsers = getAssignedUsers(project);
+                              const sprint = sprintsData.find(s => s.id === (project as any).sprintId);
 
-          {/* Projects View */}
+                              return (
+                                <div
+                                  key={project.id}
+                                  className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 items-center border-b last:border-b-0 hover-elevate rounded-md"
+                                  data-testid={`monday-row-${project.id}`}
+                                >
+                                  <span
+                                    className="font-medium text-sm truncate cursor-pointer"
+                                    onClick={() => openProjectDetail(project)}
+                                  >
+                                    {project.name}
+                                  </span>
+
+                                  <div className="flex -space-x-2">
+                                    {assignedUsers.slice(0, 3).map((assignment: any) => (
+                                      <Avatar key={assignment.id} className="h-6 w-6 border-2 border-background">
+                                        <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
+                                          {getUserInitials(assignment.user)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ))}
+                                    {assignedUsers.length > 3 && (
+                                      <Avatar className="h-6 w-6 border-2 border-background">
+                                        <AvatarFallback className="text-[9px] bg-muted">
+                                          +{assignedUsers.length - 3}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                    {assignedUsers.length === 0 && (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                  </div>
+
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <div data-testid={`monday-status-${project.id}`} className="cursor-pointer">
+                                        <Badge className={`${statusConfig[project.status as ProjectStatus]?.bgColor} border-0 text-xs`}>
+                                          {statusConfig[project.status as ProjectStatus]?.label}
+                                        </Badge>
+                                      </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-44 p-2" align="start">
+                                      <div className="space-y-1">
+                                        {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([key, cfg]) => (
+                                          <div
+                                            key={key}
+                                            className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
+                                            onClick={() => {
+                                              updateProjectMutation.mutate({ id: project.id, data: { status: key } });
+                                            }}
+                                          >
+                                            <cfg.icon className={`h-3 w-3 ${cfg.color}`} />
+                                            <span className={cfg.color}>{cfg.label}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <div data-testid={`monday-priority-${project.id}`} className="cursor-pointer">
+                                        <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-xs`}>
+                                          {project.priority}
+                                        </Badge>
+                                      </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-36 p-2" align="start">
+                                      <div className="space-y-1">
+                                        {(Object.entries(priorityColors) as [ProjectPriority, string][]).map(([key, colorClass]) => (
+                                          <div
+                                            key={key}
+                                            className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
+                                            onClick={() => {
+                                              updateProjectMutation.mutate({ id: project.id, data: { priority: key } });
+                                            }}
+                                          >
+                                            <div className={`w-2 h-2 rounded-full ${colorClass.split(" ")[0]}`} />
+                                            <span className="capitalize">{key}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+
+                                  <span className={`text-xs ${timeline.color}`}>
+                                    {project.deadline
+                                      ? format(new Date(project.deadline), "MMM d, yyyy")
+                                      : "—"}
+                                  </span>
+
+                                  <div className="flex flex-wrap gap-1 overflow-hidden">
+                                    {(project as any).tags?.length > 0 ? (
+                                      (project as any).tags.slice(0, 2).map((tag: string) => (
+                                        <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
+                                          {tag}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                    {(project as any).tags?.length > 2 && (
+                                      <span className="text-[10px] text-muted-foreground">+{(project as any).tags.length - 2}</span>
+                                    )}
+                                  </div>
+
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {sprint ? sprint.name : "Backlog"}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="kanban" className="space-y-6">
           {projectsLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-muted-foreground">Loading projects...</p>
