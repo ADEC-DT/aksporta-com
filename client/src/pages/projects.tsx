@@ -799,10 +799,12 @@ export default function ProjectsPage() {
                   </Button>
                 </div>
               )}
-              <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
-                <Plus className="h-4 w-4 mr-2" />
-                New Space
-              </Button>
+              {activeView !== "tuesday" && (
+                <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Space
+                </Button>
+              )}
               <Button onClick={() => { setEditingProjectGroup(null); setPgName(""); setPgDescription(""); setPgSpaceId(""); setPgColor("#6366f1"); setPgStatus("active"); setPgStartDate(""); setPgEndDate(""); setProjectGroupDialogOpen(true); }} data-testid="button-new-project-group">
                 <Plus className="h-4 w-4 mr-2" />
                 New Project
