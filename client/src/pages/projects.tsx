@@ -900,13 +900,13 @@ export default function ProjectsPage() {
 
       {activeView === "monday" && (
         <div className="space-y-4" data-testid="monday-view">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
-                <Plus className="h-4 w-4 mr-1" />
+            <div className="flex items-center gap-3">
+              <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
+                <Plus className="h-4 w-4 mr-2" />
                 New Space
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { setEditingProjectGroup(null); setPgName(""); setPgDescription(""); setPgSpaceId(""); setPgColor("#6366f1"); setPgStatus("active"); setPgStartDate(""); setPgEndDate(""); setProjectGroupDialogOpen(true); }} data-testid="button-new-project-group">
-                <Plus className="h-4 w-4 mr-1" />
+              <Button onClick={() => { setEditingProjectGroup(null); setPgName(""); setPgDescription(""); setPgSpaceId(""); setPgColor("#6366f1"); setPgStatus("active"); setPgStartDate(""); setPgEndDate(""); setProjectGroupDialogOpen(true); }} data-testid="button-new-project-group">
+                <Plus className="h-4 w-4 mr-2" />
                 New Project
               </Button>
             </div>
@@ -929,13 +929,14 @@ export default function ProjectsPage() {
                 return matchesSearch && matchesStatus && matchesTag && matchesSprint && matchesMine;
               };
 
+              const hasActiveFilters = searchQuery || statusFilter !== "all" || tagFilter !== "all" || sprintFilter !== "all" || viewFilter !== "all";
               const filteredHierarchy = spacesHierarchy.map(space => ({
                 ...space,
                 projectGroups: space.projectGroups.map(pg => ({
                   ...pg,
                   tasks: pg.tasks.filter(filterTask),
-                })).filter(pg => pg.tasks.length > 0),
-              })).filter(space => space.projectGroups.length > 0);
+                })).filter(pg => hasActiveFilters ? pg.tasks.length > 0 : true),
+              })).filter(space => hasActiveFilters ? (space.projectGroups.length > 0) : true);
 
               const allHierarchyTaskIds = new Set<string>();
               spacesHierarchy.forEach(space => {
