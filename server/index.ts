@@ -4,7 +4,7 @@ import { registerStripeRoutes } from "./stripeRoutes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, registerAuthRoutes, seedAdminUser } from "./auth";
-import { seedExternalServices } from "./seedServices";
+import { seedExternalServices, seedSpacesAndProjects } from "./seedServices";
 import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
@@ -153,6 +153,9 @@ app.use((req, res, next) => {
   
   // Seed external services
   await seedExternalServices();
+  
+  // Seed spaces and sample data
+  await seedSpacesAndProjects();
   
   // Register Stripe routes
   registerStripeRoutes(app);

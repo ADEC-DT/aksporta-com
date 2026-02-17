@@ -54,7 +54,10 @@ import {
   Tag,
   ChevronDown,
   ChevronRight,
-  LayoutGrid
+  LayoutGrid,
+  Layers,
+  FolderOpen,
+  Building2
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -62,7 +65,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { CollaborationStamp, CollaborationStampMini } from "@/components/collaboration-stamp";
-import type { CollaborationBlueprint, InsertBlueprint, Project, ProjectWithAssignments, ProjectComment, ManagedUser, Sprint } from "@shared/schema";
+import type { CollaborationBlueprint, InsertBlueprint, Project, ProjectWithAssignments, ProjectComment, ManagedUser, Sprint, SpaceWithHierarchy } from "@shared/schema";
 import { insertBlueprintSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -128,6 +131,7 @@ type ProjectTag = {
 const projectFormSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
+  projectGroupId: z.string().optional().nullable(),
   status: z.enum(["not_started", "in_progress", "on_hold", "completed", "cancelled"]),
   priority: z.enum(["low", "medium", "high", "critical"]),
   tags: z.array(z.string()).optional(),
@@ -213,6 +217,10 @@ export default function ProjectsPage() {
     queryKey: ["/api/sprints"],
   });
 
+  const { data: spacesHierarchy = [], isLoading: hierarchyLoading } = useQuery<SpaceWithHierarchy[]>({
+    queryKey: ["/api/spaces/hierarchy"],
+  });
+
   // Get active sprint from sprints data
   const activeSprint = sprintsData.find((s) => s.isActive && !s.isClosed);
 
@@ -229,8 +237,8 @@ export default function ProjectsPage() {
         }
       }
       
-      // Invalidate projects query AFTER assignment is complete
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
       
       setProjectDialogOpen(false);
       setInitialAssignee("");
@@ -244,6 +252,7 @@ export default function ProjectsPage() {
       apiRequest("PATCH", `/api/projects/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
       setProjectDialogOpen(false);
       setEditingProject(null);
       toast({ title: "Project updated successfully" });
@@ -255,6 +264,7 @@ export default function ProjectsPage() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/projects/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
       setProjectDetailOpen(false);
       setSelectedProject(null);
       toast({ title: "Project deleted successfully" });
@@ -424,6 +434,7 @@ export default function ProjectsPage() {
     defaultValues: {
       name: "",
       description: "",
+      projectGroupId: null,
       status: "not_started",
       priority: "medium",
       tags: [],
@@ -455,6 +466,7 @@ export default function ProjectsPage() {
       projectForm.reset({
         name: editingProject.name,
         description: editingProject.description || "",
+        projectGroupId: (editingProject as any).projectGroupId || null,
         status: editingProject.status as ProjectStatus,
         priority: editingProject.priority as ProjectPriority,
         tags: (editingProject as any).tags || [],
@@ -469,6 +481,7 @@ export default function ProjectsPage() {
       projectForm.reset({
         name: "",
         description: "",
+        projectGroupId: null,
         status: "not_started",
         priority: "medium",
         tags: [],
@@ -584,6 +597,7 @@ export default function ProjectsPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
         queryClient.invalidateQueries({ queryKey: ["/api/projects", "all"] });
         queryClient.invalidateQueries({ queryKey: ["/api/projects", "mine"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
         toast({ title: "Project status updated" });
       })
       .catch(() => {
@@ -825,58 +839,300 @@ export default function ProjectsPage() {
 
         <TabsContent value="monday" className="space-y-4">
           <div data-testid="monday-view">
-            {projectsLoading ? (
+            {hierarchyLoading ? (
               <div className="flex items-center justify-center py-12">
                 <p className="text-muted-foreground">Loading projects...</p>
               </div>
-            ) : projectsData.length === 0 ? (
-              <div className="p-12 text-center border rounded-md">
-                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No projects found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {viewFilter === "mine" 
-                    ? "You don't have any assigned projects yet." 
-                    : "Create your first project to get started."}
-                </p>
-                <Button onClick={() => setProjectDialogOpen(true)} data-testid="button-create-first-project-monday">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Project
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
-                  const groupProjects = filteredProjects.filter(p => {
-                    if (statusFilter !== "all" && p.status !== statusFilter) return false;
-                    return p.status === statusKey;
-                  });
-                  if (statusFilter !== "all" && statusFilter !== statusKey) return null;
-                  const isCollapsed = collapsedGroups[statusKey] || false;
+            ) : (() => {
+              const filterTask = (task: ProjectWithAssignments) => {
+                const matchesSearch =
+                  task.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+                const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+                const matchesTag = tagFilter === "all" || (task.tags && task.tags.includes(tagFilter));
+                const matchesSprint = sprintFilter === "all" ||
+                  (sprintFilter === "backlog" && !task.sprintId) ||
+                  task.sprintId === sprintFilter;
+                const matchesMine = viewFilter === "all" || 
+                  (currentUser && task.assignments?.some(a => a.userId === currentUser.id));
+                return matchesSearch && matchesStatus && matchesTag && matchesSprint && matchesMine;
+              };
 
-                  return (
-                    <div key={statusKey} data-testid={`monday-group-${statusKey}`}>
-                      <div
-                        className="flex items-center gap-2 p-3 rounded-md cursor-pointer select-none"
-                        style={{ backgroundColor: undefined }}
-                        onClick={() => setCollapsedGroups(prev => ({ ...prev, [statusKey]: !isCollapsed }))}
-                      >
-                        <div className={`w-1 self-stretch rounded-full shrink-0`} style={{}} >
-                          <div className={`w-full h-full rounded-full ${config.bgColor}`} />
+              const filteredHierarchy = spacesHierarchy.map(space => ({
+                ...space,
+                projectGroups: space.projectGroups.map(pg => ({
+                  ...pg,
+                  tasks: pg.tasks.filter(filterTask),
+                })).filter(pg => pg.tasks.length > 0),
+              })).filter(space => space.projectGroups.length > 0);
+
+              const allHierarchyTaskIds = new Set<string>();
+              spacesHierarchy.forEach(space => {
+                space.projectGroups.forEach(pg => {
+                  pg.tasks.forEach(t => allHierarchyTaskIds.add(t.id));
+                });
+              });
+              const unassignedTasks = projectsData
+                .filter(p => !allHierarchyTaskIds.has(p.id))
+                .filter(filterTask);
+
+              const hasContent = filteredHierarchy.length > 0 || unassignedTasks.length > 0;
+
+              if (!hasContent && projectsData.length === 0) {
+                return (
+                  <div className="p-12 text-center border rounded-md">
+                    <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {viewFilter === "mine"
+                        ? "You don't have any assigned projects yet."
+                        : "Create your first project to get started."}
+                    </p>
+                    <Button onClick={() => setProjectDialogOpen(true)} data-testid="button-create-first-project-monday">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Project
+                    </Button>
+                  </div>
+                );
+              }
+
+              if (!hasContent) {
+                return (
+                  <div className="p-12 text-center border rounded-md">
+                    <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No matching tasks</h3>
+                    <p className="text-muted-foreground">Try adjusting your filters.</p>
+                  </div>
+                );
+              }
+
+              const renderTaskRow = (project: ProjectWithAssignments) => {
+                const timeline = getTimelineStatus(project.deadline);
+                const assignedUsers = getAssignedUsers(project);
+                const sprint = sprintsData.find(s => s.id === (project as any).sprintId);
+
+                return (
+                  <div
+                    key={project.id}
+                    className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 items-center border-b last:border-b-0 hover-elevate rounded-md"
+                    data-testid={`monday-row-${project.id}`}
+                  >
+                    <span
+                      className="font-medium text-sm truncate cursor-pointer"
+                      onClick={() => openProjectDetail(project)}
+                    >
+                      {project.name}
+                    </span>
+
+                    <div className="flex -space-x-2">
+                      {assignedUsers.slice(0, 3).map((assignment: any) => (
+                        <Avatar key={assignment.id} className="h-6 w-6 border-2 border-background">
+                          <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
+                            {getUserInitials(assignment.user)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                      {assignedUsers.length > 3 && (
+                        <Avatar className="h-6 w-6 border-2 border-background">
+                          <AvatarFallback className="text-[9px] bg-muted">
+                            +{assignedUsers.length - 3}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      {assignedUsers.length === 0 && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div data-testid={`monday-status-${project.id}`} className="cursor-pointer">
+                          <Badge className={`${statusConfig[project.status as ProjectStatus]?.bgColor} border-0 text-xs`}>
+                            {statusConfig[project.status as ProjectStatus]?.label}
+                          </Badge>
                         </div>
-                        {isCollapsed ? (
-                          <ChevronRight className={`h-4 w-4 shrink-0 ${config.color}`} />
-                        ) : (
-                          <ChevronDown className={`h-4 w-4 shrink-0 ${config.color}`} />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-44 p-2" align="start">
+                        <div className="space-y-1">
+                          {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([key, cfg]) => (
+                            <div
+                              key={key}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
+                              onClick={() => {
+                                updateProjectMutation.mutate({ id: project.id, data: { status: key } });
+                              }}
+                            >
+                              <cfg.icon className={`h-3 w-3 ${cfg.color}`} />
+                              <span className={cfg.color}>{cfg.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div data-testid={`monday-priority-${project.id}`} className="cursor-pointer">
+                          <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-xs`}>
+                            {project.priority}
+                          </Badge>
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-36 p-2" align="start">
+                        <div className="space-y-1">
+                          {(Object.entries(priorityColors) as [ProjectPriority, string][]).map(([key, colorClass]) => (
+                            <div
+                              key={key}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
+                              onClick={() => {
+                                updateProjectMutation.mutate({ id: project.id, data: { priority: key } });
+                              }}
+                            >
+                              <div className={`w-2 h-2 rounded-full ${colorClass.split(" ")[0]}`} />
+                              <span className="capitalize">{key}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    <span className={`text-xs ${timeline.color}`}>
+                      {project.deadline
+                        ? format(new Date(project.deadline), "MMM d, yyyy")
+                        : "—"}
+                    </span>
+
+                    <div className="flex flex-wrap gap-1 overflow-hidden">
+                      {(project as any).tags?.length > 0 ? (
+                        (project as any).tags.slice(0, 2).map((tag: string) => (
+                          <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
+                            {tag}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                      {(project as any).tags?.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground">+{(project as any).tags.length - 2}</span>
+                      )}
+                    </div>
+
+                    <span className="text-xs text-muted-foreground truncate">
+                      {sprint ? sprint.name : "Backlog"}
+                    </span>
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-3">
+                  {filteredHierarchy.map((space) => {
+                    const spaceKey = `space-${space.id}`;
+                    const isSpaceCollapsed = collapsedGroups[spaceKey] || false;
+                    const totalTasks = space.projectGroups.reduce((sum, pg) => sum + pg.tasks.length, 0);
+
+                    return (
+                      <div key={space.id} data-testid={`monday-space-${space.id}`}>
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-md cursor-pointer select-none"
+                          onClick={() => setCollapsedGroups(prev => ({ ...prev, [spaceKey]: !isSpaceCollapsed }))}
+                        >
+                          <div
+                            className="w-1 self-stretch rounded-full shrink-0"
+                            style={{ backgroundColor: space.color || '#6366f1' }}
+                          />
+                          {isSpaceCollapsed ? (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <Building2 className="h-4 w-4 shrink-0" style={{ color: space.color || '#6366f1' }} />
+                          <span className="font-medium text-sm font-outfit">{space.name}</span>
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            {space.projectGroups.length} {space.projectGroups.length === 1 ? 'project' : 'projects'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {totalTasks} {totalTasks === 1 ? 'task' : 'tasks'}
+                          </Badge>
+                        </div>
+
+                        {!isSpaceCollapsed && (
+                          <div className="mt-1 space-y-2">
+                            {space.projectGroups.map((pg) => {
+                              const pgKey = `project-${pg.id}`;
+                              const isPgCollapsed = collapsedGroups[pgKey] || false;
+
+                              return (
+                                <div key={pg.id} data-testid={`monday-project-${pg.id}`}>
+                                  <div
+                                    className="flex items-center gap-2 pl-6 pr-3 py-2 rounded-md cursor-pointer select-none"
+                                    onClick={() => setCollapsedGroups(prev => ({ ...prev, [pgKey]: !isPgCollapsed }))}
+                                  >
+                                    {isPgCollapsed ? (
+                                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    )}
+                                    <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span className="font-medium text-sm">{pg.name}</span>
+                                    {pg.color && (
+                                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: pg.color }} />
+                                    )}
+                                    <Badge variant="secondary" className="text-xs">
+                                      {pg.tasks.length}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground capitalize">{pg.status}</span>
+                                    {pg.startDate && pg.endDate && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {format(new Date(pg.startDate), "MMM d")} - {format(new Date(pg.endDate), "MMM d, yyyy")}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {!isPgCollapsed && (
+                                    <div className="pl-12 mt-1">
+                                      <div className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+                                        <span>Task Name</span>
+                                        <span>Assignee</span>
+                                        <span>Status</span>
+                                        <span>Priority</span>
+                                        <span>Deadline</span>
+                                        <span>Tags</span>
+                                        <span>Sprint</span>
+                                      </div>
+                                      {pg.tasks.map(renderTaskRow)}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
-                        <config.icon className={`h-4 w-4 ${config.color}`} />
-                        <span className={`font-medium text-sm ${config.color}`}>{config.label}</span>
+                      </div>
+                    );
+                  })}
+
+                  {unassignedTasks.length > 0 && (
+                    <div data-testid="monday-space-unassigned">
+                      <div
+                        className="flex items-center gap-3 p-3 rounded-md cursor-pointer select-none"
+                        onClick={() => setCollapsedGroups(prev => ({ ...prev, "space-unassigned": !prev["space-unassigned"] }))}
+                      >
+                        <div className="w-1 self-stretch rounded-full shrink-0 bg-muted" />
+                        {collapsedGroups["space-unassigned"] ? (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                        <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="font-medium text-sm font-outfit text-muted-foreground">Unassigned</span>
                         <Badge variant="secondary" className="ml-2 text-xs">
-                          {groupProjects.length}
+                          {unassignedTasks.length} {unassignedTasks.length === 1 ? 'task' : 'tasks'}
                         </Badge>
                       </div>
 
-                      {!isCollapsed && (
-                        <div className="mt-1">
+                      {!collapsedGroups["space-unassigned"] && (
+                        <div className="pl-6 mt-1">
                           <div className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
                             <span>Task Name</span>
                             <span>Assignee</span>
@@ -886,136 +1142,14 @@ export default function ProjectsPage() {
                             <span>Tags</span>
                             <span>Sprint</span>
                           </div>
-                          {groupProjects.length === 0 ? (
-                            <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                              No tasks in this status
-                            </div>
-                          ) : (
-                            groupProjects.map((project) => {
-                              const timeline = getTimelineStatus(project.deadline);
-                              const assignedUsers = getAssignedUsers(project);
-                              const sprint = sprintsData.find(s => s.id === (project as any).sprintId);
-
-                              return (
-                                <div
-                                  key={project.id}
-                                  className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 items-center border-b last:border-b-0 hover-elevate rounded-md"
-                                  data-testid={`monday-row-${project.id}`}
-                                >
-                                  <span
-                                    className="font-medium text-sm truncate cursor-pointer"
-                                    onClick={() => openProjectDetail(project)}
-                                  >
-                                    {project.name}
-                                  </span>
-
-                                  <div className="flex -space-x-2">
-                                    {assignedUsers.slice(0, 3).map((assignment: any) => (
-                                      <Avatar key={assignment.id} className="h-6 w-6 border-2 border-background">
-                                        <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
-                                          {getUserInitials(assignment.user)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    ))}
-                                    {assignedUsers.length > 3 && (
-                                      <Avatar className="h-6 w-6 border-2 border-background">
-                                        <AvatarFallback className="text-[9px] bg-muted">
-                                          +{assignedUsers.length - 3}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    )}
-                                    {assignedUsers.length === 0 && (
-                                      <span className="text-xs text-muted-foreground">—</span>
-                                    )}
-                                  </div>
-
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <div data-testid={`monday-status-${project.id}`} className="cursor-pointer">
-                                        <Badge className={`${statusConfig[project.status as ProjectStatus]?.bgColor} border-0 text-xs`}>
-                                          {statusConfig[project.status as ProjectStatus]?.label}
-                                        </Badge>
-                                      </div>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-44 p-2" align="start">
-                                      <div className="space-y-1">
-                                        {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([key, cfg]) => (
-                                          <div
-                                            key={key}
-                                            className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
-                                            onClick={() => {
-                                              updateProjectMutation.mutate({ id: project.id, data: { status: key } });
-                                            }}
-                                          >
-                                            <cfg.icon className={`h-3 w-3 ${cfg.color}`} />
-                                            <span className={cfg.color}>{cfg.label}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <div data-testid={`monday-priority-${project.id}`} className="cursor-pointer">
-                                        <Badge className={`${priorityColors[project.priority as ProjectPriority]} border-0 text-xs`}>
-                                          {project.priority}
-                                        </Badge>
-                                      </div>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-36 p-2" align="start">
-                                      <div className="space-y-1">
-                                        {(Object.entries(priorityColors) as [ProjectPriority, string][]).map(([key, colorClass]) => (
-                                          <div
-                                            key={key}
-                                            className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
-                                            onClick={() => {
-                                              updateProjectMutation.mutate({ id: project.id, data: { priority: key } });
-                                            }}
-                                          >
-                                            <div className={`w-2 h-2 rounded-full ${colorClass.split(" ")[0]}`} />
-                                            <span className="capitalize">{key}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-
-                                  <span className={`text-xs ${timeline.color}`}>
-                                    {project.deadline
-                                      ? format(new Date(project.deadline), "MMM d, yyyy")
-                                      : "—"}
-                                  </span>
-
-                                  <div className="flex flex-wrap gap-1 overflow-hidden">
-                                    {(project as any).tags?.length > 0 ? (
-                                      (project as any).tags.slice(0, 2).map((tag: string) => (
-                                        <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
-                                          {tag}
-                                        </Badge>
-                                      ))
-                                    ) : (
-                                      <span className="text-xs text-muted-foreground">—</span>
-                                    )}
-                                    {(project as any).tags?.length > 2 && (
-                                      <span className="text-[10px] text-muted-foreground">+{(project as any).tags.length - 2}</span>
-                                    )}
-                                  </div>
-
-                                  <span className="text-xs text-muted-foreground truncate">
-                                    {sprint ? sprint.name : "Backlog"}
-                                  </span>
-                                </div>
-                              );
-                            })
-                          )}
+                          {unassignedTasks.map(renderTaskRow)}
                         </div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </TabsContent>
 
@@ -1218,6 +1352,36 @@ export default function ProjectsPage() {
                         data-testid="input-project-description" 
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={projectForm.control}
+                name="projectGroupId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Group</FormLabel>
+                    <Select
+                      value={field.value || "none"}
+                      onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-project-group">
+                          <SelectValue placeholder="Select project group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Unassigned</SelectItem>
+                        {spacesHierarchy.map((space) => (
+                          space.projectGroups.map((pg) => (
+                            <SelectItem key={pg.id} value={pg.id}>
+                              {space.name} / {pg.name}
+                            </SelectItem>
+                          ))
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

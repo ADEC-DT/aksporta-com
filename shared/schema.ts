@@ -448,10 +448,53 @@ export const insertSprintSchema = createInsertSchema(sprints).omit({
 export type InsertSprint = z.infer<typeof insertSprintSchema>;
 export type Sprint = typeof sprints.$inferSelect;
 
+// Spaces table (department-level grouping)
+export const spaces = pgTable("spaces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  color: varchar("color").notNull().default("#6366f1"),
+  ownerId: varchar("owner_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSpaceSchema = createInsertSchema(spaces).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSpace = z.infer<typeof insertSpaceSchema>;
+export type Space = typeof spaces.$inferSelect;
+
+// Project groups table (projects within a space)
+export const projectGroups = pgTable("project_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  spaceId: varchar("space_id").notNull(),
+  color: varchar("color"),
+  status: varchar("status").notNull().default("active"),
+  startDate: varchar("start_date"),
+  endDate: varchar("end_date"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  spaceIdx: index("project_groups_space_idx").on(table.spaceId),
+}));
+
+export const insertProjectGroupSchema = createInsertSchema(projectGroups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProjectGroup = z.infer<typeof insertProjectGroupSchema>;
+export type ProjectGroup = typeof projectGroups.$inferSelect;
+
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
+  projectGroupId: varchar("project_group_id"),
   status: varchar("status").notNull().default("not_started"),
   priority: varchar("priority").notNull().default("medium"),
   tags: text("tags").array().default(sql`'{}'::text[]`),
@@ -468,6 +511,7 @@ export const projects = pgTable("projects", {
   statusIdx: index("projects_status_idx").on(table.status),
   createdByIdx: index("projects_created_by_idx").on(table.createdBy),
   sprintIdx: index("projects_sprint_idx").on(table.sprintId),
+  projectGroupIdx: index("projects_project_group_idx").on(table.projectGroupId),
 }));
 
 export const insertProjectSchema = createInsertSchema(projects).omit({
@@ -528,6 +572,13 @@ export type ProjectComment = typeof projectComments.$inferSelect;
 export type ProjectWithAssignments = Project & {
   assignments: (ProjectAssignment & { user?: ManagedUser })[];
   comments?: ProjectComment[];
+};
+
+// Space with nested project groups and tasks
+export type SpaceWithHierarchy = Space & {
+  projectGroups: (ProjectGroup & {
+    tasks: ProjectWithAssignments[];
+  })[];
 };
 
 // Section templates table (reusable section template types)

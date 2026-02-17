@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1678,6 +1678,115 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error closing sprint:", error);
       res.status(500).json({ message: "Failed to close sprint" });
+    }
+  });
+
+  // ========================
+  // Spaces API Routes
+  // ========================
+
+  app.get("/api/spaces", isAuthenticated, async (req, res) => {
+    try {
+      const spacesList = await storage.getAllSpaces();
+      res.json(spacesList);
+    } catch (error) {
+      console.error("Error fetching spaces:", error);
+      res.status(500).json({ message: "Failed to fetch spaces" });
+    }
+  });
+
+  app.get("/api/spaces/hierarchy", isAuthenticated, async (req, res) => {
+    try {
+      const hierarchy = await storage.getSpacesWithHierarchy();
+      res.json(hierarchy);
+    } catch (error) {
+      console.error("Error fetching hierarchy:", error);
+      res.status(500).json({ message: "Failed to fetch hierarchy" });
+    }
+  });
+
+  app.post("/api/spaces", isAuthenticated, async (req, res) => {
+    try {
+      const data = insertSpaceSchema.parse(req.body);
+      const space = await storage.createSpace(data);
+      res.status(201).json(space);
+    } catch (error) {
+      console.error("Error creating space:", error);
+      res.status(500).json({ message: "Failed to create space" });
+    }
+  });
+
+  app.patch("/api/spaces/:id", isAuthenticated, async (req, res) => {
+    try {
+      const space = await storage.updateSpace(req.params.id, req.body);
+      if (!space) return res.status(404).json({ message: "Space not found" });
+      res.json(space);
+    } catch (error) {
+      console.error("Error updating space:", error);
+      res.status(500).json({ message: "Failed to update space" });
+    }
+  });
+
+  app.delete("/api/spaces/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteSpace(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Space not found" });
+      res.json({ message: "Space deleted" });
+    } catch (error) {
+      console.error("Error deleting space:", error);
+      res.status(500).json({ message: "Failed to delete space" });
+    }
+  });
+
+  // ========================
+  // Project Groups API Routes
+  // ========================
+
+  app.get("/api/project-groups", isAuthenticated, async (req, res) => {
+    try {
+      const { spaceId } = req.query;
+      const groups = await storage.getAllProjectGroups(spaceId as string | undefined);
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching project groups:", error);
+      res.status(500).json({ message: "Failed to fetch project groups" });
+    }
+  });
+
+  app.post("/api/project-groups", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const data = insertProjectGroupSchema.parse({
+        ...req.body,
+        createdBy: managedUser.id,
+      });
+      const group = await storage.createProjectGroup(data);
+      res.status(201).json(group);
+    } catch (error) {
+      console.error("Error creating project group:", error);
+      res.status(500).json({ message: "Failed to create project group" });
+    }
+  });
+
+  app.patch("/api/project-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const group = await storage.updateProjectGroup(req.params.id, req.body);
+      if (!group) return res.status(404).json({ message: "Project group not found" });
+      res.json(group);
+    } catch (error) {
+      console.error("Error updating project group:", error);
+      res.status(500).json({ message: "Failed to update project group" });
+    }
+  });
+
+  app.delete("/api/project-groups/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteProjectGroup(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Project group not found" });
+      res.json({ message: "Project group deleted" });
+    } catch (error) {
+      console.error("Error deleting project group:", error);
+      res.status(500).json({ message: "Failed to delete project group" });
     }
   });
 

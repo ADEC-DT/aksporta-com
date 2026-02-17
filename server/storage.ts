@@ -13,6 +13,8 @@ import {
   type CustomerWithProfile,
   collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint,
   sprints, type Sprint, type InsertSprint,
+  spaces, type Space, type InsertSpace,
+  projectGroups, type ProjectGroup, type InsertProjectGroup, type SpaceWithHierarchy,
   projects, type Project, type InsertProject, type ProjectWithAssignments,
   projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
   projectComments, type ProjectComment, type InsertProjectComment,
@@ -112,6 +114,21 @@ export interface IStorage {
   createBlueprint(blueprint: InsertBlueprint): Promise<CollaborationBlueprint>;
   updateBlueprint(id: string, data: Partial<InsertBlueprint>): Promise<CollaborationBlueprint | undefined>;
   deleteBlueprint(id: string): Promise<boolean>;
+
+  // Spaces CRUD
+  getAllSpaces(): Promise<Space[]>;
+  getSpace(id: string): Promise<Space | undefined>;
+  createSpace(space: InsertSpace): Promise<Space>;
+  updateSpace(id: string, data: Partial<InsertSpace>): Promise<Space | undefined>;
+  deleteSpace(id: string): Promise<boolean>;
+  getSpacesWithHierarchy(): Promise<SpaceWithHierarchy[]>;
+
+  // Project Groups CRUD
+  getAllProjectGroups(spaceId?: string): Promise<ProjectGroup[]>;
+  getProjectGroup(id: string): Promise<ProjectGroup | undefined>;
+  createProjectGroup(group: InsertProjectGroup): Promise<ProjectGroup>;
+  updateProjectGroup(id: string, data: Partial<InsertProjectGroup>): Promise<ProjectGroup | undefined>;
+  deleteProjectGroup(id: string): Promise<boolean>;
 
   // Projects CRUD
   getAllProjects(options?: { userId?: string; status?: string }): Promise<Project[]>;
@@ -618,6 +635,91 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBlueprint(id: string): Promise<boolean> {
     const result = await db.delete(collaborationBlueprints).where(eq(collaborationBlueprints.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Spaces methods
+  async getAllSpaces(): Promise<Space[]> {
+    return await db.select().from(spaces).orderBy(asc(spaces.name));
+  }
+
+  async getSpace(id: string): Promise<Space | undefined> {
+    const [space] = await db.select().from(spaces).where(eq(spaces.id, id));
+    return space;
+  }
+
+  async createSpace(space: InsertSpace): Promise<Space> {
+    const [created] = await db.insert(spaces).values(space).returning();
+    return created;
+  }
+
+  async updateSpace(id: string, data: Partial<InsertSpace>): Promise<Space | undefined> {
+    const [updated] = await db.update(spaces).set(data).where(eq(spaces.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSpace(id: string): Promise<boolean> {
+    const result = await db.delete(spaces).where(eq(spaces.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getSpacesWithHierarchy(): Promise<SpaceWithHierarchy[]> {
+    const allSpaces = await this.getAllSpaces();
+    const allGroups = await db.select().from(projectGroups).orderBy(asc(projectGroups.name));
+    const allProjects = await db.select().from(projects).orderBy(desc(projects.createdAt));
+
+    const allAssignments = await db.select().from(projectAssignments);
+    const allUsers = await db.select().from(managedUsers);
+
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    const assignmentsByProject = new Map<string, (ProjectAssignment & { user?: any })[]>();
+    for (const a of allAssignments) {
+      const list = assignmentsByProject.get(a.projectId) || [];
+      list.push({ ...a, user: userMap.get(a.userId) });
+      assignmentsByProject.set(a.projectId, list);
+    }
+
+    return allSpaces.map(space => ({
+      ...space,
+      projectGroups: allGroups
+        .filter(g => g.spaceId === space.id)
+        .map(group => ({
+          ...group,
+          tasks: allProjects
+            .filter(p => p.projectGroupId === group.id)
+            .map(p => ({
+              ...p,
+              assignments: assignmentsByProject.get(p.id) || [],
+            })),
+        })),
+    }));
+  }
+
+  // Project Groups methods
+  async getAllProjectGroups(spaceId?: string): Promise<ProjectGroup[]> {
+    if (spaceId) {
+      return await db.select().from(projectGroups).where(eq(projectGroups.spaceId, spaceId)).orderBy(asc(projectGroups.name));
+    }
+    return await db.select().from(projectGroups).orderBy(asc(projectGroups.name));
+  }
+
+  async getProjectGroup(id: string): Promise<ProjectGroup | undefined> {
+    const [group] = await db.select().from(projectGroups).where(eq(projectGroups.id, id));
+    return group;
+  }
+
+  async createProjectGroup(group: InsertProjectGroup): Promise<ProjectGroup> {
+    const [created] = await db.insert(projectGroups).values(group).returning();
+    return created;
+  }
+
+  async updateProjectGroup(id: string, data: Partial<InsertProjectGroup>): Promise<ProjectGroup | undefined> {
+    const [updated] = await db.update(projectGroups).set(data).where(eq(projectGroups.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProjectGroup(id: string): Promise<boolean> {
+    const result = await db.delete(projectGroups).where(eq(projectGroups.id, id)).returning();
     return result.length > 0;
   }
 
