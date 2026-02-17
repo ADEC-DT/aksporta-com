@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ExternalService } from "@shared/schema";
+import { CreateSpaceDialog } from "@/components/create-space-dialog";
 
 const secondaryNavItems = [
   {
@@ -150,7 +151,10 @@ export function AppSidebar() {
                           >
                             <IconComponent className="h-4 w-4" />
                             <span className="text-sm">{service.name}</span>
-                            <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                            <div className="ml-auto flex items-center gap-1">
+                              <CreateSpaceDialog />
+                              <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                            </div>
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
