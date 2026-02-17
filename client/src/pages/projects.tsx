@@ -56,7 +56,9 @@ import {
   LayoutGrid,
   Layers,
   FolderOpen,
-  Building2
+  Building2,
+  MoreHorizontal,
+  Pencil
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -409,6 +411,31 @@ export default function ProjectsPage() {
     onError: () => toast({ title: "Failed to create space", variant: "destructive" }),
   });
 
+  const updateSpaceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/spaces/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
+      setSpaceDialogOpen(false);
+      setEditingSpace(null);
+      toast({ title: "Space updated successfully" });
+    },
+    onError: () => toast({ title: "Failed to update space", variant: "destructive" }),
+  });
+
+  const deleteSpaceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/spaces/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
+      toast({ title: "Space deleted successfully" });
+    },
+    onError: () => toast({ title: "Failed to delete space", variant: "destructive" }),
+  });
+
   const createProjectGroupMutation2 = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/project-groups", data);
@@ -431,11 +458,22 @@ export default function ProjectsPage() {
 
   const handleSpaceSubmit = () => {
     if (!spaceName.trim()) return;
-    createSpaceMutation.mutate({
-      name: spaceName.trim(),
-      description: spaceDescription.trim() || undefined,
-      color: spaceColor,
-    });
+    if (editingSpace) {
+      updateSpaceMutation.mutate({
+        id: editingSpace.id,
+        data: {
+          name: spaceName.trim(),
+          description: spaceDescription.trim() || undefined,
+          color: spaceColor,
+        },
+      });
+    } else {
+      createSpaceMutation.mutate({
+        name: spaceName.trim(),
+        description: spaceDescription.trim() || undefined,
+        color: spaceColor,
+      });
+    }
   };
 
   const handleProjectGroupSubmit = () => {
@@ -1106,7 +1144,7 @@ export default function ProjectsPage() {
                     return (
                       <div key={space.id} data-testid={`monday-space-${space.id}`}>
                         <div
-                          className="flex items-center gap-3 p-3 rounded-md cursor-pointer select-none"
+                          className="flex items-center gap-3 p-3 rounded-md cursor-pointer select-none group"
                           onClick={() => setCollapsedGroups(prev => ({ ...prev, [spaceKey]: !isSpaceCollapsed }))}
                         >
                           <div
@@ -1126,6 +1164,43 @@ export default function ProjectsPage() {
                           <Badge variant="outline" className="text-xs">
                             {totalTasks} {totalTasks === 1 ? 'task' : 'tasks'}
                           </Badge>
+                          <div className="ml-auto invisible group-hover:visible flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" data-testid={`button-space-menu-${space.id}`}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-40 p-1" align="end">
+                                <div
+                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
+                                  data-testid={`button-edit-space-${space.id}`}
+                                  onClick={() => {
+                                    setEditingSpace(space);
+                                    setSpaceName(space.name);
+                                    setSpaceDescription(space.description || "");
+                                    setSpaceColor(space.color || "#6366f1");
+                                    setSpaceDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Rename
+                                </div>
+                                <div
+                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm text-destructive hover-elevate"
+                                  data-testid={`button-delete-space-${space.id}`}
+                                  onClick={() => {
+                                    if (window.confirm(`Delete space "${space.name}"? All projects and tasks inside will become unassigned.`)) {
+                                      deleteSpaceMutation.mutate(space.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Delete
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                         </div>
 
                         {!isSpaceCollapsed && (
@@ -2182,7 +2257,7 @@ export default function ProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={spaceDialogOpen} onOpenChange={setSpaceDialogOpen}>
+      <Dialog open={spaceDialogOpen} onOpenChange={(open) => { setSpaceDialogOpen(open); if (!open) setEditingSpace(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="font-outfit">{editingSpace ? "Edit Space" : "Create Space"}</DialogTitle>
@@ -2230,7 +2305,7 @@ export default function ProjectsPage() {
             </Button>
             <Button
               onClick={handleSpaceSubmit}
-              disabled={!spaceName.trim() || createSpaceMutation.isPending}
+              disabled={!spaceName.trim() || createSpaceMutation.isPending || updateSpaceMutation.isPending}
               data-testid="button-save-space"
             >
               {editingSpace ? "Update" : "Create"} Space
