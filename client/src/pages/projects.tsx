@@ -1186,18 +1186,20 @@ export default function ProjectsPage() {
                                   <Pencil className="h-3.5 w-3.5" />
                                   Rename
                                 </div>
-                                <div
-                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm text-destructive hover-elevate"
-                                  data-testid={`button-delete-space-${space.id}`}
-                                  onClick={() => {
-                                    if (window.confirm(`Delete space "${space.name}"? All projects and tasks inside will become unassigned.`)) {
-                                      deleteSpaceMutation.mutate(space.id);
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  Delete
-                                </div>
+                                {currentUser?.role === "admin" && (
+                                  <div
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm text-destructive hover-elevate"
+                                    data-testid={`button-delete-space-${space.id}`}
+                                    onClick={() => {
+                                      if (window.confirm(`Delete space "${space.name}"? All projects and tasks inside will become unassigned.`)) {
+                                        deleteSpaceMutation.mutate(space.id);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Delete
+                                  </div>
+                                )}
                               </PopoverContent>
                             </Popover>
                           </div>
