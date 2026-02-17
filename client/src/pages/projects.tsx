@@ -1166,6 +1166,75 @@ export default function ProjectsPage() {
 
             {activeView === "tuesday" && tuesdayDisplayMode === "kanban" && (
               <div className="space-y-6" data-testid="tuesday-kanban-view">
+                {!projectsLoading && projectsData.length > 0 && (() => {
+                  const kanbanStats = {
+                    notStarted: filteredProjects.filter(p => p.status === "not_started").length,
+                    inProgress: filteredProjects.filter(p => p.status === "in_progress").length,
+                    onHold: filteredProjects.filter(p => p.status === "on_hold").length,
+                    completed: filteredProjects.filter(p => p.status === "completed").length,
+                    cancelled: filteredProjects.filter(p => p.status === "cancelled").length,
+                    total: filteredProjects.length,
+                  };
+                  return (
+                    <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+                      <Card data-testid="kanban-stat-not-started">
+                        <CardContent className="flex items-center gap-3 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800">
+                            <Pause className="h-4 w-4 text-gray-600" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-bold">{kanbanStats.notStarted}</p>
+                            <p className="text-xs text-muted-foreground">Not Started</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="kanban-stat-in-progress">
+                        <CardContent className="flex items-center gap-3 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+                            <Clock className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-bold">{kanbanStats.inProgress}</p>
+                            <p className="text-xs text-muted-foreground">In Progress</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="kanban-stat-on-hold">
+                        <CardContent className="flex items-center gap-3 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-100 dark:bg-orange-900/30">
+                            <AlertCircle className="h-4 w-4 text-orange-600" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-bold">{kanbanStats.onHold}</p>
+                            <p className="text-xs text-muted-foreground">On Hold</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="kanban-stat-completed">
+                        <CardContent className="flex items-center gap-3 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-green-100 dark:bg-green-900/30">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-bold">{kanbanStats.completed}</p>
+                            <p className="text-xs text-muted-foreground">Completed</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="kanban-stat-cancelled">
+                        <CardContent className="flex items-center gap-3 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-red-100 dark:bg-red-900/30">
+                            <X className="h-4 w-4 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-bold">{kanbanStats.cancelled}</p>
+                            <p className="text-xs text-muted-foreground">Cancelled</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })()}
                 {projectsLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <p className="text-muted-foreground">Loading projects...</p>
