@@ -734,168 +734,169 @@ export default function ProjectsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center gap-4">
-        <Link href="/other-systems">
-          <Button variant="ghost" size="icon" data-testid="button-back-other-systems">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div className="flex-1">
+      {activeView === "kanban" && (
+        <>
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-semibold font-outfit">Task Management</h1>
-            {activeSprint && (
-              <Badge variant="secondary">
-                <Calendar className="w-3 h-3 mr-1" />
-                {activeSprint.name} ({format(new Date(activeSprint.startDate), "MMM d")} - {format(new Date(activeSprint.endDate), "MMM d, yyyy")})
-              </Badge>
-            )}
+            <Link href="/other-systems">
+              <Button variant="ghost" size="icon" data-testid="button-back-other-systems">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="flex-1">
+              <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-semibold font-outfit">Task Management</h1>
+                {activeSprint && (
+                  <Badge variant="secondary">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    {activeSprint.name} ({format(new Date(activeSprint.startDate), "MMM d")} - {format(new Date(activeSprint.endDate), "MMM d, yyyy")})
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground">Manage tasks, assignments, and deadlines</p>
+            </div>
           </div>
-          <p className="text-muted-foreground">Manage tasks, assignments, and deadlines</p>
-        </div>
-      </div>
 
-      {/* Actions Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewFilter === "all" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setViewFilter("all")}
-            data-testid="button-view-all"
-          >
-            All Tasks
-          </Button>
-          <Button
-            variant={viewFilter === "mine" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setViewFilter("mine")}
-            data-testid="button-view-mine"
-          >
-            <User className="h-4 w-4 mr-1" />
-            My Tasks
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setManageTagsDialogOpen(true)}
-            data-testid="button-manage-tags"
-          >
-            <Tag className="h-4 w-4 mr-1" />
-            Manage Tags
-          </Button>
-        </div>
-        <Button 
-          onClick={() => {
-            setEditingProject(null);
-            setProjectDialogOpen(true);
-          }}
-          data-testid="button-new-project"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Task
-        </Button>
-      </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewFilter === "all" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setViewFilter("all")}
+                data-testid="button-view-all"
+              >
+                All Tasks
+              </Button>
+              <Button
+                variant={viewFilter === "mine" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setViewFilter("mine")}
+                data-testid="button-view-mine"
+              >
+                <User className="h-4 w-4 mr-1" />
+                My Tasks
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManageTagsDialogOpen(true)}
+                data-testid="button-manage-tags"
+              >
+                <Tag className="h-4 w-4 mr-1" />
+                Manage Tags
+              </Button>
+            </div>
+            <Button 
+              onClick={() => {
+                setEditingProject(null);
+                setProjectDialogOpen(true);
+              }}
+              data-testid="button-new-project"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Task
+            </Button>
+          </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card data-testid="stat-total-projects">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <Calendar className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total Tasks</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-in-progress">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <Clock className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.inProgress}</p>
-              <p className="text-sm text-muted-foreground">In Progress</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-on-hold">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-              <AlertCircle className="h-6 w-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.onHold}</p>
-              <p className="text-sm text-muted-foreground">On Hold</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-completed">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.completed}</p>
-              <p className="text-sm text-muted-foreground">Completed</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card data-testid="stat-total-projects">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Calendar className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-muted-foreground">Total Tasks</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="stat-in-progress">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Clock className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.inProgress}</p>
+                  <p className="text-sm text-muted-foreground">In Progress</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="stat-on-hold">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <AlertCircle className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.onHold}</p>
+                  <p className="text-sm text-muted-foreground">On Hold</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="stat-completed">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.completed}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search projects..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="input-search-projects"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {Object.entries(statusConfig).map(([key, config]) => (
-              <SelectItem key={key} value={key}>{config.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={tagFilter} onValueChange={setTagFilter}>
-          <SelectTrigger className="w-[180px]" data-testid="select-tag-filter">
-            <Tag className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Filter by tag" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Tags</SelectItem>
-            {projectTags.map((tag) => (
-              <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={sprintFilter} onValueChange={setSprintFilter}>
-          <SelectTrigger className="w-[220px]" data-testid="select-sprint-filter">
-            <Calendar className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Filter by sprint" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sprints</SelectItem>
-            <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
-            {sprintsData.map((sprint) => (
-              <SelectItem key={sprint.id} value={sprint.id}>
-                {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search projects..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-projects"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {Object.entries(statusConfig).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={tagFilter} onValueChange={setTagFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-tag-filter">
+                <Tag className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tags</SelectItem>
+                {projectTags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sprintFilter} onValueChange={setSprintFilter}>
+              <SelectTrigger className="w-[220px]" data-testid="select-sprint-filter">
+                <Calendar className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by sprint" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sprints</SelectItem>
+                <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
+                {sprintsData.map((sprint) => (
+                  <SelectItem key={sprint.id} value={sprint.id}>
+                    {sprint.name} ({format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
 
       {activeView === "monday" && (
         <div className="space-y-4" data-testid="monday-view">
