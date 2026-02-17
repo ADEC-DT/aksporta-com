@@ -140,7 +140,11 @@ function ProtectedRoutes() {
                 <Route path="/ops-fm" component={OpsFMPage} />
                 <Route path="/it-dt" component={ITDTPage} />
                 <Route path="/sprint-management" component={SprintManagementPage} />
-                <Route path="/projects" component={ProjectsPage} />
+                <Route path="/projects/monday" component={ProjectsPage} />
+                <Route path="/projects/kanban" component={ProjectsPage} />
+                <Route path="/projects">
+                  <Redirect to="/projects/monday" />
+                </Route>
                 <Route path="/manage-tags" component={ManageTagsPage} />
                 <Route path="/applications/customer-db" component={CustomerDBPage} />
                 <Route path="/applications/customer-db/:id" component={CustomerProfilePage} />

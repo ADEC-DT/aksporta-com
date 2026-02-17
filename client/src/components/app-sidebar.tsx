@@ -12,6 +12,9 @@ import {
   PinOff,
   Calendar,
   Settings,
+  ChevronDown,
+  LayoutGrid,
+  Target,
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,10 +25,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarHeader,
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -129,6 +136,48 @@ export function AppSidebar() {
                 const IconComponent = resolveIcon(service.icon || "");
                 const isActive = location === service.url || 
                   (!!service.url && location.startsWith(service.url));
+
+                if (service.url === "/projects") {
+                  return (
+                    <Collapsible key={service.id} defaultOpen={location.startsWith("/projects")} className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={location.startsWith("/projects")}
+                            className="h-9 px-3 rounded-md"
+                            data-testid="nav-item-projects"
+                            tooltip="Projects"
+                          >
+                            <IconComponent className="h-4 w-4" />
+                            <span className="text-sm">{service.name}</span>
+                            <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/projects/monday"} data-testid="nav-sub-projects-monday">
+                                <Link href="/projects/monday">
+                                  <LayoutGrid className="h-3.5 w-3.5" />
+                                  <span>Monday</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/projects/kanban"} data-testid="nav-sub-projects-kanban">
+                                <Link href="/projects/kanban">
+                                  <Target className="h-3.5 w-3.5" />
+                                  <span>Kanban</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                }
+
                 return (
                   <SidebarMenuItem key={service.id}>
                     <SidebarMenuButton

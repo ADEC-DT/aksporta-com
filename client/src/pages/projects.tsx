@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -161,7 +160,8 @@ export default function ProjectsPage() {
   const [sprintFilter, setSprintFilter] = useState<string>("all");
   const [viewFilter, setViewFilter] = useState<"all" | "mine">("all");
   const [sprintsDialogOpen, setSprintsDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("monday");
+  const [location] = useLocation();
+  const activeView = location.includes("/kanban") ? "kanban" : "monday";
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
   const [editingBlueprint, setEditingBlueprint] = useState<CollaborationBlueprint | null>(null);
@@ -179,6 +179,20 @@ export default function ProjectsPage() {
   const [manageTagsDialogOpen, setManageTagsDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<ProjectTag | null>(null);
   const [newTagName, setNewTagName] = useState("");
+  const [spaceDialogOpen, setSpaceDialogOpen] = useState(false);
+  const [projectGroupDialogOpen, setProjectGroupDialogOpen] = useState(false);
+  const [editingSpace, setEditingSpace] = useState<any>(null);
+  const [editingProjectGroup, setEditingProjectGroup] = useState<any>(null);
+  const [spaceName, setSpaceName] = useState("");
+  const [spaceDescription, setSpaceDescription] = useState("");
+  const [spaceColor, setSpaceColor] = useState("#6366f1");
+  const [pgName, setPgName] = useState("");
+  const [pgDescription, setPgDescription] = useState("");
+  const [pgSpaceId, setPgSpaceId] = useState("");
+  const [pgColor, setPgColor] = useState("#6366f1");
+  const [pgStatus, setPgStatus] = useState("active");
+  const [pgStartDate, setPgStartDate] = useState("");
+  const [pgEndDate, setPgEndDate] = useState("");
   const { toast } = useToast();
 
   // Current user
@@ -378,6 +392,64 @@ export default function ProjectsPage() {
     },
     onError: () => toast({ title: "Failed to delete tag", variant: "destructive" }),
   });
+
+  const createSpaceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/spaces", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
+      setSpaceDialogOpen(false);
+      setSpaceName("");
+      setSpaceDescription("");
+      setSpaceColor("#6366f1");
+      toast({ title: "Space created successfully" });
+    },
+    onError: () => toast({ title: "Failed to create space", variant: "destructive" }),
+  });
+
+  const createProjectGroupMutation2 = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/project-groups", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
+      setProjectGroupDialogOpen(false);
+      setPgName("");
+      setPgDescription("");
+      setPgSpaceId("");
+      setPgColor("#6366f1");
+      setPgStatus("active");
+      setPgStartDate("");
+      setPgEndDate("");
+      toast({ title: "Project created successfully" });
+    },
+    onError: () => toast({ title: "Failed to create project", variant: "destructive" }),
+  });
+
+  const handleSpaceSubmit = () => {
+    if (!spaceName.trim()) return;
+    createSpaceMutation.mutate({
+      name: spaceName.trim(),
+      description: spaceDescription.trim() || undefined,
+      color: spaceColor,
+    });
+  };
+
+  const handleProjectGroupSubmit = () => {
+    if (!pgName.trim() || !pgSpaceId) return;
+    createProjectGroupMutation2.mutate({
+      name: pgName.trim(),
+      description: pgDescription.trim() || undefined,
+      spaceId: pgSpaceId,
+      color: pgColor,
+      status: pgStatus,
+      startDate: pgStartDate || undefined,
+      endDate: pgEndDate || undefined,
+    });
+  };
 
   const handleTagSubmit = () => {
     if (!newTagName.trim()) return;
@@ -825,20 +897,18 @@ export default function ProjectsPage() {
         </Select>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="monday" data-testid="tab-monday">
-            <LayoutGrid className="w-4 h-4 mr-2" />
-            Monday
-          </TabsTrigger>
-          <TabsTrigger value="kanban" data-testid="tab-kanban">
-            <Target className="w-4 h-4 mr-2" />
-            Kanban
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="monday" className="space-y-4">
-          <div data-testid="monday-view">
+      {activeView === "monday" && (
+        <div className="space-y-4" data-testid="monday-view">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
+                <Plus className="h-4 w-4 mr-1" />
+                New Space
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setEditingProjectGroup(null); setPgName(""); setPgDescription(""); setPgSpaceId(""); setPgColor("#6366f1"); setPgStatus("active"); setPgStartDate(""); setPgEndDate(""); setProjectGroupDialogOpen(true); }} data-testid="button-new-project-group">
+                <Plus className="h-4 w-4 mr-1" />
+                New Project
+              </Button>
+            </div>
             {hierarchyLoading ? (
               <div className="flex items-center justify-center py-12">
                 <p className="text-muted-foreground">Loading projects...</p>
@@ -1150,10 +1220,11 @@ export default function ProjectsPage() {
                 </div>
               );
             })()}
-          </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="kanban" className="space-y-6">
+      {activeView === "kanban" && (
+        <div className="space-y-6" data-testid="kanban-view">
           {projectsLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-muted-foreground">Loading projects...</p>
@@ -1281,9 +1352,8 @@ export default function ProjectsPage() {
               </div>
             </DragDropContext>
           )}
-        </TabsContent>
-
-      </Tabs>
+        </div>
+      )}
 
       {/* Create/Edit Project Dialog */}
       <Dialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen}>
@@ -2105,6 +2175,171 @@ export default function ProjectsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setManageTagsDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={spaceDialogOpen} onOpenChange={setSpaceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-outfit">{editingSpace ? "Edit Space" : "Create Space"}</DialogTitle>
+            <DialogDescription>Spaces are department-level groupings for organizing projects.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Space Name</Label>
+              <Input
+                placeholder="Enter space name"
+                value={spaceName}
+                onChange={(e) => setSpaceName(e.target.value)}
+                className="mt-1"
+                data-testid="input-space-name"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                placeholder="Describe the space..."
+                value={spaceDescription}
+                onChange={(e) => setSpaceDescription(e.target.value)}
+                className="mt-1 min-h-[80px]"
+                data-testid="input-space-description"
+              />
+            </div>
+            <div>
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {["#6366f1", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#64748b"].map((color) => (
+                  <div
+                    key={color}
+                    className={`w-8 h-8 rounded-md cursor-pointer ring-offset-background transition-all ${spaceColor === color ? "ring-2 ring-ring ring-offset-2" : ""}`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setSpaceColor(color)}
+                    data-testid={`swatch-space-${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSpaceDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSpaceSubmit}
+              disabled={!spaceName.trim() || createSpaceMutation.isPending}
+              data-testid="button-save-space"
+            >
+              {editingSpace ? "Update" : "Create"} Space
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={projectGroupDialogOpen} onOpenChange={setProjectGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-outfit">{editingProjectGroup ? "Edit Project" : "Create Project"}</DialogTitle>
+            <DialogDescription>Projects belong to a space and contain tasks.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Project Name</Label>
+              <Input
+                placeholder="Enter project name"
+                value={pgName}
+                onChange={(e) => setPgName(e.target.value)}
+                className="mt-1"
+                data-testid="input-pg-name"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                placeholder="Describe the project..."
+                value={pgDescription}
+                onChange={(e) => setPgDescription(e.target.value)}
+                className="mt-1 min-h-[80px]"
+                data-testid="input-pg-description"
+              />
+            </div>
+            <div>
+              <Label>Space</Label>
+              <Select value={pgSpaceId} onValueChange={setPgSpaceId}>
+                <SelectTrigger className="mt-1" data-testid="select-pg-space">
+                  <SelectValue placeholder="Select a space" />
+                </SelectTrigger>
+                <SelectContent>
+                  {spacesHierarchy.map((space) => (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={pgStatus} onValueChange={setPgStatus}>
+                <SelectTrigger className="mt-1" data-testid="select-pg-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="on_hold">On Hold</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={pgStartDate}
+                  onChange={(e) => setPgStartDate(e.target.value)}
+                  className="mt-1"
+                  data-testid="input-pg-start-date"
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input
+                  type="date"
+                  value={pgEndDate}
+                  onChange={(e) => setPgEndDate(e.target.value)}
+                  className="mt-1"
+                  data-testid="input-pg-end-date"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {["#6366f1", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#64748b"].map((color) => (
+                  <div
+                    key={color}
+                    className={`w-8 h-8 rounded-md cursor-pointer ring-offset-background transition-all ${pgColor === color ? "ring-2 ring-ring ring-offset-2" : ""}`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setPgColor(color)}
+                    data-testid={`swatch-pg-${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProjectGroupDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleProjectGroupSubmit}
+              disabled={!pgName.trim() || !pgSpaceId || createProjectGroupMutation2.isPending}
+              data-testid="button-save-project-group"
+            >
+              {editingProjectGroup ? "Update" : "Create"} Project
             </Button>
           </DialogFooter>
         </DialogContent>
