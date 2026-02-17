@@ -1256,7 +1256,14 @@ export default function ProjectsPage() {
                 ) : (
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="flex gap-4 overflow-x-auto pb-4">
-                      {(Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
+                      {(() => {
+                        const pgLookup: Record<string, { name: string; color: string; spaceName: string }> = {};
+                        spacesHierarchy.forEach(space => {
+                          space.projectGroups.forEach(pg => {
+                            pgLookup[pg.id] = { name: pg.name, color: pg.color || "#6366f1", spaceName: space.name };
+                          });
+                        });
+                        return (Object.entries(statusConfig) as [ProjectStatus, typeof statusConfig[ProjectStatus]][]).map(([statusKey, config]) => {
                         const columnProjects = filteredProjects.filter(p => p.status === statusKey);
                         return (
                           <div key={statusKey} className="flex-shrink-0 w-[300px]">
@@ -1279,6 +1286,7 @@ export default function ProjectsPage() {
                                   {columnProjects.map((project, index) => {
                                     const timeline = getTimelineStatus(project.deadline);
                                     const assignedUsers = getAssignedUsers(project);
+                                    const pgInfo = (project as any).projectGroupId ? pgLookup[(project as any).projectGroupId] : null;
                                     
                                     return (
                                       <Draggable key={project.id} draggableId={project.id} index={index}>
@@ -1291,6 +1299,14 @@ export default function ProjectsPage() {
                                             data-testid={`kanban-card-${project.id}`}
                                           >
                                             <CardContent className="p-3 space-y-2">
+                                              {pgInfo && (
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: pgInfo.color }} />
+                                                  <span className="text-[10px] text-muted-foreground truncate">
+                                                    {pgInfo.spaceName} / {pgInfo.name}
+                                                  </span>
+                                                </div>
+                                              )}
                                               <div className="flex items-start gap-2">
                                                 <div
                                                   {...provided.dragHandleProps}
@@ -1358,7 +1374,8 @@ export default function ProjectsPage() {
                             </Droppable>
                           </div>
                         );
-                      })}
+                      });
+                      })()}
                     </div>
                   </DragDropContext>
                 )}
