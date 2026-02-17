@@ -164,6 +164,14 @@ export function AppSidebar() {
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                             <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/projects/tuesday"} data-testid="nav-sub-projects-tuesday">
+                                <Link href="/projects/tuesday">
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  <span>Tuesday</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/projects/kanban"} data-testid="nav-sub-projects-kanban">
                                 <Link href="/projects/kanban">
                                   <Target className="h-3.5 w-3.5" />
