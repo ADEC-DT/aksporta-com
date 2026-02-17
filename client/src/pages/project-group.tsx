@@ -73,12 +73,18 @@ export default function ProjectGroupPage() {
   const [taskPriority, setTaskPriority] = useState<ProjectPriority>("medium");
   const [taskDeadline, setTaskDeadline] = useState("");
   const [taskStartDate, setTaskStartDate] = useState("");
+  const [taskAssigneeId, setTaskAssigneeId] = useState("");
+
   const { data: currentUser } = useQuery<ManagedUser>({
     queryKey: ["/api/auth/me"],
   });
 
   const { data: hierarchyData = [], isLoading } = useQuery<SpaceWithHierarchy[]>({
     queryKey: ["/api/spaces/hierarchy"],
+  });
+
+  const { data: usersData = [] } = useQuery<ManagedUser[]>({
+    queryKey: ["/api/users/list"],
   });
 
   let projectGroup: any = null;
@@ -97,7 +103,15 @@ export default function ProjectGroupPage() {
   const createTaskMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/projects", data);
-      return res.json();
+      const created = await res.json();
+      if (taskAssigneeId && taskAssigneeId !== "none" && created?.id) {
+        try {
+          await apiRequest("POST", `/api/projects/${created.id}/assignments`, { userId: taskAssigneeId });
+        } catch (error) {
+          console.error("Failed to assign user:", error);
+        }
+      }
+      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
@@ -148,6 +162,7 @@ export default function ProjectGroupPage() {
     setTaskPriority("medium");
     setTaskDeadline("");
     setTaskStartDate("");
+    setTaskAssigneeId("");
   };
 
   const openNewTask = () => {
@@ -158,6 +173,7 @@ export default function ProjectGroupPage() {
     setTaskPriority("medium");
     setTaskDeadline("");
     setTaskStartDate("");
+    setTaskAssigneeId("");
     setTaskDialogOpen(true);
   };
 
@@ -169,6 +185,7 @@ export default function ProjectGroupPage() {
     setTaskPriority(task.priority as ProjectPriority);
     setTaskDeadline(task.deadline || "");
     setTaskStartDate(task.startDate || "");
+    setTaskAssigneeId("");
     setTaskDialogOpen(true);
   };
 
@@ -459,6 +476,25 @@ export default function ProjectGroupPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label>Assignee</Label>
+              <Select value={taskAssigneeId} onValueChange={setTaskAssigneeId}>
+                <SelectTrigger className="mt-1" data-testid="select-task-assignee">
+                  <SelectValue placeholder="Select assignee..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No assignee</SelectItem>
+                  {usersData.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName && user.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user.username}
+                      {user.id === currentUser?.id ? " (me)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
