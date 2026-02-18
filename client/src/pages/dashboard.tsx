@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+
 import { ExpandableSection } from "@/components/expandable-section";
 import { DetailPanel } from "@/components/detail-panel";
 import { 
@@ -128,9 +128,6 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <div className="px-6 pt-6">
-        <PageCollaborationStamp sectionName="dashboard" />
-      </div>
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-6 py-8 md:px-10 md:py-10">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute right-0 top-0 text-[200px] font-bold text-white/5 tracking-tighter leading-none select-none">

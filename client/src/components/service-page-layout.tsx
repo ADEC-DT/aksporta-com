@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ServiceSubSidebar } from "@/components/service-sub-sidebar";
 import { ExpandableSection } from "@/components/expandable-section";
-import { PageCollaborationStamp } from "@/components/collaboration-stamp";
+
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3 } from "lucide-react";
@@ -80,9 +80,6 @@ export function ServicePageLayout({
       )}
       <div className="flex-1 overflow-auto">
         <div className="flex flex-col gap-6 p-6">
-          {collaborationSection && (
-            <PageCollaborationStamp sectionName={collaborationSection} />
-          )}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h1 className="text-2xl font-semibold font-outfit" data-testid="text-page-title">{title}</h1>
