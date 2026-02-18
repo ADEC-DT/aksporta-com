@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,10 @@ import {
   Package,
   Search,
   Filter,
-  Plus
+  Plus,
+  GanttChart,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
@@ -91,6 +94,159 @@ function getConditionBadge(condition: string) {
     default:
       return <Badge variant="secondary">{condition}</Badge>;
   }
+}
+
+interface GanttTask {
+  id: string;
+  name: string;
+  assignee: string;
+  status: "done" | "in_progress" | "not_started" | "overdue";
+  startDay: number;
+  duration: number;
+  color: string;
+  progress: number;
+}
+
+const ganttTasks: GanttTask[] = [
+  { id: "1", name: "Saddle inspection - Block A", assignee: "Sarah A.", status: "done", startDay: 0, duration: 3, color: "bg-green-500", progress: 100 },
+  { id: "2", name: "Arena groomer maintenance", assignee: "John S.", status: "in_progress", startDay: 2, duration: 5, color: "bg-blue-500", progress: 60 },
+  { id: "3", name: "Horse walker repair", assignee: "Ahmed H.", status: "overdue", startDay: 1, duration: 4, color: "bg-red-500", progress: 30 },
+  { id: "4", name: "Feed silo cleaning", assignee: "Maria G.", status: "not_started", startDay: 6, duration: 2, color: "bg-slate-400", progress: 0 },
+  { id: "5", name: "Cross-country jumps rebuild", assignee: "John S.", status: "in_progress", startDay: 3, duration: 7, color: "bg-blue-500", progress: 40 },
+  { id: "6", name: "Trailer annual inspection", assignee: "Ahmed H.", status: "not_started", startDay: 8, duration: 3, color: "bg-slate-400", progress: 0 },
+  { id: "7", name: "Tack room reorganization", assignee: "Sarah A.", status: "in_progress", startDay: 5, duration: 4, color: "bg-blue-500", progress: 50 },
+  { id: "8", name: "Wash bay pump replacement", assignee: "Maria G.", status: "done", startDay: 0, duration: 2, color: "bg-green-500", progress: 100 },
+  { id: "9", name: "Stable gate hinge repair", assignee: "Ahmed H.", status: "in_progress", startDay: 4, duration: 3, color: "bg-blue-500", progress: 75 },
+  { id: "10", name: "Vet clinic equipment check", assignee: "Sarah A.", status: "not_started", startDay: 10, duration: 2, color: "bg-slate-400", progress: 0 },
+];
+
+function getStatusBadge(status: GanttTask["status"]) {
+  switch (status) {
+    case "done": return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-[10px]">Done</Badge>;
+    case "in_progress": return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0 text-[10px]">Working</Badge>;
+    case "overdue": return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]">Overdue</Badge>;
+    case "not_started": return <Badge variant="secondary" className="text-[10px]">Pending</Badge>;
+  }
+}
+
+function StableGanttChart() {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const totalDays = 14;
+
+  const dayLabels = useMemo(() => {
+    const today = new Date();
+    today.setDate(today.getDate() + weekOffset * 7);
+    return Array.from({ length: totalDays }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      return {
+        short: d.toLocaleDateString("en-US", { weekday: "short" }),
+        date: d.getDate(),
+        month: d.toLocaleDateString("en-US", { month: "short" }),
+        isWeekend: d.getDay() === 0 || d.getDay() === 6,
+        isToday: i === 0 && weekOffset === 0,
+      };
+    });
+  }, [weekOffset]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <GanttChart className="h-5 w-5 text-primary" />
+          <CardTitle className="text-lg">Maintenance Schedule</CardTitle>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-green-500" /> Done
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-500" /> In Progress
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500" /> Overdue
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-400" /> Pending
+            </div>
+          </div>
+          <div className="flex items-center gap-1 ml-3">
+            <Button variant="outline" size="icon" onClick={() => setWeekOffset(w => w - 1)} data-testid="button-gantt-prev">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)} data-testid="button-gantt-today">
+              Today
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setWeekOffset(w => w + 1)} data-testid="button-gantt-next">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <div className="min-w-[900px]">
+            <div className="flex border-b">
+              <div className="w-[260px] flex-shrink-0 px-4 py-2 text-xs font-medium text-muted-foreground border-r bg-muted/30">
+                Task
+              </div>
+              <div className="flex-1 flex">
+                {dayLabels.map((day, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-2 text-[10px] border-r last:border-r-0 ${day.isWeekend ? "bg-muted/40" : ""} ${day.isToday ? "bg-primary/10" : ""}`}
+                  >
+                    <div className="font-medium text-muted-foreground">{day.short}</div>
+                    <div className={`font-bold ${day.isToday ? "text-primary" : ""}`}>{day.date}</div>
+                    {(i === 0 || day.date === 1) && (
+                      <div className="text-muted-foreground">{day.month}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {ganttTasks.map((task) => (
+              <div key={task.id} className="flex border-b last:border-b-0 hover-elevate group" data-testid={`gantt-row-${task.id}`}>
+                <div className="w-[260px] flex-shrink-0 px-4 py-2.5 border-r flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{task.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{task.assignee}</p>
+                  </div>
+                  {getStatusBadge(task.status)}
+                </div>
+                <div className="flex-1 flex relative">
+                  {dayLabels.map((day, i) => (
+                    <div
+                      key={i}
+                      className={`flex-1 border-r last:border-r-0 ${day.isWeekend ? "bg-muted/20" : ""} ${day.isToday ? "bg-primary/5" : ""}`}
+                    />
+                  ))}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 h-6 rounded-md flex items-center overflow-hidden"
+                    style={{
+                      left: `${(task.startDay / totalDays) * 100}%`,
+                      width: `${(task.duration / totalDays) * 100}%`,
+                    }}
+                  >
+                    <div className={`h-full w-full ${task.color} rounded-md opacity-20`} />
+                    <div
+                      className={`absolute left-0 top-0 h-full ${task.color} rounded-md transition-all`}
+                      style={{ width: `${task.progress}%` }}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-foreground dark:text-white mix-blend-normal z-10">
+                      {task.progress}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate }) {
@@ -492,6 +648,8 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
               );
             })}
           </div>
+
+          <StableGanttChart />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
