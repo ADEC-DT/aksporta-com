@@ -323,6 +323,7 @@ const defaultServiceSections: ServiceSectionDef[] = [
     sections: [
       { title: "Equestrian Overview", icon: "CircleDot", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner", config: JSON.stringify({ gradient: "from-emerald-600 to-teal-600" }) },
       { title: "Equinem", icon: "Home", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "tabs" },
+      { title: "Stable Assets Manager", icon: "Warehouse", sortOrder: 3, isEnabled: true, isExpandable: false, templateType: "data_table" },
     ],
   },
   {

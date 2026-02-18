@@ -17,6 +17,7 @@ import {
   Target,
   CircleDot,
   Home,
+  Warehouse,
 } from "lucide-react";
 import {
   Sidebar,
@@ -171,6 +172,14 @@ export function AppSidebar() {
                                 <Link href="/equestrian/equinem">
                                   <Home className="h-3.5 w-3.5" />
                                   <span>Equinem</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/stable-assets"} data-testid="nav-sub-equestrian-stable-assets">
+                                <Link href="/equestrian/stable-assets">
+                                  <Warehouse className="h-3.5 w-3.5" />
+                                  <span>Stable Assets Manager</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
