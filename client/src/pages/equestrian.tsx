@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,12 @@ import {
   DollarSign
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
+
+const sectionRouteMap: Record<string, string> = {
+  "/equestrian/overview": "Equestrian Overview",
+  "/equestrian/stable-services": "Stable & Services",
+  "/equestrian/quick-stats": "Quick Stats",
+};
 
 const SERVICE_ID = "a1318a85-9804-4ca8-99dc-ad47730fb746";
 
@@ -278,6 +285,14 @@ function renderSection(section: PageSectionWithTemplate) {
 }
 
 export default function EquestrianPage() {
+  const [location] = useLocation();
+  const activeSectionTitle = sectionRouteMap[location] || null;
+
+  const filterSection = (section: PageSectionWithTemplate) => {
+    if (!activeSectionTitle) return true;
+    return section.title === activeSectionTitle;
+  };
+
   return (
     <ServicePageLayout
       serviceId={SERVICE_ID}
@@ -288,6 +303,7 @@ export default function EquestrianPage() {
         { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },
       ]}
       renderSection={renderSection}
+      sectionFilter={filterSection}
     />
   );
 }

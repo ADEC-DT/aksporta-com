@@ -15,6 +15,9 @@ import {
   ChevronDown,
   LayoutGrid,
   Target,
+  CircleDot,
+  Home,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -137,6 +140,55 @@ export function AppSidebar() {
                 const IconComponent = resolveIcon(service.icon || "");
                 const isActive = location === service.url || 
                   (!!service.url && location.startsWith(service.url));
+
+                if (service.url === "/equestrian") {
+                  return (
+                    <Collapsible key={service.id} defaultOpen={location.startsWith("/equestrian")} className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={location.startsWith("/equestrian")}
+                            className="h-9 px-3 rounded-md"
+                            data-testid="nav-item-equestrian"
+                            tooltip="Equestrian"
+                          >
+                            <IconComponent className="h-4 w-4" />
+                            <span className="text-sm">{service.name}</span>
+                            <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/overview"} data-testid="nav-sub-equestrian-overview">
+                                <Link href="/equestrian/overview">
+                                  <CircleDot className="h-3.5 w-3.5" />
+                                  <span>Overview</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/stable-services"} data-testid="nav-sub-equestrian-stable">
+                                <Link href="/equestrian/stable-services">
+                                  <Home className="h-3.5 w-3.5" />
+                                  <span>Stable & Services</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/quick-stats"} data-testid="nav-sub-equestrian-stats">
+                                <Link href="/equestrian/quick-stats">
+                                  <BarChart3 className="h-3.5 w-3.5" />
+                                  <span>Quick Stats</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                }
 
                 if (service.url === "/projects") {
                   return (

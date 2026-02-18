@@ -27,6 +27,7 @@ interface ServicePageLayoutProps {
     icon?: LucideIcon;
   }>;
   renderSection?: (section: PageSectionWithTemplate) => ReactNode;
+  sectionFilter?: (section: PageSectionWithTemplate) => boolean;
   headerActions?: ReactNode;
   children?: ReactNode;
 }
@@ -38,6 +39,7 @@ export function ServicePageLayout({
   collaborationSection,
   externalLinks,
   renderSection,
+  sectionFilter,
   headerActions,
   children,
 }: ServicePageLayoutProps) {
@@ -49,7 +51,8 @@ export function ServicePageLayout({
     enabled: !!serviceId,
   });
 
-  const enabledSections = sections?.filter((s) => s.isEnabled) || [];
+  const allEnabledSections = sections?.filter((s) => s.isEnabled) || [];
+  const enabledSections = sectionFilter ? allEnabledSections.filter(sectionFilter) : allEnabledSections;
 
   const handleSectionClick = useCallback((id: string) => {
     setActiveSection(id);
@@ -68,7 +71,7 @@ export function ServicePageLayout({
 
   return (
     <div className="flex h-full" data-testid="service-page-layout">
-      {enabledSections.length > 1 && (
+      {!sectionFilter && enabledSections.length > 1 && (
         <ServiceSubSidebar
           sections={sidebarSections}
           activeSection={activeSection}

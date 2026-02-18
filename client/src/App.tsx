@@ -132,7 +132,12 @@ function ProtectedRoutes() {
                 <Route path="/other-systems" component={OtherSystemsPage} />
                 <Route path="/business-units" component={BusinessUnitsPage} />
                 <Route path="/asset-lease" component={AssetLeasePage} />
-                <Route path="/equestrian" component={EquestrianPage} />
+                <Route path="/equestrian/overview" component={EquestrianPage} />
+                <Route path="/equestrian/stable-services" component={EquestrianPage} />
+                <Route path="/equestrian/quick-stats" component={EquestrianPage} />
+                <Route path="/equestrian">
+                  <Redirect to="/equestrian/overview" />
+                </Route>
                 <Route path="/events" component={EventsPage} />
                 <Route path="/media-marketing" component={MediaMarketingPage} />
                 <Route path="/intranet" component={IntranetPage} />
