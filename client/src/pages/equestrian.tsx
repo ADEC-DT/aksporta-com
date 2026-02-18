@@ -22,7 +22,6 @@ import type { PageSectionWithTemplate } from "@shared/schema";
 const sectionRouteMap: Record<string, string> = {
   "/equestrian/overview": "Equestrian Overview",
   "/equestrian/equinem": "Equinem",
-  "/equestrian/quick-stats": "Quick Stats",
 };
 
 const SERVICE_ID = "a1318a85-9804-4ca8-99dc-ad47730fb746";
@@ -268,13 +267,123 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
               </Card>
             </TabsContent>
           </Tabs>
+
+          <div className="space-y-4" data-testid="section-quick-stats">
+            <h3 className="text-lg font-semibold font-outfit flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Quick Stats
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+                      <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-active-members">186</p>
+                      <p className="text-sm text-muted-foreground">Active Members</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-green-100 dark:bg-green-900/30">
+                      <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-monthly-revenue">$450K</p>
+                      <p className="text-sm text-muted-foreground">Monthly Revenue</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+                      <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-lessons-this-month">124</p>
+                      <p className="text-sm text-muted-foreground">Lessons This Month</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-purple-100 dark:bg-purple-900/30">
+                      <Heart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-therapy-sessions">38</p>
+                      <p className="text-sm text-muted-foreground">Therapy Sessions</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-medium mb-3">Occupancy Rate</h4>
+                  <div className="flex items-end gap-2">
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-occupancy">84%</p>
+                    <p className="text-sm text-muted-foreground mb-1">42/50 stalls</p>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: "84%" }} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-medium mb-3">Vet Health Status</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Healthy</span>
+                      <Badge variant="outline" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" data-testid="stat-healthy">38</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Under Treatment</span>
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0" data-testid="stat-treatment">3</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Checkups Due</span>
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0" data-testid="stat-checkups">1</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-medium mb-3">Today's Schedule</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Riding Classes</span>
+                      <span className="text-sm font-medium" data-testid="stat-classes-today">4</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Therapy Sessions</span>
+                      <span className="text-sm font-medium" data-testid="stat-therapy-today">3</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Vet Appointments</span>
+                      <span className="text-sm font-medium" data-testid="stat-vet-today">1</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       );
 
     case "Equinem":
-      return null;
-
-    case "Quick Stats":
       return null;
 
     default:

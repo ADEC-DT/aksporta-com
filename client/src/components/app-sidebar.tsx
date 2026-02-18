@@ -17,7 +17,6 @@ import {
   Target,
   CircleDot,
   Home,
-  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -163,7 +162,7 @@ export function AppSidebar() {
                               <SidebarMenuSubButton asChild isActive={location === "/equestrian/overview"} data-testid="nav-sub-equestrian-overview">
                                 <Link href="/equestrian/overview">
                                   <CircleDot className="h-3.5 w-3.5" />
-                                  <span>Overview</span>
+                                  <span>Equestrian Center</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
@@ -172,14 +171,6 @@ export function AppSidebar() {
                                 <Link href="/equestrian/equinem">
                                   <Home className="h-3.5 w-3.5" />
                                   <span>Equinem</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/quick-stats"} data-testid="nav-sub-equestrian-stats">
-                                <Link href="/equestrian/quick-stats">
-                                  <BarChart3 className="h-3.5 w-3.5" />
-                                  <span>Quick Stats</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
