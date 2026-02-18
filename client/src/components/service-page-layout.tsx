@@ -97,31 +97,33 @@ export function ServicePageLayout({
       )}
       <div className="flex-1 overflow-auto">
         <div className="flex flex-col gap-6 p-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-2xl font-semibold font-outfit" data-testid="text-page-title">{title}</h1>
-              {subtitle && (
-                <p className="text-muted-foreground" data-testid="text-page-subtitle">{subtitle}</p>
-              )}
+          {(title || externalLinks?.length || headerActions) && (
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                {title && <h1 className="text-2xl font-semibold font-outfit" data-testid="text-page-title">{title}</h1>}
+                {subtitle && (
+                  <p className="text-muted-foreground" data-testid="text-page-subtitle">{subtitle}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {externalLinks?.map((link) => {
+                  const LinkIcon = link.icon || BarChart3;
+                  return (
+                    <Button
+                      key={link.url}
+                      variant="outline"
+                      onClick={() => window.open(link.url, "_blank")}
+                      data-testid={`button-launch-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                      {link.label}
+                    </Button>
+                  );
+                })}
+                {headerActions}
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              {externalLinks?.map((link) => {
-                const LinkIcon = link.icon || BarChart3;
-                return (
-                  <Button
-                    key={link.url}
-                    variant="outline"
-                    onClick={() => window.open(link.url, "_blank")}
-                    data-testid={`button-launch-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <LinkIcon className="mr-2 h-4 w-4" />
-                    {link.label}
-                  </Button>
-                );
-              })}
-              {headerActions}
-            </div>
-          </div>
+          )}
 
           {isLoading && (
             <div className="flex flex-col gap-4">

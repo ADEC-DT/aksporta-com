@@ -659,6 +659,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function EquestrianPage() {
   const [location] = useLocation();
   const activeSectionTitle = sectionRouteMap[location] || null;
+  const isOverview = location === "/equestrian/overview" || !activeSectionTitle;
 
   const filterSection = (section: PageSectionWithTemplate) => {
     if (!activeSectionTitle) return true;
@@ -668,12 +669,9 @@ export default function EquestrianPage() {
   return (
     <ServicePageLayout
       serviceUrl={SERVICE_URL}
-      title="Equestrian Center"
-      subtitle="Complete management of riding school, livery, and veterinary services"
+      title={isOverview ? "Equestrian Center" : ""}
+      subtitle={isOverview ? "Complete management of riding school, livery, and veterinary services" : ""}
       collaborationSection="equestrian"
-      externalLinks={[
-        { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },
-      ]}
       renderSection={renderSection}
       sectionFilter={filterSection}
     />
