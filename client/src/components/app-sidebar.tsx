@@ -168,10 +168,10 @@ export function AppSidebar() {
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                             <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/stable-services"} data-testid="nav-sub-equestrian-stable">
-                                <Link href="/equestrian/stable-services">
+                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/equinem"} data-testid="nav-sub-equestrian-equinem">
+                                <Link href="/equestrian/equinem">
                                   <Home className="h-3.5 w-3.5" />
-                                  <span>Stable & Services</span>
+                                  <span>Equinem</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>

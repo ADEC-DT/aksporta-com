@@ -133,7 +133,7 @@ function ProtectedRoutes() {
                 <Route path="/business-units" component={BusinessUnitsPage} />
                 <Route path="/asset-lease" component={AssetLeasePage} />
                 <Route path="/equestrian/overview" component={EquestrianPage} />
-                <Route path="/equestrian/stable-services" component={EquestrianPage} />
+                <Route path="/equestrian/equinem" component={EquestrianPage} />
                 <Route path="/equestrian/quick-stats" component={EquestrianPage} />
                 <Route path="/equestrian">
                   <Redirect to="/equestrian/overview" />
