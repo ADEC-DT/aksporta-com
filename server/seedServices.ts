@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers } from "@shared/schema";
+import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const defaultServices = [
@@ -287,6 +287,181 @@ export async function seedSpacesAndProjects() {
   }
 }
 
+const defaultSectionTemplates = [
+  { name: "Hero Banner", description: "Hero section with gradient background and key stats", sectionType: "hero_banner", icon: "Image", defaultConfig: JSON.stringify({ stats: [{ label: "Total", value: "0" }, { label: "Active", value: "0" }, { label: "Pending", value: "0" }], gradient: "from-primary/10 to-primary/5", showStats: true }) },
+  { name: "Data Table", description: "Tabular data display with sorting/filtering", sectionType: "data_table", icon: "Table" },
+  { name: "Module Cards", description: "Grid of clickable module/service cards", sectionType: "cards_grid", icon: "LayoutGrid" },
+  { name: "Metrics Dashboard", description: "Row of key metrics/KPI cards", sectionType: "metrics_row", icon: "BarChart3" },
+  { name: "Iframe Embed", description: "Embedded external application or Power BI", sectionType: "iframe_embed", icon: "Monitor" },
+  { name: "Activity Feed", description: "Chronological activity/event feed", sectionType: "activity_feed", icon: "Activity" },
+  { name: "Quick Links", description: "Grid of quick action buttons", sectionType: "quick_links", icon: "Link" },
+  { name: "Reports List", description: "List of report links or quick actions", sectionType: "list", icon: "FileText" },
+  { name: "Alerts Panel", description: "Priority-based alerts and notifications", sectionType: "list", icon: "AlertTriangle" },
+  { name: "Categories Grid", description: "Category cards with counts and icons", sectionType: "cards_grid", icon: "Grid" },
+  { name: "Status Monitor", description: "System/service status indicators", sectionType: "cards_grid", icon: "Monitor" },
+  { name: "Tabs Layout", description: "Tabbed content sections", sectionType: "tabs", icon: "Layers" },
+  { name: "Communications Hub", description: "Communication channel cards", sectionType: "cards_grid", icon: "MessageCircle" },
+];
+
+interface ServiceSectionDef {
+  serviceUrl: string;
+  sections: Array<{
+    title: string;
+    subtitle?: string;
+    icon: string;
+    sortOrder: number;
+    isEnabled: boolean;
+    isExpandable: boolean;
+    templateType: string;
+    config?: string;
+  }>;
+}
+
+const defaultServiceSections: ServiceSectionDef[] = [
+  {
+    serviceUrl: "/equestrian",
+    sections: [
+      { title: "Equestrian Overview", icon: "CircleDot", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner", config: JSON.stringify({ gradient: "from-emerald-600 to-teal-600" }) },
+      { title: "Equinem", icon: "Home", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "tabs" },
+    ],
+  },
+  {
+    serviceUrl: "/business-units",
+    sections: [
+      { title: "Business Units Overview", icon: "Building2", sortOrder: 0, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+    ],
+  },
+  {
+    serviceUrl: "/erp",
+    sections: [
+      { title: "Hero Banner", icon: "DollarSign", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner" },
+      { title: "Finance Modules", icon: "DollarSign", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "tabs" },
+      { title: "Other Finance Modules", icon: "CreditCard", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+    ],
+  },
+  {
+    serviceUrl: "/hr",
+    sections: [
+      { title: "HR Overview", icon: "Users", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner" },
+      { title: "HR Modules", icon: "Users", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Recent Activity", icon: "Activity", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "activity_feed" },
+      { title: "Reports & Analytics", icon: "BarChart3", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "list" },
+    ],
+  },
+  {
+    serviceUrl: "/asset-lease",
+    sections: [
+      { title: "Property Overview", icon: "Store", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner" },
+      { title: "Assets & Leases", icon: "Store", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Lease Renewals", icon: "Calendar", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Reports & Analytics", icon: "BarChart3", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "list" },
+    ],
+  },
+  {
+    serviceUrl: "/events",
+    sections: [
+      { title: "Events Overview", icon: "PartyPopper", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner" },
+      { title: "Upcoming Events", icon: "Calendar", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Communication Channels", icon: "MessageCircle", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Message Templates", icon: "FileText", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Campaign Management", icon: "Send", sortOrder: 4, isEnabled: true, isExpandable: true, templateType: "data_table" },
+    ],
+  },
+  {
+    serviceUrl: "/media-marketing",
+    sections: [
+      { title: "External Services", icon: "Globe", sortOrder: 0, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Media Production", icon: "Video", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Brand Assets", icon: "FolderOpen", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Reports & Downloads", icon: "Download", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "list" },
+    ],
+  },
+  {
+    serviceUrl: "/legal",
+    sections: [
+      { title: "Legal Overview", icon: "Scale", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner" },
+      { title: "Document Categories", icon: "FileText", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Recent Documents", icon: "FileText", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Compliance Alerts", icon: "AlertTriangle", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "list" },
+      { title: "Quick Links", icon: "Link", sortOrder: 4, isEnabled: true, isExpandable: true, templateType: "quick_links" },
+    ],
+  },
+  {
+    serviceUrl: "/performance-kpi",
+    sections: [
+      { title: "KPI Categories", icon: "Target", sortOrder: 0, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Key Metrics", icon: "BarChart3", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "metrics_row" },
+      { title: "Performance Alerts", icon: "AlertTriangle", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "list" },
+      { title: "Quick Reports", icon: "FileText", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "quick_links" },
+    ],
+  },
+  {
+    serviceUrl: "/ops-fm",
+    sections: [
+      { title: "Facility Stats", icon: "Building", sortOrder: 0, isEnabled: true, isExpandable: true, templateType: "metrics_row" },
+      { title: "FM Categories", icon: "Wrench", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+      { title: "Active Work Orders", icon: "ClipboardCheck", sortOrder: 2, isEnabled: true, isExpandable: true, templateType: "data_table" },
+      { title: "Utility Monitoring", icon: "Zap", sortOrder: 3, isEnabled: true, isExpandable: true, templateType: "cards_grid" },
+    ],
+  },
+];
+
+export async function seedSectionTemplatesAndPages() {
+  try {
+    const existingTemplates = await db.select().from(sectionTemplates);
+    if (existingTemplates.length === 0) {
+      console.log("Seeding section templates...");
+      for (const template of defaultSectionTemplates) {
+        await db.insert(sectionTemplates).values({
+          name: template.name,
+          description: template.description,
+          sectionType: template.sectionType,
+          icon: template.icon,
+          defaultConfig: template.defaultConfig || null,
+          isEnabled: true,
+        });
+      }
+      console.log(`Seeded ${defaultSectionTemplates.length} section templates`);
+    } else {
+      console.log(`Section templates already exist (${existingTemplates.length} templates)`);
+    }
+
+    const existingPageSections = await db.select().from(pageSections);
+    if (existingPageSections.length === 0) {
+      console.log("Seeding page sections...");
+      const allServices = await db.select().from(externalServices);
+      const allTemplates = await db.select().from(sectionTemplates);
+      let sectionCount = 0;
+
+      for (const def of defaultServiceSections) {
+        const service = allServices.find((s) => s.url === def.serviceUrl);
+        if (!service) continue;
+
+        for (const sec of def.sections) {
+          const template = allTemplates.find((t) => t.sectionType === sec.templateType);
+          await db.insert(pageSections).values({
+            serviceId: service.id,
+            sectionTemplateId: template?.id || null,
+            title: sec.title,
+            subtitle: sec.subtitle || null,
+            icon: sec.icon,
+            sortOrder: sec.sortOrder,
+            isEnabled: sec.isEnabled,
+            isExpandable: sec.isExpandable,
+            config: sec.config || null,
+          });
+          sectionCount++;
+        }
+      }
+      console.log(`Seeded ${sectionCount} page sections`);
+    } else {
+      console.log(`Page sections already exist (${existingPageSections.length} sections)`);
+    }
+  } catch (error) {
+    console.error("Failed to seed section templates and pages:", error);
+  }
+}
+
 export async function seedExternalServices() {
   try {
     const existingServices = await db.select().from(externalServices);
@@ -311,6 +486,8 @@ export async function seedExternalServices() {
     } else {
       console.log(`Icon library already exists (${existingIcons.length} icons)`);
     }
+
+    await seedSectionTemplatesAndPages();
   } catch (error) {
     console.error("Failed to seed external services:", error);
   }

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "923cbbe5-7d53-49db-9ed0-77fa0447860a";
+const SERVICE_URL = "/ops-fm";
 
 const fmCategories = [
   { id: "maintenance", name: "Maintenance Requests", count: 24, icon: Wrench, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
@@ -184,7 +184,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function OpsFMPage() {
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="OPS & Facility Management"
       subtitle="Work orders, maintenance, and facility operations management"
       collaborationSection="ops_fm"

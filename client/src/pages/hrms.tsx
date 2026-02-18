@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "cbaee07b-b446-4980-b1cb-6d434939b23f";
+const SERVICE_URL = "/hr";
 
 const hrModules = [
   {
@@ -220,7 +220,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function HRMSPage() {
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Kayan HRMS"
       subtitle="Human Resources Management System"
       collaborationSection="hrms"

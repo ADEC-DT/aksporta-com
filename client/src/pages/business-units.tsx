@@ -5,7 +5,7 @@ import { Store, CircleDot, Building2, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "3d747f1c-fcb5-4596-8f6e-b8ab2447f645";
+const SERVICE_URL = "/business-units";
 
 const businessUnits = [
   {
@@ -126,7 +126,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function BusinessUnitsPage() {
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Business Units"
       subtitle="Overview of all operational divisions and their performance."
       collaborationSection="business_units"

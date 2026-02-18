@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "19d46791-3c7b-486c-9c48-dc9c390a5bb7";
+const SERVICE_URL = "/asset-lease";
 
 const shopData = [
   { id: 1, name: "Luxury Watches", unit: "G-01", tenant: "TimeZone LLC", status: "Occupied", rent: 15000, leaseEnd: "Dec 2026" },
@@ -211,7 +211,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function AssetLeasePage() {
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Asset and Lease Management"
       subtitle="Boutique Mall - 32 retail units management"
       collaborationSection="asset_lease"

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "59fd1f6c-b113-46cd-8f25-7452e49e8e01";
+const SERVICE_URL = "/performance-kpi";
 
 const kpiCategories = [
   { id: "financial", name: "Financial KPIs", count: 12, icon: DollarSign, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
@@ -162,7 +162,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function PerformanceKPIPage() {
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Performance & KPIs"
       subtitle="Monitor key performance indicators, track targets, and analyze business metrics across all departments."
       collaborationSection="performance_kpi"

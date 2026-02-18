@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "c75badee-4827-4b47-8848-bc9acf94980f";
+const SERVICE_URL = "/legal";
 
 const legalCategories = [
   { id: "contracts", name: "Contracts & Agreements", count: 24, icon: FileCheck, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
@@ -220,7 +220,7 @@ export default function LegalPage() {
 
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Legal & Compliance"
       subtitle="Contracts, compliance monitoring, and legal document management"
       collaborationSection="legal"

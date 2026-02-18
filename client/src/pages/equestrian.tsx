@@ -24,7 +24,7 @@ const sectionRouteMap: Record<string, string> = {
   "/equestrian/equinem": "Equinem",
 };
 
-const SERVICE_ID = "a1318a85-9804-4ca8-99dc-ad47730fb746";
+const SERVICE_URL = "/equestrian";
 
 const stables = [
   { id: 1, name: "Stable A", capacity: 12, occupied: 11, status: "Active" },
@@ -406,7 +406,7 @@ export default function EquestrianPage() {
 
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Equestrian Center"
       subtitle="Complete management of riding school, livery, and veterinary services"
       collaborationSection="equestrian"

@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "c612005a-48cc-474d-a2b7-649420e823ab";
+const SERVICE_URL = "/media-marketing";
 
 const externalServices = [
   {
@@ -245,7 +245,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function MediaMarketingPage() {
   return (
     <ServicePageLayout
-      serviceId={SERVICE_ID}
+      serviceUrl={SERVICE_URL}
       title="Media & Marketing"
       subtitle="Content management, brand assets, and marketing campaigns"
       collaborationSection="media_marketing"

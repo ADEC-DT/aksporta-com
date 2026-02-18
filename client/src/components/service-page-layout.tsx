@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type ReactNode } from "react";
+import { useState, useCallback, useRef, useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ServiceSubSidebar } from "@/components/service-sub-sidebar";
 import { ExpandableSection } from "@/components/expandable-section";
@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { PageSectionWithTemplate } from "@shared/schema";
+import type { ExternalService, PageSectionWithTemplate } from "@shared/schema";
 
 function getIconByName(name: string | null | undefined): LucideIcon | undefined {
   if (!name) return undefined;
@@ -17,7 +17,8 @@ function getIconByName(name: string | null | undefined): LucideIcon | undefined 
 }
 
 interface ServicePageLayoutProps {
-  serviceId: string;
+  serviceId?: string;
+  serviceUrl?: string;
   title: string;
   subtitle?: string;
   collaborationSection?: string;
@@ -33,7 +34,8 @@ interface ServicePageLayoutProps {
 }
 
 export function ServicePageLayout({
-  serviceId,
+  serviceId: propServiceId,
+  serviceUrl,
   title,
   subtitle,
   collaborationSection,
@@ -46,9 +48,24 @@ export function ServicePageLayout({
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  const { data: enabledServices } = useQuery<ExternalService[]>({
+    queryKey: ["/api/services/enabled"],
+    enabled: !propServiceId && !!serviceUrl,
+  });
+
+  const resolvedServiceId = useMemo(() => {
+    if (propServiceId) return propServiceId;
+    if (serviceUrl && enabledServices) {
+      const found = enabledServices.find((s) => s.url === serviceUrl);
+      return found?.id || "";
+    }
+    return "";
+  }, [propServiceId, serviceUrl, enabledServices]);
+
   const { data: sections, isLoading } = useQuery<PageSectionWithTemplate[]>({
-    queryKey: ["/api/services/" + serviceId + "/sections"],
-    enabled: !!serviceId,
+    queryKey: ["/api/services", resolvedServiceId, "sections"],
+    queryFn: () => fetch(`/api/services/${resolvedServiceId}/sections`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!resolvedServiceId,
   });
 
   const allEnabledSections = sections?.filter((s) => s.isEnabled) || [];

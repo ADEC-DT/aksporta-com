@@ -28,7 +28,7 @@ import {
 import { SiWhatsapp } from "react-icons/si";
 import type { PageSectionWithTemplate } from "@shared/schema";
 
-const SERVICE_ID = "f3f7c3d7-4242-45ff-850c-a84e0ec5cb9e";
+const SERVICE_URL = "/events";
 
 const upcomingEvents = [
   { id: 1, name: "Annual Gala Dinner", date: "Feb 14, 2026", type: "Corporate", attendees: 250, status: "Confirmed" },
@@ -499,7 +499,7 @@ export default function EventsPage() {
   return (
     <>
       <ServicePageLayout
-        serviceId={SERVICE_ID}
+        serviceUrl={SERVICE_URL}
         title="Events & Entertainment"
         subtitle="Event planning, communication channels, and campaign management"
         collaborationSection="events"
