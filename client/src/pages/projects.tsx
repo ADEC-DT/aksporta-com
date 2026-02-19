@@ -2573,28 +2573,6 @@ export default function ProjectsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={pgStartDate}
-                  onChange={(e) => setPgStartDate(e.target.value)}
-                  className="mt-1"
-                  data-testid="input-pg-start-date"
-                />
-              </div>
-              <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={pgEndDate}
-                  onChange={(e) => setPgEndDate(e.target.value)}
-                  className="mt-1"
-                  data-testid="input-pg-end-date"
-                />
-              </div>
-            </div>
             <div>
               <Label>Color</Label>
               <div className="flex flex-wrap gap-2 mt-2">
