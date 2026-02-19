@@ -99,7 +99,7 @@ export default function ProjectGroupPage() {
   const [taskAssigneeId, setTaskAssigneeId] = useState("");
 
   const { data: currentUser } = useQuery<ManagedUser>({
-    queryKey: ["/api/auth/me"],
+    queryKey: ["/api/auth/user"],
   });
 
   const { data: hierarchyData = [], isLoading } = useQuery<SpaceWithHierarchy[]>({
