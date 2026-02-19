@@ -206,6 +206,25 @@ export default function Dashboard() {
             </div>
 
             <ExpandableSection
+              title="Power BI Dashboard 2"
+              icon={BarChart3}
+              maxHeight="600px"
+            >
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <iframe
+                    title="Power BI Report 2"
+                    src="https://app.powerbi.com/reportEmbed?reportId=e33349d0-6d3e-490f-b375-85e1525cfc64&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3"
+                    className="w-full border-0"
+                    style={{ height: "600px" }}
+                    allowFullScreen
+                    data-testid="powerbi-embed-2"
+                  />
+                </CardContent>
+              </Card>
+            </ExpandableSection>
+
+            <ExpandableSection
               title="Power BI Dashboard"
               icon={BarChart3}
               maxHeight="600px"
