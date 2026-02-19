@@ -1,6 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
 import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
 import { z } from "zod";
@@ -2253,6 +2255,30 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting icon:", error);
       res.status(500).json({ message: "Failed to delete icon" });
+    }
+  });
+
+  app.post("/api/admin/cleanup-all-data", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await db.execute(sql`DELETE FROM project_assignments`);
+      await db.execute(sql`DELETE FROM project_comments`);
+      await db.execute(sql`DELETE FROM project_tags`);
+      await db.execute(sql`DELETE FROM projects`);
+      await db.execute(sql`DELETE FROM project_groups`);
+      await db.execute(sql`DELETE FROM sprints`);
+      await db.execute(sql`DELETE FROM ticket_comments`);
+      await db.execute(sql`DELETE FROM tickets`);
+      await db.execute(sql`DELETE FROM customer_profiles`);
+      await db.execute(sql`DELETE FROM customers`);
+      await db.execute(sql`DELETE FROM collaboration_blueprints`);
+      await db.execute(sql`DELETE FROM audit_logs`);
+      await db.execute(sql`DELETE FROM faq_entries`);
+      await db.execute(sql`DELETE FROM user_manuals`);
+      await db.execute(sql`DELETE FROM managed_users`);
+      res.json({ success: true, message: "All data cleaned up" });
+    } catch (error) {
+      console.error("Error cleaning up data:", error);
+      res.status(500).json({ message: "Failed to clean up data" });
     }
   });
 
