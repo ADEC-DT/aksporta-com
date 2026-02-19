@@ -478,11 +478,17 @@ export default function ProjectsPage() {
     queryKey: ["/api/users/list"],
   });
 
-  // Projects query
   const { data: projectsData = [], isLoading: projectsLoading } = useQuery<ProjectWithAssignments[]>({
-    queryKey: ["/api/projects", viewFilter],
+    queryKey: ["/api/projects", viewFilter, activeView],
     queryFn: async () => {
-      const url = viewFilter === "mine" ? "/api/projects?mine=true" : "/api/projects";
+      const params = new URLSearchParams();
+      if (viewFilter === "mine") params.set("mine", "true");
+      if (activeView === "tuesday") {
+        params.set("standalone", "true");
+      } else if (activeView === "monday") {
+        params.set("standalone", "false");
+      }
+      const url = `/api/projects${params.toString() ? `?${params}` : ""}`;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch projects");
       return res.json();
@@ -1078,18 +1084,106 @@ export default function ProjectsPage() {
                   </Button>
                 </div>
               )}
-              {activeView !== "tuesday" && (
-                <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
+              {activeView === "monday" && (
+                <>
+                  <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Space
+                  </Button>
+                  <Button onClick={() => { setEditingProjectGroup(null); setPgName(""); setPgDescription(""); setPgSpaceId(""); setPgColor("#6366f1"); setPgStatus("active"); setPgStartDate(""); setPgEndDate(""); setProjectGroupDialogOpen(true); }} data-testid="button-new-project-group">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Project
+                  </Button>
+                </>
+              )}
+              {activeView === "tuesday" && (
+                <Button onClick={() => { setEditingProject(null); projectForm.reset({ name: "", description: "", projectGroupId: null, status: "not_started", priority: "medium", tags: [], sprintId: null, startDate: "", deadline: "", blocked: false, blockedBy: "", blockedReason: "" }); setProjectDialogOpen(true); }} data-testid="button-new-standalone-task">
                   <Plus className="h-4 w-4 mr-2" />
-                  New Space
+                  New Task
                 </Button>
               )}
-              <Button onClick={() => { setEditingProjectGroup(null); setPgName(""); setPgDescription(""); setPgSpaceId(""); setPgColor("#6366f1"); setPgStatus("active"); setPgStartDate(""); setPgEndDate(""); setProjectGroupDialogOpen(true); }} data-testid="button-new-project-group">
-                <Plus className="h-4 w-4 mr-2" />
-                New Project
-              </Button>
             </div>
-            {(activeView === "monday" || tuesdayDisplayMode === "table") ? (hierarchyLoading ? (
+            {activeView === "tuesday" && tuesdayDisplayMode === "table" ? (
+              projectsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-muted-foreground">Loading tasks...</p>
+                </div>
+              ) : filteredProjects.length === 0 ? (
+                <div className="p-12 text-center border rounded-md">
+                  <LayoutGrid className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No tasks yet</h3>
+                  <p className="text-muted-foreground mb-4">Create your first standalone task.</p>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-[1fr_120px_120px_100px_150px_80px] gap-2 px-4 py-3 text-xs font-medium text-muted-foreground border-b">
+                      <span>Task Name</span>
+                      <span>Assignee</span>
+                      <span>Status</span>
+                      <span>Priority</span>
+                      <span>Deadline</span>
+                      <span></span>
+                    </div>
+                    {filteredProjects.map((task) => {
+                      const timeline = task.deadline 
+                        ? (() => {
+                            const today = new Date();
+                            const deadlineDate = new Date(task.deadline);
+                            const daysLeft = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                            if (daysLeft < 0) return { text: `${Math.abs(daysLeft)} days overdue`, color: "text-red-600" };
+                            if (daysLeft <= 7) return { text: `${daysLeft} days left`, color: "text-orange-600" };
+                            return { text: `${daysLeft} days left`, color: "text-muted-foreground" };
+                          })()
+                        : { text: "-", color: "text-muted-foreground" };
+                      return (
+                        <div
+                          key={task.id}
+                          className="grid grid-cols-[1fr_120px_120px_100px_150px_80px] gap-2 px-4 py-2.5 items-center border-b last:border-b-0 hover-elevate group cursor-pointer"
+                          onClick={() => openProjectDetail(task)}
+                          data-testid={`tuesday-task-row-${task.id}`}
+                        >
+                          <span className="font-medium text-sm truncate">{task.name}</span>
+                          <div className="flex -space-x-2">
+                            {(task.assignments || []).slice(0, 3).map((a: any) => (
+                              <Avatar key={a.id} className="h-6 w-6 border-2 border-background">
+                                <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
+                                  {a.user?.firstName && a.user?.lastName
+                                    ? `${a.user.firstName[0]}${a.user.lastName[0]}`.toUpperCase()
+                                    : a.user?.username?.substring(0, 2).toUpperCase() || "??"}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
+                            {(task.assignments || []).length === 0 && (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </div>
+                          <Badge className={`${statusConfig[task.status as ProjectStatus]?.bgColor} border-0 text-xs`}>
+                            {statusConfig[task.status as ProjectStatus]?.label}
+                          </Badge>
+                          <Badge className={`${priorityColors[task.priority as ProjectPriority]} border-0 text-xs capitalize`}>
+                            {task.priority}
+                          </Badge>
+                          <span className={`text-xs ${timeline.color}`}>
+                            {task.deadline ? format(new Date(task.deadline), "MMM d, yyyy") : "-"}
+                          </span>
+                          <div className="invisible group-hover:visible flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => { setEditingProject(task); projectForm.reset({ name: task.name, description: task.description || "", projectGroupId: null, status: task.status as any, priority: task.priority as any, tags: task.tags || [], sprintId: task.sprintId || null, startDate: task.startDate || "", deadline: task.deadline || "", blocked: task.blocked || false, blockedBy: task.blockedBy || "", blockedReason: task.blockedReason || "" }); setProjectDialogOpen(true); }}
+                              data-testid={`button-edit-tuesday-task-${task.id}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              )
+            ) : activeView === "monday" ? (hierarchyLoading ? (
               <div className="flex items-center justify-center py-12">
                 <p className="text-muted-foreground">Loading projects...</p>
               </div>
@@ -1741,36 +1835,38 @@ export default function ProjectsPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={projectForm.control}
-                name="projectGroupId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Group</FormLabel>
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-project-group">
-                          <SelectValue placeholder="Select project group" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Unassigned</SelectItem>
-                        {spacesHierarchy.map((space) => (
-                          space.projectGroups.map((pg) => (
-                            <SelectItem key={pg.id} value={pg.id}>
-                              {space.name} / {pg.name}
-                            </SelectItem>
-                          ))
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {activeView !== "tuesday" && (
+                <FormField
+                  control={projectForm.control}
+                  name="projectGroupId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Group</FormLabel>
+                      <Select
+                        value={field.value || "none"}
+                        onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-project-group">
+                            <SelectValue placeholder="Select project group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Unassigned</SelectItem>
+                          {spacesHierarchy.map((space) => (
+                            space.projectGroups.map((pg) => (
+                              <SelectItem key={pg.id} value={pg.id}>
+                                {space.name} / {pg.name}
+                              </SelectItem>
+                            ))
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <div className="flex items-center gap-4">
                 <FormField
                   control={projectForm.control}

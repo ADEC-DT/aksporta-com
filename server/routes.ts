@@ -1799,7 +1799,7 @@ export async function registerRoutes(
   // Get all projects
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {
-      const { status, mine } = req.query;
+      const { status, mine, standalone } = req.query;
       const managedUser = (req as any).managedUser as ManagedUser;
       
       let projectList;
@@ -1809,6 +1809,12 @@ export async function registerRoutes(
         projectList = await storage.getAllProjects({ 
           status: status as string | undefined 
         });
+      }
+      
+      if (standalone === "true") {
+        projectList = projectList.filter(p => !p.projectGroupId);
+      } else if (standalone === "false") {
+        projectList = projectList.filter(p => !!p.projectGroupId);
       }
       
       // Fetch assignments with user data for each project
