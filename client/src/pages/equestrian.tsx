@@ -39,46 +39,21 @@ const sectionRouteMap: Record<string, string> = {
 
 const SERVICE_URL = "/equestrian";
 
-const stables = [
-  { id: 1, name: "Stable A", capacity: 12, occupied: 11, status: "Active" },
-  { id: 2, name: "Stable B", capacity: 12, occupied: 10, status: "Active" },
-  { id: 3, name: "Stable C", capacity: 12, occupied: 12, status: "Full" },
-  { id: 4, name: "Stable D", capacity: 14, occupied: 9, status: "Active" },
-];
+const stables: { id: number; name: string; capacity: number; occupied: number; status: string }[] = [];
 
-const ridingClasses = [
-  { id: 1, name: "Beginner Dressage", instructor: "Sarah Ahmed", students: 8, time: "9:00 AM" },
-  { id: 2, name: "Advanced Jumping", instructor: "John Smith", students: 5, time: "11:00 AM" },
-  { id: 3, name: "Children's Riding", instructor: "Maria Garcia", students: 10, time: "2:00 PM" },
-  { id: 4, name: "Evening Trail Ride", instructor: "Ahmed Hassan", students: 6, time: "5:00 PM" },
-];
+const ridingClasses: { id: number; name: string; instructor: string; students: number; time: string }[] = [];
 
-const therapySchedule = [
-  { id: 1, patient: "Child A", therapy: "Hippotherapy", horse: "Luna", time: "10:00 AM" },
-  { id: 2, patient: "Child B", therapy: "Therapeutic Riding", horse: "Storm", time: "11:30 AM" },
-  { id: 3, patient: "Adult C", therapy: "Equine-Assisted Therapy", horse: "Bella", time: "2:00 PM" },
-];
+const therapySchedule: { id: number; patient: string; therapy: string; horse: string; time: string }[] = [];
 
-const stableAssets = [
-  { id: 1, name: "Saddle - Dressage Pro", category: "Tack", location: "Tack Room A", condition: "Good", lastInspection: "Jan 15, 2026", value: 2500 },
-  { id: 2, name: "Saddle - Jumping Elite", category: "Tack", location: "Tack Room A", condition: "Excellent", lastInspection: "Feb 1, 2026", value: 3200 },
-  { id: 3, name: "Horse Walker (6-bay)", category: "Equipment", location: "Paddock Area", condition: "Fair", lastInspection: "Dec 20, 2025", value: 45000 },
-  { id: 4, name: "Arena Groomer", category: "Equipment", location: "Main Arena", condition: "Good", lastInspection: "Jan 28, 2026", value: 18000 },
-  { id: 5, name: "Farrier Tool Set #1", category: "Tools", location: "Workshop", condition: "Good", lastInspection: "Feb 5, 2026", value: 1200 },
-  { id: 6, name: "Veterinary Exam Table", category: "Medical", location: "Vet Clinic", condition: "Excellent", lastInspection: "Jan 10, 2026", value: 8500 },
-  { id: 7, name: "Feed Silo (5-ton)", category: "Storage", location: "Feed Area", condition: "Good", lastInspection: "Nov 30, 2025", value: 12000 },
-  { id: 8, name: "Horse Trailer (4-horse)", category: "Transport", location: "Parking Bay 2", condition: "Fair", lastInspection: "Jan 20, 2026", value: 35000 },
-  { id: 9, name: "Cross-Country Jumps Set", category: "Training", location: "Outdoor Course", condition: "Needs Repair", lastInspection: "Dec 10, 2025", value: 6500 },
-  { id: 10, name: "Stable Wash Bay System", category: "Facility", location: "Wash Area", condition: "Good", lastInspection: "Feb 8, 2026", value: 15000 },
-];
+const stableAssets: { id: number; name: string; category: string; location: string; condition: string; lastInspection: string; value: number }[] = [];
 
 const assetCategories = [
-  { name: "Tack", count: 48, icon: CircleDot, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
-  { name: "Equipment", count: 22, icon: Wrench, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" },
-  { name: "Medical", count: 15, icon: Stethoscope, color: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400" },
-  { name: "Transport", count: 6, icon: Package, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
-  { name: "Training", count: 34, icon: GraduationCap, color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" },
-  { name: "Facility", count: 18, icon: Warehouse, color: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400" },
+  { name: "Tack", count: 0, icon: CircleDot, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
+  { name: "Equipment", count: 0, icon: Wrench, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  { name: "Medical", count: 0, icon: Stethoscope, color: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400" },
+  { name: "Transport", count: 0, icon: Package, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
+  { name: "Training", count: 0, icon: GraduationCap, color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" },
+  { name: "Facility", count: 0, icon: Warehouse, color: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400" },
 ];
 
 function getConditionBadge(condition: string) {
@@ -107,18 +82,7 @@ interface GanttTask {
   progress: number;
 }
 
-const ganttTasks: GanttTask[] = [
-  { id: "1", name: "Saddle inspection - Block A", assignee: "Sarah A.", status: "done", startDay: 0, duration: 3, color: "bg-green-500", progress: 100 },
-  { id: "2", name: "Arena groomer maintenance", assignee: "John S.", status: "in_progress", startDay: 2, duration: 5, color: "bg-blue-500", progress: 60 },
-  { id: "3", name: "Horse walker repair", assignee: "Ahmed H.", status: "overdue", startDay: 1, duration: 4, color: "bg-red-500", progress: 30 },
-  { id: "4", name: "Feed silo cleaning", assignee: "Maria G.", status: "not_started", startDay: 6, duration: 2, color: "bg-slate-400", progress: 0 },
-  { id: "5", name: "Cross-country jumps rebuild", assignee: "John S.", status: "in_progress", startDay: 3, duration: 7, color: "bg-blue-500", progress: 40 },
-  { id: "6", name: "Trailer annual inspection", assignee: "Ahmed H.", status: "not_started", startDay: 8, duration: 3, color: "bg-slate-400", progress: 0 },
-  { id: "7", name: "Tack room reorganization", assignee: "Sarah A.", status: "in_progress", startDay: 5, duration: 4, color: "bg-blue-500", progress: 50 },
-  { id: "8", name: "Wash bay pump replacement", assignee: "Maria G.", status: "done", startDay: 0, duration: 2, color: "bg-green-500", progress: 100 },
-  { id: "9", name: "Stable gate hinge repair", assignee: "Ahmed H.", status: "in_progress", startDay: 4, duration: 3, color: "bg-blue-500", progress: 75 },
-  { id: "10", name: "Vet clinic equipment check", assignee: "Sarah A.", status: "not_started", startDay: 10, duration: 2, color: "bg-slate-400", progress: 0 },
-];
+const ganttTasks: GanttTask[] = [];
 
 function getStatusBadge(status: GanttTask["status"]) {
   switch (status) {
@@ -267,19 +231,19 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
               <div className="grid gap-6 md:grid-cols-4">
                 <div>
                   <p className="text-emerald-100 text-sm">Total Horses</p>
-                  <p className="text-3xl font-bold">42</p>
+                  <p className="text-3xl font-bold">0</p>
                 </div>
                 <div>
                   <p className="text-emerald-100 text-sm">Stables Occupied</p>
-                  <p className="text-3xl font-bold">42/50</p>
+                  <p className="text-3xl font-bold">0/0</p>
                 </div>
                 <div>
                   <p className="text-emerald-100 text-sm">Monthly Revenue</p>
-                  <p className="text-3xl font-bold">$450K</p>
+                  <p className="text-3xl font-bold">$0</p>
                 </div>
                 <div>
                   <p className="text-emerald-100 text-sm">Active Members</p>
-                  <p className="text-3xl font-bold">186</p>
+                  <p className="text-3xl font-bold">0</p>
                 </div>
               </div>
             </CardContent>
@@ -486,7 +450,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                       <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold" data-testid="stat-active-members">186</p>
+                      <p className="text-2xl font-bold" data-testid="stat-active-members">0</p>
                       <p className="text-sm text-muted-foreground">Active Members</p>
                     </div>
                   </div>
@@ -499,7 +463,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                       <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold" data-testid="stat-monthly-revenue">$450K</p>
+                      <p className="text-2xl font-bold" data-testid="stat-monthly-revenue">$0</p>
                       <p className="text-sm text-muted-foreground">Monthly Revenue</p>
                     </div>
                   </div>
@@ -512,7 +476,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                       <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold" data-testid="stat-lessons-this-month">124</p>
+                      <p className="text-2xl font-bold" data-testid="stat-lessons-this-month">0</p>
                       <p className="text-sm text-muted-foreground">Lessons This Month</p>
                     </div>
                   </div>
@@ -525,7 +489,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                       <Heart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold" data-testid="stat-therapy-sessions">38</p>
+                      <p className="text-2xl font-bold" data-testid="stat-therapy-sessions">0</p>
                       <p className="text-sm text-muted-foreground">Therapy Sessions</p>
                     </div>
                   </div>
@@ -609,7 +573,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
               <div className="grid gap-6 md:grid-cols-4">
                 <div>
                   <p className="text-slate-300 text-sm">Total Assets</p>
-                  <p className="text-3xl font-bold" data-testid="stat-total-assets">143</p>
+                  <p className="text-3xl font-bold" data-testid="stat-total-assets">0</p>
                 </div>
                 <div>
                   <p className="text-slate-300 text-sm">Total Value</p>
@@ -724,44 +688,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                 <CardTitle className="text-lg">Upcoming Inspections</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
-                        <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Horse Walker (6-bay)</p>
-                        <p className="text-xs text-muted-foreground">Overdue - Last: Dec 20, 2025</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">Overdue</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
-                        <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Arena Groomer</p>
-                        <p className="text-xs text-muted-foreground">Due: Mar 1, 2026</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">Upcoming</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
-                        <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Horse Trailer (4-horse)</p>
-                        <p className="text-xs text-muted-foreground">Due: Mar 15, 2026</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">Upcoming</Badge>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground text-center py-4">No upcoming inspections</p>
               </CardContent>
             </Card>
             <Card>
@@ -769,32 +696,7 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                 <CardTitle className="text-lg">Repair Requests</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-100 dark:bg-red-900/30">
-                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Cross-Country Jumps Set</p>
-                        <p className="text-xs text-muted-foreground">Weather damage - 3 jumps need replacement</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">High</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
-                        <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Stable Gate - Block C</p>
-                        <p className="text-xs text-muted-foreground">Hinge replacement needed</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">Medium</Badge>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground text-center py-4">No repair requests</p>
               </CardContent>
             </Card>
           </div>
