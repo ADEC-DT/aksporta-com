@@ -230,14 +230,24 @@ function ProjectGanttView({
 
     const rangeMs = endDate.getTime() - startDate.getTime();
     const leftMs = effectiveStart.getTime() - startDate.getTime();
-    const widthMs = effectiveEnd.getTime() - effectiveStart.getTime();
+    const rightMs = effectiveEnd.getTime() - startDate.getTime();
 
-    const left = Math.max(0, (leftMs / rangeMs) * 100);
-    const width = Math.min(100 - left, Math.max(2, (widthMs / rangeMs) * 100));
+    const leftPct = (leftMs / rangeMs) * 100;
+    const rightPct = (rightMs / rangeMs) * 100;
 
-    if (left >= 100 || left + width <= 0) return null;
+    const clampedLeft = Math.max(0, leftPct);
+    const clampedRight = Math.min(100, rightPct);
+    const width = clampedRight - clampedLeft;
 
-    return { left, width };
+    if (width <= 0) return null;
+
+    const clippedLeft = leftPct < 0;
+    const clippedRight = rightPct > 100;
+
+    const startLabel = effectiveStart.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const endLabel = effectiveEndRaw.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    return { left: clampedLeft, width: Math.max(2, width), clippedLeft, clippedRight, startLabel, endLabel };
   };
 
   const getProgressPercent = (status: string) => {
@@ -396,16 +406,16 @@ function ProjectGanttView({
                       )}
                       {bar ? (
                         <div
-                          className="absolute top-1/2 -translate-y-1/2 h-6 rounded-md overflow-hidden"
+                          className={`absolute top-1/2 -translate-y-1/2 h-6 overflow-hidden ${bar.clippedLeft ? "rounded-r-md" : bar.clippedRight ? "rounded-l-md" : "rounded-md"}`}
                           style={{ left: `${bar.left}%`, width: `${bar.width}%` }}
                         >
-                          <div className={`h-full w-full ${barColor} rounded-md opacity-20`} />
+                          <div className={`h-full w-full ${barColor} opacity-20`} />
                           <div
-                            className={`absolute left-0 top-0 h-full ${barColor} rounded-md transition-all`}
+                            className={`absolute left-0 top-0 h-full ${barColor} transition-all`}
                             style={{ width: `${progress}%` }}
                           />
-                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium z-10 mix-blend-normal">
-                            {progress > 0 ? `${progress}%` : ""}
+                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium z-10 mix-blend-normal whitespace-nowrap px-1">
+                            {bar.startLabel} — {bar.endLabel}
                           </span>
                         </div>
                       ) : (
