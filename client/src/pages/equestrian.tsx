@@ -281,15 +281,15 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                 <CardContent>
                   <div className="grid gap-4 md:grid-cols-3 mb-6">
                     <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl font-bold">32</p>
+                      <p className="text-2xl font-bold">0</p>
                       <p className="text-sm text-muted-foreground">Full Livery</p>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl font-bold">8</p>
+                      <p className="text-2xl font-bold">0</p>
                       <p className="text-sm text-muted-foreground">Part Livery</p>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl font-bold">2</p>
+                      <p className="text-2xl font-bold">0</p>
                       <p className="text-sm text-muted-foreground">DIY Livery</p>
                     </div>
                   </div>
@@ -406,15 +406,15 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                 <CardContent>
                   <div className="grid gap-4 md:grid-cols-3 mb-6">
                     <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl font-bold text-green-600">38</p>
+                      <p className="text-2xl font-bold text-green-600">0</p>
                       <p className="text-sm text-muted-foreground">Healthy Horses</p>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl font-bold text-yellow-600">3</p>
+                      <p className="text-2xl font-bold text-yellow-600">0</p>
                       <p className="text-sm text-muted-foreground">Under Treatment</p>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl font-bold text-blue-600">1</p>
+                      <p className="text-2xl font-bold text-blue-600">0</p>
                       <p className="text-sm text-muted-foreground">Scheduled Checkups</p>
                     </div>
                   </div>
@@ -501,11 +501,11 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                 <CardContent className="p-4">
                   <h4 className="text-sm font-medium mb-3">Occupancy Rate</h4>
                   <div className="flex items-end gap-2">
-                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-occupancy">84%</p>
-                    <p className="text-sm text-muted-foreground mb-1">42/50 stalls</p>
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-occupancy">0%</p>
+                    <p className="text-sm text-muted-foreground mb-1">0/0 stalls</p>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: "84%" }} />
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: "0%" }} />
                   </div>
                 </CardContent>
               </Card>
@@ -515,15 +515,15 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Healthy</span>
-                      <Badge variant="outline" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" data-testid="stat-healthy">38</Badge>
+                      <Badge variant="outline" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" data-testid="stat-healthy">0</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Under Treatment</span>
-                      <Badge variant="outline" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0" data-testid="stat-treatment">3</Badge>
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0" data-testid="stat-treatment">0</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Checkups Due</span>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0" data-testid="stat-checkups">1</Badge>
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0" data-testid="stat-checkups">0</Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -534,15 +534,15 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Riding Classes</span>
-                      <span className="text-sm font-medium" data-testid="stat-classes-today">4</span>
+                      <span className="text-sm font-medium" data-testid="stat-classes-today">0</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Therapy Sessions</span>
-                      <span className="text-sm font-medium" data-testid="stat-therapy-today">3</span>
+                      <span className="text-sm font-medium" data-testid="stat-therapy-today">0</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Vet Appointments</span>
-                      <span className="text-sm font-medium" data-testid="stat-vet-today">1</span>
+                      <span className="text-sm font-medium" data-testid="stat-vet-today">0</span>
                     </div>
                   </div>
                 </CardContent>
