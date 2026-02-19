@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRoute, useLocation, Link } from "wouter";
+import { useRoute, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,16 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   ArrowLeft,
   Plus,
   Clock,
@@ -44,15 +34,7 @@ import {
   FolderOpen,
   Pencil,
   Trash2,
-  MoreVertical,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -83,13 +65,8 @@ export default function ProjectGroupPage() {
   const groupId = params?.groupId;
   const { toast } = useToast();
 
-  const [, setLocation] = useLocation();
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ProjectWithAssignments | null>(null);
-  const [editProjectDialogOpen, setEditProjectDialogOpen] = useState(false);
-  const [editProjectName, setEditProjectName] = useState("");
-  const [editProjectStatus, setEditProjectStatus] = useState("active");
-  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
   const [taskName, setTaskName] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [taskStatus, setTaskStatus] = useState<ProjectStatus>("not_started");
@@ -99,7 +76,7 @@ export default function ProjectGroupPage() {
   const [taskAssigneeId, setTaskAssigneeId] = useState("");
 
   const { data: currentUser } = useQuery<ManagedUser>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/api/auth/me"],
   });
 
   const { data: hierarchyData = [], isLoading } = useQuery<SpaceWithHierarchy[]>({
@@ -175,37 +152,6 @@ export default function ProjectGroupPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
     },
   });
-
-  const updateProjectGroupMutation = useMutation({
-    mutationFn: (data: { name: string; status: string }) =>
-      apiRequest("PATCH", `/api/project-groups/${groupId}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/project-groups"] });
-      setEditProjectDialogOpen(false);
-      toast({ title: "Project updated successfully" });
-    },
-    onError: () => toast({ title: "Failed to update project", variant: "destructive" }),
-  });
-
-  const deleteProjectGroupMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/project-groups/${groupId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/project-groups"] });
-      toast({ title: "Project deleted successfully" });
-      setLocation("/projects/monday");
-    },
-    onError: () => toast({ title: "Failed to delete project", variant: "destructive" }),
-  });
-
-  const openEditProjectDialog = () => {
-    if (projectGroup) {
-      setEditProjectName(projectGroup.name);
-      setEditProjectStatus(projectGroup.status || "active");
-      setEditProjectDialogOpen(true);
-    }
-  };
 
   const closeTaskDialog = () => {
     setTaskDialogOpen(false);
@@ -342,36 +288,10 @@ export default function ProjectGroupPage() {
             {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
-          {currentUser?.role === "admin" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" data-testid="button-project-menu">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={openEditProjectDialog} data-testid="menu-edit-project">
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Project
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setDeleteProjectDialogOpen(true)}
-                  data-testid="menu-delete-project"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Project
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <Button onClick={openNewTask} data-testid="button-new-task">
-            <Plus className="mr-2 h-4 w-4" />
-            New Task
-          </Button>
-        </div>
+        <Button onClick={openNewTask} data-testid="button-new-task">
+          <Plus className="mr-2 h-4 w-4" />
+          New Task
+        </Button>
       </div>
 
       <div className="flex-1 overflow-auto p-4">
@@ -613,75 +533,6 @@ export default function ProjectGroupPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={editProjectDialogOpen} onOpenChange={setEditProjectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-outfit">Edit Project</DialogTitle>
-            <DialogDescription>Rename or update project details.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Project Name</Label>
-              <Input
-                placeholder="Enter project name"
-                value={editProjectName}
-                onChange={(e) => setEditProjectName(e.target.value)}
-                className="mt-1"
-                data-testid="input-project-name"
-              />
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={editProjectStatus} onValueChange={setEditProjectStatus}>
-                <SelectTrigger className="mt-1" data-testid="select-project-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditProjectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => updateProjectGroupMutation.mutate({ name: editProjectName.trim(), status: editProjectStatus })}
-              disabled={!editProjectName.trim() || updateProjectGroupMutation.isPending}
-              data-testid="button-save-project"
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={deleteProjectDialogOpen} onOpenChange={setDeleteProjectDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{projectGroup?.name}"? This will also delete all tasks inside this project. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground"
-              onClick={() => deleteProjectGroupMutation.mutate()}
-              disabled={deleteProjectGroupMutation.isPending}
-              data-testid="button-confirm-delete"
-            >
-              Delete Project
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
