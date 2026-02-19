@@ -719,6 +719,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProjectGroup(id: string): Promise<boolean> {
+    const tasksInGroup = await db.select({ id: projects.id }).from(projects).where(eq(projects.projectGroupId, id));
+    for (const task of tasksInGroup) {
+      await db.delete(projectAssignments).where(eq(projectAssignments.projectId, task.id));
+      await db.delete(projectComments).where(eq(projectComments.projectId, task.id));
+    }
+    await db.delete(projects).where(eq(projects.projectGroupId, id));
     const result = await db.delete(projectGroups).where(eq(projectGroups.id, id)).returning();
     return result.length > 0;
   }
