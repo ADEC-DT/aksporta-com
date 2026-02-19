@@ -343,28 +343,30 @@ export default function ProjectGroupPage() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" data-testid="button-project-menu">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={openEditProjectDialog} data-testid="menu-edit-project">
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit Project
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => setDeleteProjectDialogOpen(true)}
-                data-testid="menu-delete-project"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Project
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {currentUser?.role === "admin" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" data-testid="button-project-menu">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEditProjectDialog} data-testid="menu-edit-project">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Project
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => setDeleteProjectDialogOpen(true)}
+                  data-testid="menu-delete-project"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Project
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button onClick={openNewTask} data-testid="button-new-task">
             <Plus className="mr-2 h-4 w-4" />
             New Task
