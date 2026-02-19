@@ -1943,34 +1943,6 @@ export default function ProjectsPage() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={projectForm.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} data-testid="input-project-start-date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={projectForm.control}
-                  name="deadline"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Deadline</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} data-testid="input-project-deadline" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setProjectDialogOpen(false)}>
                   Cancel
