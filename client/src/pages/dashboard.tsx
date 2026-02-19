@@ -214,7 +214,7 @@ export default function Dashboard() {
                 <CardContent className="p-0">
                   <iframe
                     title="Power BI Report"
-                    src="https://app.powerbi.com/Redirect?action=OpenApp&appId=fcee7e5c-5747-4076-ae52-06342581e3ef&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3&experience=power-bi&referrer=embed.appsource"
+                    src="https://app.powerbi.com/reportEmbed?reportId=b37a6c8c-cbe6-4635-84e2-1d26d0af47c7&appId=fcee7e5c-5747-4076-ae52-06342581e3ef&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3"
                     className="w-full border-0"
                     style={{ height: "600px" }}
                     allowFullScreen
