@@ -219,7 +219,9 @@ function ProjectGanttView({
     if (!tStart && !tEnd) return null;
 
     const effectiveStart = tStart || tEnd!;
-    const effectiveEnd = tEnd || new Date(effectiveStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const effectiveEndRaw = tEnd || new Date(effectiveStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const effectiveEnd = new Date(effectiveEndRaw);
+    effectiveEnd.setHours(23, 59, 59, 999);
 
     const rangeMs = endDate.getTime() - startDate.getTime();
     const leftMs = effectiveStart.getTime() - startDate.getTime();
