@@ -212,9 +212,14 @@ function ProjectGanttView({
     return d;
   }, [startDate]);
 
+  const parseLocalDate = (dateStr: string) => {
+    const parts = dateStr.split(/[-T]/);
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  };
+
   const getBarPosition = (taskStartDate: string | null, taskDeadline: string | null) => {
-    const tStart = taskStartDate ? new Date(taskStartDate) : null;
-    const tEnd = taskDeadline ? new Date(taskDeadline) : null;
+    const tStart = taskStartDate ? parseLocalDate(taskStartDate) : null;
+    const tEnd = taskDeadline ? parseLocalDate(taskDeadline) : null;
 
     if (!tStart && !tEnd) return null;
 
@@ -223,7 +228,7 @@ function ProjectGanttView({
 
     const rangeMs = endDate.getTime() - startDate.getTime();
     const leftMs = effectiveStart.getTime() - startDate.getTime();
-    const widthMs = effectiveEnd.getTime() - effectiveStart.getTime();
+    const widthMs = Math.max(effectiveEnd.getTime() - effectiveStart.getTime(), 24 * 60 * 60 * 1000);
 
     const left = Math.max(0, (leftMs / rangeMs) * 100);
     const width = Math.min(100 - left, Math.max(2, (widthMs / rangeMs) * 100));
@@ -260,8 +265,8 @@ function ProjectGanttView({
 
   const sortedProjects = useMemo(() => {
     return [...projects].sort((a, b) => {
-      const aStart = a.startDate ? new Date(a.startDate).getTime() : (a.deadline ? new Date(a.deadline).getTime() : Infinity);
-      const bStart = b.startDate ? new Date(b.startDate).getTime() : (b.deadline ? new Date(b.deadline).getTime() : Infinity);
+      const aStart = a.startDate ? parseLocalDate(a.startDate).getTime() : (a.deadline ? parseLocalDate(a.deadline).getTime() : Infinity);
+      const bStart = b.startDate ? parseLocalDate(b.startDate).getTime() : (b.deadline ? parseLocalDate(b.deadline).getTime() : Infinity);
       return aStart - bStart;
     });
   }, [projects]);
