@@ -154,33 +154,6 @@ app.use((req, res, next) => {
   // Seed external services
   await seedExternalServices();
   
-  // One-time data cleanup for production
-  try {
-    const { db: cleanupDb } = await import("./db");
-    const { sql: cleanupSql } = await import("drizzle-orm");
-    const projectCount = await cleanupDb.execute(cleanupSql`SELECT count(*) as cnt FROM projects`);
-    const count = Number((projectCount as any).rows?.[0]?.cnt || (projectCount as any)[0]?.cnt || 0);
-    if (count > 0) {
-      console.log(`Found ${count} projects, running cleanup...`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM project_assignments`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM project_comments`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM project_tags`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM projects`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM project_groups`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM sprints`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM ticket_comments`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM tickets`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM customer_profiles`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM customers`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM collaboration_blueprints`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM audit_logs`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM faq_entries`);
-      await cleanupDb.execute(cleanupSql`DELETE FROM user_manuals`);
-      console.log("Data cleanup completed");
-    }
-  } catch (e) {
-    console.error("Cleanup error:", e);
-  }
 
   // Seed spaces and sample data
   await seedSpacesAndProjects();
