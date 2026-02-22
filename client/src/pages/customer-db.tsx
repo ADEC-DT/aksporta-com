@@ -267,6 +267,24 @@ export default function CustomerDBPage() {
     });
   };
 
+  const handleDeleteAllDuplicates = () => {
+    const allSecondaryIds: string[] = [];
+    for (let i = 0; i < duplicateGroups.length; i++) {
+      const group = duplicateGroups[i];
+      const primaryId = selectedPrimary[i] || group.records[0]?.id;
+      const secondaryIds = group.records.filter(r => r.id !== primaryId).map(r => r.id);
+      allSecondaryIds.push(...secondaryIds);
+    }
+    if (allSecondaryIds.length === 0) return;
+    bulkDeleteMutation.mutate(allSecondaryIds, {
+      onSuccess: () => {
+        setDuplicateGroups([]);
+        setSelectedPrimary({});
+        setScanDone(false);
+      },
+    });
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -971,6 +989,35 @@ export default function CustomerDBPage() {
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
                 No duplicates found. Your database is clean!
+              </CardContent>
+            </Card>
+          )}
+
+          {duplicateGroups.length > 0 && (
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">
+                      Found {duplicateGroups.length} duplicate {duplicateGroups.length === 1 ? "group" : "groups"} ({duplicateGroups.reduce((sum, g) => sum + g.records.length - 1, 0)} duplicate records)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      The first record in each group will be kept by default. Select a different primary record below if needed.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteAllDuplicates}
+                    disabled={bulkDeleteMutation.isPending}
+                    data-testid="button-delete-all-duplicates"
+                  >
+                    {bulkDeleteMutation.isPending ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>
+                    ) : (
+                      <><Trash2 className="mr-2 h-4 w-4" />Delete All Duplicates</>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
