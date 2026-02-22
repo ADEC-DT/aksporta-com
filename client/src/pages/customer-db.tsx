@@ -67,7 +67,7 @@ export default function CustomerDBPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const [scanCriteria, setScanCriteria] = useState({ email: true, name: false, phone: false });
+  const [scanCriteria, setScanCriteria] = useState({ email: true, name: false, phone: true });
   const [duplicateGroups, setDuplicateGroups] = useState<{ matchType: string; records: Customer[] }[]>([]);
   const [selectedPrimary, setSelectedPrimary] = useState<Record<number, string>>({});
   const [scanDone, setScanDone] = useState(false);
