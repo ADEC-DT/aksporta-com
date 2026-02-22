@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle, ScanSearch, Merge, Trash2 } from "lucide-react";
+import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle, ScanSearch, Merge, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer } from "@shared/schema";
@@ -53,6 +53,8 @@ const businessUnits = [
 
 export default function CustomerDBPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const [activeTab, setActiveTab] = useState<"records" | "cleanup">("records");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
@@ -71,12 +73,13 @@ export default function CustomerDBPage() {
   const [scanDone, setScanDone] = useState(false);
 
   const { data, isLoading } = useQuery<{ customers: Customer[]; total: number }>({
-    queryKey: ["/api/customers", searchQuery],
+    queryKey: ["/api/customers", searchQuery, currentPage],
     queryFn: async () => {
-      const url = searchQuery 
-        ? `/api/customers?search=${encodeURIComponent(searchQuery)}`
-        : "/api/customers";
-      const res = await fetch(url, { credentials: "include" });
+      const params = new URLSearchParams();
+      if (searchQuery) params.set("search", searchQuery);
+      params.set("limit", String(pageSize));
+      params.set("offset", String((currentPage - 1) * pageSize));
+      const res = await fetch(`/api/customers?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch customers");
       return res.json();
     },
@@ -269,6 +272,7 @@ export default function CustomerDBPage() {
 
   const customers = data?.customers || [];
   const totalCustomers = data?.total || 0;
+  const totalPages = Math.ceil(totalCustomers / pageSize);
   const mallCount = customers.filter((c) => c.primaryUnit === "Boutique Mall").length;
   const equestrianCount = customers.filter((c) => c.primaryUnit === "Equestrian Center").length;
   const corporateCount = customers.filter((c) => c.primaryUnit === "Corporate").length;
@@ -357,7 +361,7 @@ export default function CustomerDBPage() {
               placeholder="Search customers..."
               className="w-[280px] pl-9"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               data-testid="input-search-customers"
             />
           </div>
@@ -707,6 +711,56 @@ export default function CustomerDBPage() {
               )}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t pt-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, totalCustomers)} of {totalCustomers}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  data-testid="button-prev-page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-2 text-sm text-muted-foreground">...</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={currentPage === p ? "default" : "outline"}
+                        size="sm"
+                        className="min-w-[36px]"
+                        onClick={() => setCurrentPage(p as number)}
+                        data-testid={`button-page-${p}`}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  data-testid="button-next-page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       </>
