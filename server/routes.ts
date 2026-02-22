@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1606,6 +1606,162 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error importing customers:", error);
       res.status(500).json({ message: "Failed to import customers: " + (error.message || "Unknown error") });
+    }
+  });
+
+  // ==================== Customer Duplicate Detection & Merge Routes ====================
+
+  app.post("/api/customers/duplicates/scan", isAuthenticated, async (req, res) => {
+    try {
+      const { criteria } = req.body;
+      if (!criteria || (!criteria.email && !criteria.name && !criteria.phone)) {
+        return res.status(400).json({ message: "At least one matching criteria is required" });
+      }
+
+      const allData = await storage.getAllCustomers({ limit: 10000, offset: 0 });
+      const allCustomers = allData.customers;
+      const visited = new Set<string>();
+      const groups: { matchType: string; records: typeof allCustomers }[] = [];
+
+      for (let i = 0; i < allCustomers.length; i++) {
+        if (visited.has(allCustomers[i].id)) continue;
+        const group = [allCustomers[i]];
+        visited.add(allCustomers[i].id);
+
+        for (let j = i + 1; j < allCustomers.length; j++) {
+          if (visited.has(allCustomers[j].id)) continue;
+          let matched = false;
+          let matchType = "";
+
+          if (criteria.email && allCustomers[i].email && allCustomers[j].email) {
+            if (allCustomers[i].email.toLowerCase().trim() === allCustomers[j].email.toLowerCase().trim()) {
+              matched = true;
+              matchType = "email";
+            }
+          }
+
+          if (!matched && criteria.name) {
+            const nameA = `${allCustomers[i].firstName} ${allCustomers[i].lastName}`.toLowerCase().trim();
+            const nameB = `${allCustomers[j].firstName} ${allCustomers[j].lastName}`.toLowerCase().trim();
+            if (nameA && nameB && nameA === nameB) {
+              matched = true;
+              matchType = "name";
+            }
+          }
+
+          if (!matched && criteria.phone && allCustomers[i].contact && allCustomers[j].contact) {
+            const phoneA = allCustomers[i].contact.replace(/\D/g, "");
+            const phoneB = allCustomers[j].contact.replace(/\D/g, "");
+            if (phoneA && phoneB && phoneA === phoneB) {
+              matched = true;
+              matchType = "phone";
+            }
+          }
+
+          if (matched) {
+            group.push(allCustomers[j]);
+            visited.add(allCustomers[j].id);
+          }
+        }
+
+        if (group.length > 1) {
+          let matchType = "mixed";
+          if (criteria.email) matchType = "email";
+          else if (criteria.name) matchType = "name";
+          else if (criteria.phone) matchType = "phone";
+          groups.push({ matchType, records: group });
+        }
+      }
+
+      res.json({ groups, totalDuplicates: groups.reduce((sum, g) => sum + g.records.length, 0) });
+    } catch (error: any) {
+      console.error("Error scanning duplicates:", error);
+      res.status(500).json({ message: "Failed to scan for duplicates" });
+    }
+  });
+
+  app.post("/api/customers/merge", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const { primaryId, secondaryIds } = req.body;
+
+      if (!primaryId || !secondaryIds || !Array.isArray(secondaryIds) || secondaryIds.length === 0) {
+        return res.status(400).json({ message: "Primary ID and at least one secondary ID required" });
+      }
+
+      const primary = await storage.getCustomer(primaryId);
+      if (!primary) {
+        return res.status(404).json({ message: "Primary record not found" });
+      }
+
+      const mergedData: Partial<InsertCustomer> = {};
+      for (const secId of secondaryIds) {
+        const secondary = await storage.getCustomer(secId);
+        if (!secondary) continue;
+
+        if (!primary.firstName && secondary.firstName) mergedData.firstName = secondary.firstName;
+        if (!primary.lastName && secondary.lastName) mergedData.lastName = secondary.lastName;
+        if (!primary.contact && secondary.contact) mergedData.contact = secondary.contact;
+        if (!primary.email && secondary.email) mergedData.email = secondary.email;
+        if (!primary.source && secondary.source) mergedData.source = secondary.source;
+
+        await storage.deleteCustomer(secId);
+      }
+
+      if (Object.keys(mergedData).length > 0) {
+        await storage.updateCustomer(primaryId, mergedData);
+      }
+
+      const updated = await storage.getCustomer(primaryId);
+
+      await storage.createAuditLog({
+        action: "customers_merged",
+        category: "customer_db",
+        userId: user.id,
+        userEmail: user.email,
+        details: { primaryId, mergedIds: secondaryIds, fieldsUpdated: Object.keys(mergedData) },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.json({ merged: updated, deletedCount: secondaryIds.length });
+    } catch (error: any) {
+      console.error("Error merging customers:", error);
+      res.status(500).json({ message: "Failed to merge customers: " + (error.message || "Unknown error") });
+    }
+  });
+
+  app.delete("/api/customers/duplicates/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const { ids } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "At least one ID is required" });
+      }
+
+      let deleted = 0;
+      for (const id of ids) {
+        const success = await storage.deleteCustomer(id);
+        if (success) deleted++;
+      }
+
+      await storage.createAuditLog({
+        action: "customers_bulk_deleted",
+        category: "customer_db",
+        userId: user.id,
+        userEmail: user.email,
+        details: { deletedIds: ids, deletedCount: deleted },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.json({ deleted });
+    } catch (error: any) {
+      console.error("Error bulk deleting customers:", error);
+      res.status(500).json({ message: "Failed to delete customers" });
     }
   });
 

@@ -38,7 +38,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle, ScanSearch, Merge, Trash2 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer } from "@shared/schema";
@@ -52,6 +53,7 @@ const businessUnits = [
 
 export default function CustomerDBPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"records" | "cleanup">("records");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
   const [fileColumns, setFileColumns] = useState<string[]>([]);
@@ -62,6 +64,11 @@ export default function CustomerDBPage() {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const [scanCriteria, setScanCriteria] = useState({ email: true, name: false, phone: false });
+  const [duplicateGroups, setDuplicateGroups] = useState<{ matchType: string; records: Customer[] }[]>([]);
+  const [selectedPrimary, setSelectedPrimary] = useState<Record<number, string>>({});
+  const [scanDone, setScanDone] = useState(false);
 
   const { data, isLoading } = useQuery<{ customers: Customer[]; total: number }>({
     queryKey: ["/api/customers", searchQuery],
@@ -130,6 +137,110 @@ export default function CustomerDBPage() {
       toast({ title: "Import failed", description: error.message, variant: "destructive" });
     },
   });
+
+  const scanMutation = useMutation({
+    mutationFn: async (criteria: { email: boolean; name: boolean; phone: boolean }) => {
+      const res = await fetch("/api/customers/duplicates/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ criteria }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Scan failed");
+      }
+      return res.json() as Promise<{ groups: { matchType: string; records: Customer[] }[]; totalDuplicates: number }>;
+    },
+    onSuccess: (data) => {
+      setDuplicateGroups(data.groups);
+      setScanDone(true);
+      const primaries: Record<number, string> = {};
+      data.groups.forEach((g, i) => { primaries[i] = g.records[0].id; });
+      setSelectedPrimary(primaries);
+      if (data.groups.length === 0) {
+        toast({ title: "No duplicates found", description: "Your database looks clean!" });
+      } else {
+        toast({ title: `${data.groups.length} duplicate groups found`, description: `${data.totalDuplicates} total records involved` });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Scan failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const mergeMutation = useMutation({
+    mutationFn: async (payload: { primaryId: string; secondaryIds: string[] }) => {
+      const res = await fetch("/api/customers/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Merge failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"], refetchType: "all" });
+      toast({ title: "Records merged successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Merge failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch("/api/customers/duplicates/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Delete failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"], refetchType: "all" });
+      toast({ title: "Records deleted successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleMergeGroup = (groupIndex: number) => {
+    const group = duplicateGroups[groupIndex];
+    const primaryId = selectedPrimary[groupIndex];
+    const secondaryIds = group.records.filter(r => r.id !== primaryId).map(r => r.id);
+    mergeMutation.mutate({ primaryId, secondaryIds }, {
+      onSuccess: () => {
+        setDuplicateGroups(prev => prev.filter((_, i) => i !== groupIndex));
+        setSelectedPrimary(prev => {
+          const next = { ...prev };
+          delete next[groupIndex];
+          return next;
+        });
+      },
+    });
+  };
+
+  const handleDeleteSecondaries = (groupIndex: number) => {
+    const group = duplicateGroups[groupIndex];
+    const primaryId = selectedPrimary[groupIndex];
+    const secondaryIds = group.records.filter(r => r.id !== primaryId).map(r => r.id);
+    bulkDeleteMutation.mutate(secondaryIds, {
+      onSuccess: () => {
+        setDuplicateGroups(prev => prev.filter((_, i) => i !== groupIndex));
+      },
+    });
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -452,6 +563,26 @@ export default function CustomerDBPage() {
         </div>
       </div>
 
+      <div className="flex gap-1 border-b">
+        <button
+          onClick={() => setActiveTab("records")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "records" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          data-testid="tab-records"
+        >
+          Customer Records
+        </button>
+        <button
+          onClick={() => setActiveTab("cleanup")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === "cleanup" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          data-testid="tab-cleanup"
+        >
+          <ScanSearch className="h-4 w-4" />
+          Data Cleanup
+        </button>
+      </div>
+
+      {activeTab === "records" && (
+      <>
       <div className="grid gap-4 md:grid-cols-4">
         <Card data-testid="stat-total-customers">
           <CardContent className="flex items-center gap-4 p-4">
@@ -578,6 +709,164 @@ export default function CustomerDBPage() {
           </Table>
         </CardContent>
       </Card>
+      </>
+      )}
+
+      {activeTab === "cleanup" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Scan for Duplicates</CardTitle>
+              <p className="text-sm text-muted-foreground">Select criteria to find matching records in the database</p>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="criteria-email"
+                    checked={scanCriteria.email}
+                    onCheckedChange={(v) => setScanCriteria({ ...scanCriteria, email: !!v })}
+                    data-testid="checkbox-criteria-email"
+                  />
+                  <Label htmlFor="criteria-email" className="text-sm cursor-pointer">Email</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="criteria-name"
+                    checked={scanCriteria.name}
+                    onCheckedChange={(v) => setScanCriteria({ ...scanCriteria, name: !!v })}
+                    data-testid="checkbox-criteria-name"
+                  />
+                  <Label htmlFor="criteria-name" className="text-sm cursor-pointer">First + Last Name</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="criteria-phone"
+                    checked={scanCriteria.phone}
+                    onCheckedChange={(v) => setScanCriteria({ ...scanCriteria, phone: !!v })}
+                    data-testid="checkbox-criteria-phone"
+                  />
+                  <Label htmlFor="criteria-phone" className="text-sm cursor-pointer">Phone Number</Label>
+                </div>
+                <Button
+                  onClick={() => scanMutation.mutate(scanCriteria)}
+                  disabled={scanMutation.isPending || (!scanCriteria.email && !scanCriteria.name && !scanCriteria.phone)}
+                  data-testid="button-scan-duplicates"
+                >
+                  {scanMutation.isPending ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Scanning...</>
+                  ) : (
+                    <><ScanSearch className="mr-2 h-4 w-4" />Scan Database</>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {scanDone && duplicateGroups.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                No duplicates found. Your database is clean!
+              </CardContent>
+            </Card>
+          )}
+
+          {duplicateGroups.map((group, groupIndex) => (
+            <Card key={groupIndex} data-testid={`duplicate-group-${groupIndex}`}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium">
+                    Duplicate Group #{groupIndex + 1}
+                    <Badge variant="outline" className="ml-2 text-xs">{group.records.length} records</Badge>
+                    <Badge variant="secondary" className="ml-2 text-xs capitalize">Match: {group.matchType}</Badge>
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleMergeGroup(groupIndex)}
+                      disabled={mergeMutation.isPending}
+                      data-testid={`button-merge-group-${groupIndex}`}
+                    >
+                      {mergeMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Merge className="mr-1 h-3 w-3" />
+                      )}
+                      Merge into selected
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDeleteSecondaries(groupIndex)}
+                      disabled={bulkDeleteMutation.isPending}
+                      data-testid={`button-delete-group-${groupIndex}`}
+                    >
+                      {bulkDeleteMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-1 h-3 w-3" />
+                      )}
+                      Delete duplicates
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Select the primary record to keep. Others will be merged into it or deleted.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="w-[60px]">Keep</TableHead>
+                        <TableHead>First Name</TableHead>
+                        <TableHead>Last Name</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Resource</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.records.map((record) => {
+                        const isPrimary = selectedPrimary[groupIndex] === record.id;
+                        return (
+                          <TableRow
+                            key={record.id}
+                            className={`cursor-pointer ${isPrimary ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                            onClick={() => setSelectedPrimary({ ...selectedPrimary, [groupIndex]: record.id })}
+                            data-testid={`row-dup-${record.id}`}
+                          >
+                            <TableCell>
+                              <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${isPrimary ? "border-blue-600 bg-blue-600" : "border-muted-foreground"}`}>
+                                {isPrimary && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                              </div>
+                            </TableCell>
+                            <TableCell className={`text-sm ${!record.firstName ? "text-muted-foreground italic" : "font-medium"}`}>
+                              {record.firstName || "empty"}
+                            </TableCell>
+                            <TableCell className={`text-sm ${!record.lastName ? "text-muted-foreground italic" : ""}`}>
+                              {record.lastName || "empty"}
+                            </TableCell>
+                            <TableCell className={`text-sm ${!record.contact ? "text-muted-foreground italic" : ""}`}>
+                              {record.contact || "empty"}
+                            </TableCell>
+                            <TableCell className={`text-sm ${!record.email ? "text-muted-foreground italic" : ""}`}>
+                              {record.email || "empty"}
+                            </TableCell>
+                            <TableCell className={`text-sm ${!record.source ? "text-muted-foreground italic" : ""}`}>
+                              {record.source || "empty"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
