@@ -1045,7 +1045,8 @@ export async function registerRoutes(
   const createTicketSchema = z.object({
     subject: z.string().min(5, "Subject must be at least 5 characters"),
     description: z.string().min(10, "Description must be at least 10 characters"),
-    category: z.enum(["it_support", "other"]),
+    category: z.enum(["it_support", "digital_transformation", "other"]),
+    subcategory: z.string().optional(),
     severity: z.enum(["low", "medium", "high", "critical"]),
   });
 
@@ -1062,6 +1063,7 @@ export async function registerRoutes(
         ...parsed.data,
         userId: user.id,
         userEmail: user.email,
+        userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
         status: "new",
       });
 
@@ -1188,8 +1190,9 @@ export async function registerRoutes(
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       const status = req.query.status as string | undefined;
+      const category = req.query.category as string | undefined;
 
-      const result = await storage.getAllTickets({ limit, offset, status });
+      const result = await storage.getAllTickets({ limit, offset, status, category });
       res.json(result);
     } catch (error) {
       console.error("Error fetching all tickets:", error);
@@ -1197,10 +1200,39 @@ export async function registerRoutes(
     }
   });
 
+  // Get ticket stats
+  app.get("/api/tickets/stats", isAuthenticated, async (req, res) => {
+    try {
+      const allResult = await storage.getAllTickets({ limit: 9999 });
+      const allTickets = allResult.tickets;
+      const stats = {
+        total: allTickets.length,
+        open: allTickets.filter(t => t.status === "new" || t.status === "in_progress" || t.status === "under_review").length,
+        resolved: allTickets.filter(t => t.status === "resolved").length,
+        closed: allTickets.filter(t => t.status === "closed").length,
+        itSupport: allTickets.filter(t => t.category === "it_support").length,
+        digitalTransformation: allTickets.filter(t => t.category === "digital_transformation").length,
+        critical: allTickets.filter(t => t.severity === "critical" && t.status !== "closed" && t.status !== "resolved").length,
+        byStatus: {
+          new: allTickets.filter(t => t.status === "new").length,
+          in_progress: allTickets.filter(t => t.status === "in_progress").length,
+          under_review: allTickets.filter(t => t.status === "under_review").length,
+          resolved: allTickets.filter(t => t.status === "resolved").length,
+          closed: allTickets.filter(t => t.status === "closed").length,
+        }
+      };
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching ticket stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
   // Update ticket status (admin only)
   const updateTicketSchema = z.object({
-    status: z.enum(["new", "in_progress", "resolved", "closed"]).optional(),
+    status: z.enum(["new", "in_progress", "under_review", "resolved", "closed"]).optional(),
     assignedTo: z.string().optional(),
+    assignedToName: z.string().optional(),
   });
 
   app.patch("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req, res) => {
@@ -1217,12 +1249,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
 
-      // Validate status transitions
       const statusOrder: Record<string, number> = {
         new: 0,
         in_progress: 1,
-        resolved: 2,
-        closed: 3,
+        under_review: 2,
+        resolved: 3,
+        closed: 4,
       };
       
       if (parsed.data.status) {

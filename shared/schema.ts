@@ -202,13 +202,27 @@ export type IntegrationHealth = {
 };
 
 // Ticket categories and severity enums
-export const ticketCategories = ["it_support", "other"] as const;
+export const ticketCategories = ["it_support", "digital_transformation", "other"] as const;
 export type TicketCategory = typeof ticketCategories[number];
+
+export const itSupportSubcategories = [
+  "pc_setup", "software_install", "software_remove", "access_permissions",
+  "equipment_request", "network_issue", "email_issue", "printer_issue",
+  "hardware_repair", "vpn_access", "general_it"
+] as const;
+export type ITSupportSubcategory = typeof itSupportSubcategories[number];
+
+export const digitalTransformationSubcategories = [
+  "process_automation", "new_system", "system_integration", "reporting_analytics",
+  "ux_improvement", "workflow_optimization", "data_migration", "api_development",
+  "general_dt"
+] as const;
+export type DTSubcategory = typeof digitalTransformationSubcategories[number];
 
 export const ticketSeverities = ["low", "medium", "high", "critical"] as const;
 export type TicketSeverity = typeof ticketSeverities[number];
 
-export const ticketStatuses = ["new", "in_progress", "resolved", "closed"] as const;
+export const ticketStatuses = ["new", "in_progress", "under_review", "resolved", "closed"] as const;
 export type TicketStatus = typeof ticketStatuses[number];
 
 // Support tickets table
@@ -218,11 +232,14 @@ export const tickets = pgTable("tickets", {
   subject: varchar("subject").notNull(),
   description: text("description").notNull(),
   category: varchar("category").notNull(),
+  subcategory: varchar("subcategory"),
   severity: varchar("severity").notNull(),
   status: varchar("status").notNull().default("new"),
   userId: varchar("user_id").notNull(),
   userEmail: varchar("user_email").notNull(),
+  userName: varchar("user_name"),
   assignedTo: varchar("assigned_to"),
+  assignedToName: varchar("assigned_to_name"),
   resolvedAt: timestamp("resolved_at"),
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),

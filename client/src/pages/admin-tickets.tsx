@@ -2,11 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -16,14 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
@@ -41,16 +32,24 @@ import {
   ArrowLeft,
   Send,
   MessageSquare,
-  Filter
+  Filter,
+  RefreshCw,
+  Eye,
+  Search,
+  ChevronRight,
+  Monitor,
+  Zap,
+  HelpCircle
 } from "lucide-react";
 import type { Ticket as TicketType, TicketComment } from "@shared/schema";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  new: { label: "New", color: "bg-blue-500", icon: Clock },
-  in_progress: { label: "In Progress", color: "bg-yellow-500", icon: Loader2 },
-  resolved: { label: "Resolved", color: "bg-green-500", icon: CheckCircle },
-  closed: { label: "Closed", color: "bg-gray-500", icon: CheckCircle },
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
+  new: { label: "New", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: Clock },
+  in_progress: { label: "In Progress", color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", icon: RefreshCw },
+  under_review: { label: "Under Review", color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30", icon: Eye },
+  resolved: { label: "Resolved", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle },
+  closed: { label: "Closed", color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30", icon: CheckCircle },
 };
 
 const severityConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -60,28 +59,27 @@ const severityConfig: Record<string, { label: string; variant: "default" | "seco
   critical: { label: "Critical", variant: "destructive" },
 };
 
-const categoryLabels: Record<string, string> = {
-  netsuite_sync: "NetSuite Sync Error",
-  ui_bug: "UI/UX Bug",
-  access_issue: "Access Issue",
-  data_error: "Data Error",
-  performance: "Performance",
-  other: "Other",
+const categoryConfig: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
+  it_support: { label: "IT Support", icon: Monitor, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  digital_transformation: { label: "Digital Transformation", icon: Zap, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
 };
 
 export default function AdminTicketsPage() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [newComment, setNewComment] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: ticketsData, isLoading } = useQuery<{ tickets: TicketType[]; total: number }>({
-    queryKey: ["/api/admin/tickets", statusFilter],
+    queryKey: ["/api/admin/tickets", statusFilter, categoryFilter],
     queryFn: async () => {
-      const url = statusFilter === "all" 
-        ? "/api/admin/tickets" 
-        : `/api/admin/tickets?status=${statusFilter}`;
-      const res = await fetch(url, { credentials: "include" });
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (categoryFilter !== "all") params.set("category", categoryFilter);
+      const res = await fetch(`/api/admin/tickets?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch tickets");
       return res.json();
     },
@@ -92,12 +90,17 @@ export default function AdminTicketsPage() {
     enabled: !!selectedTicket,
   });
 
+  const { data: usersList = [] } = useQuery<{ id: string; username: string; firstName: string; lastName: string }[]>({
+    queryKey: ["/api/users/list"],
+  });
+
   const updateTicketMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { status?: string } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string } }) => {
       return apiRequest("PATCH", `/api/admin/tickets/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets/stats"] });
       if (selectedTicket) {
         queryClient.invalidateQueries({ queryKey: ["/api/tickets", selectedTicket.id] });
       }
@@ -130,17 +133,34 @@ export default function AdminTicketsPage() {
     }
   }
 
+  function handleAssign(ticketId: string, userId: string) {
+    const user = usersList.find(u => u.id === userId);
+    const name = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : "";
+    updateTicketMutation.mutate({ id: ticketId, data: { assignedTo: userId, assignedToName: name } });
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, assignedTo: userId, assignedToName: name });
+    }
+  }
+
   function handleAddComment(e: React.FormEvent) {
     e.preventDefault();
     if (!newComment.trim()) return;
     addCommentMutation.mutate(newComment);
   }
 
-  const tickets = ticketsData?.tickets || [];
+  const allTickets = ticketsData?.tickets || [];
+  const filteredTickets = searchQuery
+    ? allTickets.filter(t =>
+        t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.userEmail.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allTickets;
 
   if (selectedTicket) {
     const status = statusConfig[selectedTicket.status] || statusConfig.new;
     const severity = severityConfig[selectedTicket.severity] || severityConfig.low;
+    const cat = categoryConfig[selectedTicket.category] || categoryConfig.other;
 
     return (
       <div className="flex flex-col gap-6 p-6">
@@ -154,10 +174,11 @@ export default function AdminTicketsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">{selectedTicket.trackingId}</h1>
-              <Badge className={status.color}>{status.label}</Badge>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold font-outfit">{selectedTicket.trackingId}</h1>
+              <Badge className={`${status.bgColor} ${status.color} border-0`}>{status.label}</Badge>
               <Badge variant={severity.variant}>{severity.label}</Badge>
+              <Badge className={`${cat.bgColor} ${cat.color} border-0`}>{cat.label}</Badge>
             </div>
             <p className="text-muted-foreground">{selectedTicket.subject}</p>
           </div>
@@ -170,27 +191,27 @@ export default function AdminTicketsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-muted-foreground">Description</Label>
-                <p className="mt-1">{selectedTicket.description}</p>
+                <Label className="text-muted-foreground text-xs">Description</Label>
+                <p className="mt-1 text-sm whitespace-pre-wrap">{selectedTicket.description}</p>
               </div>
               
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <Label className="text-muted-foreground">Category</Label>
-                  <p className="mt-1">{categoryLabels[selectedTicket.category] || selectedTicket.category}</p>
+                  <Label className="text-muted-foreground text-xs">Submitted By</Label>
+                  <p className="mt-1 text-sm">{selectedTicket.userName || selectedTicket.userEmail}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Submitted By</Label>
-                  <p className="mt-1">{selectedTicket.userEmail}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Created</Label>
-                  <p className="mt-1">
+                  <Label className="text-muted-foreground text-xs">Created</Label>
+                  <p className="mt-1 text-sm">
                     {selectedTicket.createdAt 
-                      ? format(new Date(selectedTicket.createdAt), "PPpp")
+                      ? format(new Date(selectedTicket.createdAt), "PPp")
                       : "Unknown"
                     }
                   </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Assigned To</Label>
+                  <p className="mt-1 text-sm">{selectedTicket.assignedToName || "Unassigned"}</p>
                 </div>
               </div>
 
@@ -214,7 +235,7 @@ export default function AdminTicketsPage() {
                       {comments.map((comment) => (
                         <div 
                           key={comment.id} 
-                          className={`rounded-lg p-3 ${comment.isAdmin ? "bg-primary/10" : "bg-muted"}`}
+                          className={`rounded-lg p-3 ${comment.isAdmin ? "bg-primary/10 border border-primary/20" : "bg-muted"}`}
                         >
                           <div className="mb-1 flex items-center justify-between">
                             <span className="text-sm font-medium">
@@ -260,73 +281,97 @@ export default function AdminTicketsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Update Status</Label>
-                <Select
-                  value={selectedTicket.status}
-                  onValueChange={(v) => handleStatusChange(selectedTicket.id, v)}
-                  disabled={updateTicketMutation.isPending}
-                >
-                  <SelectTrigger data-testid="select-update-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="resolved">Resolved</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Timeline</Label>
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
-                    <div>
-                      <p className="text-sm font-medium">Created</p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedTicket.createdAt 
-                          ? format(new Date(selectedTicket.createdAt), "PPp")
-                          : "Unknown"
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  {selectedTicket.resolvedAt && (
-                    <div className="flex gap-3">
-                      <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
-                      <div>
-                        <p className="text-sm font-medium">Resolved</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(selectedTicket.resolvedAt), "PPp")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {selectedTicket.closedAt && (
-                    <div className="flex gap-3">
-                      <div className="mt-1 h-2 w-2 rounded-full bg-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium">Closed</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(selectedTicket.closedAt), "PPp")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Update Status</Label>
+                  <Select
+                    value={selectedTicket.status}
+                    onValueChange={(v) => handleStatusChange(selectedTicket.id, v)}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-update-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="under_review">Under Review</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Assign To</Label>
+                  <Select
+                    value={selectedTicket.assignedTo || "unassigned"}
+                    onValueChange={(v) => handleAssign(selectedTicket.id, v === "unassigned" ? "" : v)}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-admin-assignee">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {usersList.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">Timeline</Label>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium">Created</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedTicket.createdAt 
+                            ? format(new Date(selectedTicket.createdAt), "PPp")
+                            : "Unknown"
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    {selectedTicket.resolvedAt && (
+                      <div className="flex gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
+                        <div>
+                          <p className="text-sm font-medium">Resolved</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(selectedTicket.resolvedAt), "PPp")}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedTicket.closedAt && (
+                      <div className="flex gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-gray-500" />
+                        <div>
+                          <p className="text-sm font-medium">Closed</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(selectedTicket.closedAt), "PPp")}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -334,23 +379,44 @@ export default function AdminTicketsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Ticket Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold font-outfit">Ticket Management</h1>
+          <p className="text-muted-foreground text-sm">
             Manage and respond to support tickets
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40" data-testid="select-status-filter">
-              <SelectValue placeholder="Filter by status" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="pl-9 w-40 h-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-admin-search"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-44 h-9" data-testid="select-category-filter">
+              <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Tickets</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="it_support">IT Support</SelectItem>
+              <SelectItem value="digital_transformation">Digital Transformation</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-36 h-9" data-testid="select-status-filter">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="new">New</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="under_review">Under Review</SelectItem>
               <SelectItem value="resolved">Resolved</SelectItem>
               <SelectItem value="closed">Closed</SelectItem>
             </SelectContent>
@@ -364,13 +430,13 @@ export default function AdminTicketsPage() {
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : tickets.length === 0 ? (
+          ) : filteredTickets.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Ticket className="mb-4 h-16 w-16 text-muted-foreground" />
               <h2 className="mb-2 text-xl font-semibold">No tickets found</h2>
               <p className="text-muted-foreground">
-                {statusFilter !== "all" 
-                  ? `No tickets with status "${statusFilter}"`
+                {statusFilter !== "all" || categoryFilter !== "all"
+                  ? "Try adjusting your filters"
                   : "No support tickets have been submitted yet"
                 }
               </p>
@@ -384,46 +450,54 @@ export default function AdminTicketsPage() {
                   <TableHead>Category</TableHead>
                   <TableHead>Severity</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Assigned</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tickets.map((ticket) => {
+                {filteredTickets.map((ticket) => {
                   const status = statusConfig[ticket.status] || statusConfig.new;
                   const severity = severityConfig[ticket.severity] || severityConfig.low;
+                  const cat = categoryConfig[ticket.category] || categoryConfig.other;
+                  const StatusIcon = status.icon;
 
                   return (
-                    <TableRow key={ticket.id} data-testid={`row-ticket-${ticket.id}`}>
-                      <TableCell className="font-mono">{ticket.trackingId}</TableCell>
+                    <TableRow key={ticket.id} className="cursor-pointer" onClick={() => setSelectedTicket(ticket)} data-testid={`row-ticket-${ticket.id}`}>
+                      <TableCell className="font-mono text-xs">{ticket.trackingId}</TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{ticket.subject}</p>
-                          <p className="text-sm text-muted-foreground">{ticket.userEmail}</p>
+                          <p className="font-medium text-sm">{ticket.subject}</p>
+                          <p className="text-xs text-muted-foreground">{ticket.userName || ticket.userEmail}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{categoryLabels[ticket.category] || ticket.category}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`${cat.bgColor} ${cat.color} border-0 text-[10px]`}>
+                          {cat.label}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={severity.variant}>{severity.label}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={status.color}>{status.label}</Badge>
+                        <div className="flex items-center gap-1.5">
+                          <StatusIcon className={`h-3.5 w-3.5 ${status.color}`} />
+                          <span className={`text-xs ${status.color}`}>{status.label}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {ticket.assignedToName || "Unassigned"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {ticket.createdAt 
-                          ? format(new Date(ticket.createdAt), "PP")
+                          ? <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}</span>
                           : "Unknown"
                         }
                       </TableCell>
                       <TableCell>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => setSelectedTicket(ticket)}
-                          data-testid={`button-view-ticket-${ticket.id}`}
-                        >
-                          View
-                        </Button>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </TableCell>
                     </TableRow>
                   );

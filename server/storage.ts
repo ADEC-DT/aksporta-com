@@ -69,7 +69,7 @@ export interface IStorage {
   getTicket(id: string): Promise<Ticket | undefined>;
   getTicketByTrackingId(trackingId: string): Promise<Ticket | undefined>;
   getTicketsByUser(userId: string): Promise<Ticket[]>;
-  getAllTickets(options?: { status?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }>;
+  getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }>;
   updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | undefined>;
   
   // Ticket comments
@@ -395,16 +395,25 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tickets.createdAt));
   }
 
-  async getAllTickets(options?: { status?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }> {
+  async getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
     
+    const conditions = [];
+    if (options?.status) {
+      conditions.push(eq(tickets.status, options.status));
+    }
+    if (options?.category) {
+      conditions.push(eq(tickets.category, options.category));
+    }
+
     let query = db.select().from(tickets);
     let countQuery = db.select({ count: sql<number>`count(*)` }).from(tickets);
     
-    if (options?.status) {
-      query = query.where(eq(tickets.status, options.status)) as typeof query;
-      countQuery = countQuery.where(eq(tickets.status, options.status)) as typeof countQuery;
+    if (conditions.length > 0) {
+      const where = conditions.length === 1 ? conditions[0] : and(...conditions);
+      query = query.where(where!) as typeof query;
+      countQuery = countQuery.where(where!) as typeof countQuery;
     }
     
     const ticketList = await query.orderBy(desc(tickets.createdAt)).limit(limit).offset(offset);

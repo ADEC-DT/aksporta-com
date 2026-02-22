@@ -1,151 +1,825 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
-  Ticket,
   Headphones,
   Plus,
-  Loader2
+  Loader2,
+  Monitor,
+  Cpu,
+  Zap,
+  Ticket,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  ArrowLeft,
+  Send,
+  MessageSquare,
+  Search,
+  RefreshCw,
+  ShieldAlert,
+  HelpCircle,
+  Filter,
+  BarChart3,
+  Settings,
+  Wifi,
+  Mail,
+  Printer,
+  Wrench,
+  Globe,
+  FileText,
+  Database,
+  TrendingUp,
+  Eye,
+  ChevronRight,
+  AlertTriangle,
+  CircleDot
 } from "lucide-react";
+import type { Ticket as TicketType, TicketComment } from "@shared/schema";
+import { format, formatDistanceToNow } from "date-fns";
+
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
+  new: { label: "New", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: Clock },
+  in_progress: { label: "In Progress", color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", icon: RefreshCw },
+  under_review: { label: "Under Review", color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30", icon: Eye },
+  resolved: { label: "Resolved", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle },
+  closed: { label: "Closed", color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30", icon: CheckCircle },
+};
+
+const severityConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  low: { label: "Low", variant: "secondary" },
+  medium: { label: "Medium", variant: "default" },
+  high: { label: "High", variant: "destructive" },
+  critical: { label: "Critical", variant: "destructive" },
+};
+
+const categoryConfig: Record<string, { label: string; icon: any; color: string; bgColor: string; gradient: string }> = {
+  it_support: { label: "IT Support", icon: Monitor, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", gradient: "from-blue-600 to-cyan-600" },
+  digital_transformation: { label: "Digital Transformation", icon: Zap, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30", gradient: "from-purple-600 to-pink-600" },
+  other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30", gradient: "from-gray-600 to-gray-700" },
+};
+
+const itSubcategoryLabels: Record<string, { label: string; icon: any }> = {
+  pc_setup: { label: "PC Setup & Configuration", icon: Monitor },
+  software_install: { label: "Software Installation", icon: Settings },
+  software_remove: { label: "Software Removal", icon: Settings },
+  access_permissions: { label: "Access & Permissions", icon: ShieldAlert },
+  equipment_request: { label: "Equipment Request", icon: Cpu },
+  network_issue: { label: "Network Issue", icon: Wifi },
+  email_issue: { label: "Email Issue", icon: Mail },
+  printer_issue: { label: "Printer Issue", icon: Printer },
+  hardware_repair: { label: "Hardware Repair", icon: Wrench },
+  vpn_access: { label: "VPN Access", icon: Globe },
+  general_it: { label: "General IT", icon: HelpCircle },
+};
+
+const dtSubcategoryLabels: Record<string, { label: string; icon: any }> = {
+  process_automation: { label: "Process Automation", icon: Zap },
+  new_system: { label: "New System Request", icon: Database },
+  system_integration: { label: "System Integration", icon: Settings },
+  reporting_analytics: { label: "Reporting & Analytics", icon: BarChart3 },
+  ux_improvement: { label: "UX Improvement", icon: TrendingUp },
+  workflow_optimization: { label: "Workflow Optimization", icon: RefreshCw },
+  data_migration: { label: "Data Migration", icon: Database },
+  api_development: { label: "API Development", icon: Globe },
+  general_dt: { label: "General DT", icon: HelpCircle },
+};
+
+function getSubcategoryLabel(category: string, subcategory: string | null): string {
+  if (!subcategory) return "";
+  if (category === "it_support") return itSubcategoryLabels[subcategory]?.label || subcategory;
+  if (category === "digital_transformation") return dtSubcategoryLabels[subcategory]?.label || subcategory;
+  return subcategory;
+}
+
+type TicketStats = {
+  total: number;
+  open: number;
+  resolved: number;
+  closed: number;
+  itSupport: number;
+  digitalTransformation: number;
+  critical: number;
+  byStatus: Record<string, number>;
+};
 
 export default function IntranetPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+  const [newComment, setNewComment] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("all");
+
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
   const [category, setCategory] = useState("it_support");
+  const [subcategory, setSubcategory] = useState("");
+
+  const { data: stats } = useQuery<TicketStats>({
+    queryKey: ["/api/tickets/stats"],
+  });
+
+  const effectiveCategory = activeTab === "all" ? (categoryFilter !== "all" ? categoryFilter : undefined) : activeTab;
+
+  const { data: ticketsData, isLoading } = useQuery<{ tickets: TicketType[]; total: number }>({
+    queryKey: ["/api/admin/tickets", statusFilter, effectiveCategory],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (effectiveCategory) params.set("category", effectiveCategory);
+      params.set("limit", "100");
+      const res = await fetch(`/api/admin/tickets?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch tickets");
+      return res.json();
+    },
+  });
+
+  const { data: comments = [], isLoading: commentsLoading } = useQuery<TicketComment[]>({
+    queryKey: ["/api/tickets", selectedTicket?.id, "comments"],
+    enabled: !!selectedTicket,
+  });
+
+  const { data: usersList = [] } = useQuery<{ id: string; username: string; firstName: string; lastName: string }[]>({
+    queryKey: ["/api/users/list"],
+  });
 
   const createTicketMutation = useMutation({
-    mutationFn: async (data: { subject: string; description: string; severity: string; category: string }) => {
+    mutationFn: async (data: { subject: string; description: string; severity: string; category: string; subcategory?: string }) => {
       return apiRequest("POST", "/api/tickets", data);
     },
     onSuccess: () => {
       toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
-      setSubject("");
-      setDescription("");
-      setPriority("medium");
-      setCategory("it_support");
+      resetForm();
       setDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets/stats"] });
     },
     onError: (error: Error) => {
       toast({ title: "Failed to create ticket", description: error.message, variant: "destructive" });
     },
   });
 
-  const handleSubmitTicket = () => {
+  const updateTicketMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string } }) => {
+      return apiRequest("PATCH", `/api/admin/tickets/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets/stats"] });
+      if (selectedTicket) {
+        queryClient.invalidateQueries({ queryKey: ["/api/tickets", selectedTicket.id] });
+      }
+      toast({ title: "Ticket updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await apiRequest("POST", `/api/tickets/${selectedTicket?.id}/comments`, { message });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", selectedTicket?.id, "comments"] });
+      setNewComment("");
+      toast({ title: "Comment added" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add comment", description: error.message, variant: "destructive" });
+    },
+  });
+
+  function resetForm() {
+    setSubject("");
+    setDescription("");
+    setPriority("medium");
+    setCategory("it_support");
+    setSubcategory("");
+  }
+
+  function handleSubmitTicket() {
     if (!subject.trim() || !description.trim()) {
       toast({ title: "Missing information", description: "Please fill in subject and description", variant: "destructive" });
       return;
     }
-    createTicketMutation.mutate({ subject, description, severity: priority, category });
-  };
+    createTicketMutation.mutate({
+      subject,
+      description,
+      severity: priority,
+      category,
+      subcategory: subcategory || undefined,
+    });
+  }
+
+  function handleStatusChange(ticketId: string, newStatus: string) {
+    updateTicketMutation.mutate({ id: ticketId, data: { status: newStatus } });
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, status: newStatus });
+    }
+  }
+
+  function handleAssign(ticketId: string, userId: string) {
+    const user = usersList.find(u => u.id === userId);
+    const name = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : "";
+    updateTicketMutation.mutate({ id: ticketId, data: { assignedTo: userId, assignedToName: name } });
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, assignedTo: userId, assignedToName: name });
+    }
+  }
+
+  function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    addCommentMutation.mutate(newComment);
+  }
+
+  const allTickets = ticketsData?.tickets || [];
+  const filteredTickets = searchQuery
+    ? allTickets.filter(t =>
+        t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.userEmail.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allTickets;
+
+  if (selectedTicket) {
+    const status = statusConfig[selectedTicket.status] || statusConfig.new;
+    const severity = severityConfig[selectedTicket.severity] || severityConfig.low;
+    const catConfig = categoryConfig[selectedTicket.category] || categoryConfig.other;
+
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSelectedTicket(null)}
+            data-testid="button-back-to-list"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold font-outfit">{selectedTicket.trackingId}</h1>
+              <Badge className={`${status.bgColor} ${status.color} border-0`}>{status.label}</Badge>
+              <Badge variant={severity.variant}>{severity.label}</Badge>
+              <Badge className={`${catConfig.bgColor} ${catConfig.color} border-0`}>
+                {catConfig.label}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground mt-1">{selectedTicket.subject}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-lg">Ticket Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-muted-foreground text-xs">Description</Label>
+                <p className="mt-1 text-sm whitespace-pre-wrap">{selectedTicket.description}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Subcategory</Label>
+                  <p className="mt-1 text-sm">{getSubcategoryLabel(selectedTicket.category, selectedTicket.subcategory) || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Submitted By</Label>
+                  <p className="mt-1 text-sm">{selectedTicket.userName || selectedTicket.userEmail}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Created</Label>
+                  <p className="mt-1 text-sm">
+                    {selectedTicket.createdAt
+                      ? format(new Date(selectedTicket.createdAt), "PPp")
+                      : "Unknown"}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <h3 className="font-semibold text-sm">Comments ({comments.length})</h3>
+                </div>
+
+                {commentsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : comments.length === 0 ? (
+                  <p className="py-4 text-center text-muted-foreground text-sm">No comments yet</p>
+                ) : (
+                  <ScrollArea className="h-64">
+                    <div className="space-y-3">
+                      {comments.map((comment) => (
+                        <div
+                          key={comment.id}
+                          className={`rounded-lg p-3 ${comment.isAdmin ? "bg-primary/10 border border-primary/20" : "bg-muted"}`}
+                        >
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-xs font-medium">
+                              {comment.userName || comment.userEmail}
+                              {comment.isAdmin && (
+                                <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">Admin</Badge>
+                              )}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {comment.createdAt ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true }) : ""}
+                            </span>
+                          </div>
+                          <p className="text-sm">{comment.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+
+                {selectedTicket.status !== "closed" && (
+                  <form onSubmit={handleAddComment} className="mt-4 flex gap-2">
+                    <Input
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      data-testid="input-ticket-comment"
+                    />
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={addCommentMutation.isPending || !newComment.trim()}
+                      data-testid="button-send-comment"
+                    >
+                      {addCommentMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Status</Label>
+                  <Select
+                    value={selectedTicket.status}
+                    onValueChange={(v) => handleStatusChange(selectedTicket.id, v)}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-update-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="under_review">Under Review</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Assigned To</Label>
+                  <Select
+                    value={selectedTicket.assignedTo || "unassigned"}
+                    onValueChange={(v) => handleAssign(selectedTicket.id, v === "unassigned" ? "" : v)}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-assignee">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {usersList.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium">Created</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {selectedTicket.createdAt ? format(new Date(selectedTicket.createdAt), "PPp") : "Unknown"}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedTicket.resolvedAt && (
+                    <div className="flex gap-3">
+                      <div className="mt-1.5 h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium">Resolved</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(selectedTicket.resolvedAt), "PPp")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedTicket.closedAt && (
+                    <div className="flex gap-3">
+                      <div className="mt-1.5 h-2 w-2 rounded-full bg-gray-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium">Closed</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(selectedTicket.closedAt), "PPp")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
-        <CardContent className="p-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Headphones className="h-8 w-8" />
-            <h1 className="text-2xl font-bold font-outfit">DT Support</h1>
-          </div>
-          <p className="text-blue-100">
-            Your centralized hub for IT support and service requests.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card 
-        className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0 hover-elevate cursor-pointer"
-        onClick={() => setDialogOpen(true)}
-        data-testid="button-create-ticket"
-      >
-        <CardContent className="p-6 flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20">
-            <Plus className="h-6 w-6" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-lg">Create New Ticket</h3>
-            <p className="text-blue-100 text-sm">
-              Submit a new support request for IT, HR, or Facility issues.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Link href="/my-tickets">
-          <Card className="bg-gradient-to-br from-green-600 to-emerald-700 text-white border-0 hover-elevate cursor-pointer h-full">
-            <CardContent className="p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 mb-4">
-                <Ticket className="h-6 w-6" />
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Headphones className="h-7 w-7" />
+              <div>
+                <h1 className="text-xl font-bold font-outfit">DT Support Center</h1>
+                <p className="text-blue-100 text-sm">
+                  IT Support & Digital Transformation requests
+                </p>
               </div>
-              <h3 className="font-semibold text-lg mb-2">View My Tickets</h3>
-              <p className="text-green-100 text-sm">
-                Track the status of your submitted support requests.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+            </div>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="bg-white/20 hover:bg-white/30 text-white border-0"
+              data-testid="button-create-ticket"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Ticket
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                <Ticket className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-outfit">{stats?.open || 0}</p>
+                <p className="text-xs text-muted-foreground">Open Tickets</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-outfit">{stats?.resolved || 0}</p>
+                <p className="text-xs text-muted-foreground">Resolved</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-outfit">{stats?.critical || 0}</p>
+                <p className="text-xs text-muted-foreground">Critical</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-900/30">
+                <BarChart3 className="h-5 w-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold font-outfit">{stats?.total || 0}</p>
+                <p className="text-xs text-muted-foreground">Total Tickets</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card
+          className="bg-gradient-to-br from-blue-600 to-cyan-600 text-white border-0 cursor-pointer hover-elevate"
+          onClick={() => {
+            setCategory("it_support");
+            setSubcategory("");
+            setDialogOpen(true);
+          }}
+          data-testid="card-it-support"
+        >
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                <Monitor className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">IT Support</h3>
+                <p className="text-blue-100 text-xs">{stats?.itSupport || 0} tickets</p>
+              </div>
+            </div>
+            <p className="text-blue-100 text-xs">
+              PC setup, software, access, equipment, network, email, printers
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="bg-gradient-to-br from-purple-600 to-pink-600 text-white border-0 cursor-pointer hover-elevate"
+          onClick={() => {
+            setCategory("digital_transformation");
+            setSubcategory("");
+            setDialogOpen(true);
+          }}
+          data-testid="card-digital-transformation"
+        >
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                <Zap className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">Digital Transformation</h3>
+                <p className="text-purple-100 text-xs">{stats?.digitalTransformation || 0} tickets</p>
+              </div>
+            </div>
+            <p className="text-purple-100 text-xs">
+              Automation, new systems, integrations, analytics, UX improvements
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex items-center justify-between px-4 pt-4 gap-3 flex-wrap">
+              <TabsList>
+                <TabsTrigger value="all" data-testid="tab-all">All Tickets</TabsTrigger>
+                <TabsTrigger value="it_support" data-testid="tab-it">IT Support</TabsTrigger>
+                <TabsTrigger value="digital_transformation" data-testid="tab-dt">Digital Transformation</TabsTrigger>
+              </TabsList>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tickets..."
+                    className="pl-9 w-48 h-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    data-testid="input-search-tickets"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-36 h-9" data-testid="select-status-filter">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="under_review">Under Review</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredTickets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Ticket className="mb-3 h-12 w-12 text-muted-foreground" />
+                  <h2 className="mb-1 text-lg font-semibold">No tickets found</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {searchQuery ? "Try adjusting your search" : "Create a new ticket to get started"}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">ID</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead className="w-36">Category</TableHead>
+                        <TableHead className="w-24">Priority</TableHead>
+                        <TableHead className="w-28">Status</TableHead>
+                        <TableHead className="w-28">Assigned</TableHead>
+                        <TableHead className="w-28">Created</TableHead>
+                        <TableHead className="w-16"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTickets.map((ticket) => {
+                        const st = statusConfig[ticket.status] || statusConfig.new;
+                        const sev = severityConfig[ticket.severity] || severityConfig.low;
+                        const cat = categoryConfig[ticket.category] || categoryConfig.other;
+                        const StatusIcon = st.icon;
+
+                        return (
+                          <TableRow
+                            key={ticket.id}
+                            className="cursor-pointer"
+                            onClick={() => setSelectedTicket(ticket)}
+                            data-testid={`row-ticket-${ticket.id}`}
+                          >
+                            <TableCell className="font-mono text-xs">{ticket.trackingId}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{ticket.subject}</p>
+                                {ticket.subcategory && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {getSubcategoryLabel(ticket.category, ticket.subcategory)}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`${cat.bgColor} ${cat.color} border-0 text-[10px]`}>
+                                {cat.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={sev.variant} className="text-[10px]">{sev.label}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                <StatusIcon className={`h-3.5 w-3.5 ${st.color}`} />
+                                <span className={`text-xs ${st.color}`}>{st.label}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {ticket.assignedToName || "Unassigned"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {ticket.createdAt
+                                  ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })
+                                  : "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 font-outfit">
               <Ticket className="h-5 w-5" />
               Create New Ticket
             </DialogTitle>
             <DialogDescription>
-              Submit a new support request. Fill in the details below.
+              Submit a support request to {category === "it_support" ? "IT Support" : category === "digital_transformation" ? "Digital Transformation" : "the team"}.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="space-y-4 pt-2">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Label htmlFor="category" className="text-xs">Department</Label>
+                <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(""); }}>
                   <SelectTrigger id="category" data-testid="select-category">
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="it_support">IT Support</SelectItem>
+                    <SelectItem value="digital_transformation">Digital Transformation</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="priority">Priority</Label>
-                <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger id="priority" data-testid="select-priority">
-                    <SelectValue placeholder="Select priority" />
+                <Label htmlFor="subcategory" className="text-xs">Type</Label>
+                <Select value={subcategory} onValueChange={setSubcategory}>
+                  <SelectTrigger id="subcategory" data-testid="select-subcategory">
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
+                    {category === "it_support" && Object.entries(itSubcategoryLabels).map(([key, val]) => (
+                      <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                    ))}
+                    {category === "digital_transformation" && Object.entries(dtSubcategoryLabels).map(([key, val]) => (
+                      <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                    ))}
+                    {category === "other" && (
+                      <SelectItem value="general">General</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input 
-                id="subject" 
-                placeholder="Brief description of the issue"
+              <Label htmlFor="priority" className="text-xs">Priority</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger id="priority" data-testid="select-priority">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subject" className="text-xs">Subject</Label>
+              <Input
+                id="subject"
+                placeholder="Brief description of the issue or request"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 data-testid="input-subject"
@@ -153,9 +827,9 @@ export default function IntranetPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea 
-                id="description" 
+              <Label htmlFor="description" className="text-xs">Description</Label>
+              <Textarea
+                id="description"
                 placeholder="Provide details about your request..."
                 rows={4}
                 value={description}
@@ -163,30 +837,29 @@ export default function IntranetPage() {
                 data-testid="input-description"
               />
             </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel">
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSubmitTicket} 
-                disabled={createTicketMutation.isPending}
-                data-testid="button-submit-ticket"
-              >
-                {createTicketMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Ticket className="mr-2 h-4 w-4" />
-                    Submit Ticket
-                  </>
-                )}
-              </Button>
-            </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }} data-testid="button-cancel">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitTicket}
+              disabled={createTicketMutation.isPending}
+              data-testid="button-submit-ticket"
+            >
+              {createTicketMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Ticket className="mr-2 h-4 w-4" />
+                  Submit Ticket
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

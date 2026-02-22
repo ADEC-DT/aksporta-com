@@ -56,7 +56,10 @@ shared/           # Shared code between client/server
 3. **HR** (`/hr`) - Kayan HRMS for employee directory, payroll, leaves
 4. **Customer DB** (`/applications/customer-db`) - Master Customer Database consolidating Mall, Equestrian, Corporate units
 5. **Projects** (`/projects`) - Full project management system with create/edit, team assignments, deadline management, commenting, and Collaboration Stamps
-6. **Veterinary** (`/veterinary`) - Veterinary management system
+6. **DT Support** (`/intranet`) - Dual-department ticket management system (IT Support + Digital Transformation) with metrics dashboard, category/subcategory filtering, assignee management, comments, status tracking (New → In Progress → Under Review → Resolved → Closed)
+7. **My Tickets** (`/my-tickets`) - User's submitted tickets with create dialog supporting department/subcategory selection
+8. **Admin Tickets** (`/admin-tickets`) - Admin ticket management with category/status filters, assignee management
+9. **Veterinary** (`/veterinary`) - Veterinary management system
 7. **Settings** (`/settings`) - User profile and preferences
 8. **Admin** (`/admin`) - User management (admin only)
 9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories

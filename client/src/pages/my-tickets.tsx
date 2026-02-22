@@ -54,6 +54,7 @@ import { format, formatDistanceToNow } from "date-fns";
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
   new: { label: "New", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: Clock },
   in_progress: { label: "In Progress", color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", icon: RefreshCw },
+  under_review: { label: "Under Review", color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30", icon: Clock },
   resolved: { label: "Resolved", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle },
   closed: { label: "Closed", color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30", icon: CheckCircle },
 };
@@ -67,6 +68,7 @@ const severityConfig: Record<string, { label: string; variant: "default" | "seco
 
 const categoryConfig: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
   it_support: { label: "IT Support", icon: ShieldAlert, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  digital_transformation: { label: "Digital Transformation", icon: Zap, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
   other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
 };
 
@@ -83,6 +85,7 @@ export default function MyTicketsPage() {
     subject: "",
     description: "",
     category: "",
+    subcategory: "",
     severity: "",
   });
 
@@ -103,7 +106,7 @@ export default function MyTicketsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets/my"] });
       setCreateDialogOpen(false);
-      setNewTicket({ subject: "", description: "", category: "", severity: "" });
+      setNewTicket({ subject: "", description: "", category: "", subcategory: "", severity: "" });
       toast({ 
         title: "Ticket created", 
         description: `Your ticket ${data.trackingId} has been submitted successfully.` 
@@ -499,13 +502,13 @@ export default function MyTicketsPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>Department</Label>
                 <Select
                   value={newTicket.category}
-                  onValueChange={(v) => setNewTicket({ ...newTicket, category: v })}
+                  onValueChange={(v) => setNewTicket({ ...newTicket, category: v, subcategory: "" })}
                 >
                   <SelectTrigger data-testid="select-ticket-category">
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(categoryConfig).map(([key, config]) => (
@@ -516,22 +519,64 @@ export default function MyTicketsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Severity</Label>
+                <Label>Type</Label>
                 <Select
-                  value={newTicket.severity}
-                  onValueChange={(v) => setNewTicket({ ...newTicket, severity: v })}
+                  value={newTicket.subcategory}
+                  onValueChange={(v) => setNewTicket({ ...newTicket, subcategory: v })}
                 >
-                  <SelectTrigger data-testid="select-ticket-severity">
-                    <SelectValue placeholder="Select severity" />
+                  <SelectTrigger data-testid="select-ticket-subcategory">
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
+                    {newTicket.category === "it_support" && <>
+                      <SelectItem value="pc_setup">PC Setup & Configuration</SelectItem>
+                      <SelectItem value="software_install">Software Installation</SelectItem>
+                      <SelectItem value="software_remove">Software Removal</SelectItem>
+                      <SelectItem value="access_permissions">Access & Permissions</SelectItem>
+                      <SelectItem value="equipment_request">Equipment Request</SelectItem>
+                      <SelectItem value="network_issue">Network Issue</SelectItem>
+                      <SelectItem value="email_issue">Email Issue</SelectItem>
+                      <SelectItem value="printer_issue">Printer Issue</SelectItem>
+                      <SelectItem value="hardware_repair">Hardware Repair</SelectItem>
+                      <SelectItem value="vpn_access">VPN Access</SelectItem>
+                      <SelectItem value="general_it">General IT</SelectItem>
+                    </>}
+                    {newTicket.category === "digital_transformation" && <>
+                      <SelectItem value="process_automation">Process Automation</SelectItem>
+                      <SelectItem value="new_system">New System Request</SelectItem>
+                      <SelectItem value="system_integration">System Integration</SelectItem>
+                      <SelectItem value="reporting_analytics">Reporting & Analytics</SelectItem>
+                      <SelectItem value="ux_improvement">UX Improvement</SelectItem>
+                      <SelectItem value="workflow_optimization">Workflow Optimization</SelectItem>
+                      <SelectItem value="data_migration">Data Migration</SelectItem>
+                      <SelectItem value="api_development">API Development</SelectItem>
+                      <SelectItem value="general_dt">General DT</SelectItem>
+                    </>}
+                    {newTicket.category === "other" && <>
+                      <SelectItem value="general">General</SelectItem>
+                    </>}
+                    {!newTicket.category && <SelectItem value="__none" disabled>Select a department first</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Severity</Label>
+              <Select
+                value={newTicket.severity}
+                onValueChange={(v) => setNewTicket({ ...newTicket, severity: v })}
+              >
+                <SelectTrigger data-testid="select-ticket-severity">
+                  <SelectValue placeholder="Select severity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
