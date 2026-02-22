@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, importLogs, managedUsers, customers } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, importLogs, managedUsers, customers, tickets } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -397,7 +397,7 @@ export async function registerRoutes(
     lastName: z.string().max(50).optional().nullable(),
     jobTitle: z.string().max(100).optional().nullable(),
     phoneNumber: z.string().max(30).optional().nullable(),
-    profilePicture: z.string().url().optional().nullable(),
+    profilePicture: z.string().max(3000000).optional().nullable(),
     theme: z.enum(["light", "dark", "system"]).optional(),
     emailNotifications: z.boolean().optional(),
   });
@@ -908,10 +908,25 @@ export async function registerRoutes(
     }
   });
 
+  const createServiceSchema = z.object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(1000).optional().nullable(),
+    url: z.string().max(500).optional().nullable(),
+    icon: z.string().max(100).optional().nullable(),
+    category: z.string().max(100).optional().nullable(),
+    isEnabled: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).optional(),
+    color: z.string().max(50).optional().nullable(),
+  });
+
   app.post("/api/admin/services", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const currentUser = (req as any).managedUser as ManagedUser;
-      let service = await storage.createExternalService(req.body);
+      const parsed = createServiceSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+      let service = await storage.createExternalService(parsed.data);
       
       if (!service.url) {
         const updated = await storage.updateExternalService(service.id, { url: `/services/${service.id}` });
@@ -954,7 +969,11 @@ export async function registerRoutes(
   app.patch("/api/admin/services/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const currentUser = (req as any).managedUser as ManagedUser;
-      const service = await storage.updateExternalService(req.params.id, req.body);
+      const parsedService = createServiceSchema.partial().safeParse(req.body);
+      if (!parsedService.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsedService.error.errors });
+      }
+      const service = await storage.updateExternalService(req.params.id, parsedService.data);
       
       if (service) {
         await storage.createAuditLog({
@@ -1098,7 +1117,7 @@ export async function registerRoutes(
   seedHelpCenterContent().catch(console.error);
 
   // Get FAQ entries
-  app.get("/api/help/faq", async (_req, res) => {
+  app.get("/api/help/faq", isAuthenticated, async (_req, res) => {
     try {
       const entries = await storage.getAllFaqEntries();
       res.json(entries);
@@ -1109,7 +1128,7 @@ export async function registerRoutes(
   });
 
   // Get user manuals
-  app.get("/api/help/manuals", async (_req, res) => {
+  app.get("/api/help/manuals", isAuthenticated, async (_req, res) => {
     try {
       const manuals = await storage.getAllUserManuals();
       res.json(manuals);
@@ -1120,7 +1139,7 @@ export async function registerRoutes(
   });
 
   // Get user manual by ID
-  app.get("/api/help/manuals/:id", async (req, res) => {
+  app.get("/api/help/manuals/:id", isAuthenticated, async (req, res) => {
     try {
       const manual = await storage.getUserManual(req.params.id);
       if (!manual) {
@@ -1294,77 +1313,68 @@ export async function registerRoutes(
     }
   });
 
-  // Get ticket stats
   app.get("/api/tickets/stats", isAuthenticated, async (req, res) => {
     try {
-      const allResult = await storage.getAllTickets({ limit: 9999 });
-      const allTickets = allResult.tickets;
+      const [counts] = await db.select({
+        total: sql<number>`count(*)::int`,
+        open: sql<number>`count(*) filter (where status in ('new','in_progress','under_review'))::int`,
+        resolved: sql<number>`count(*) filter (where status = 'resolved')::int`,
+        closed: sql<number>`count(*) filter (where status = 'closed')::int`,
+        statusNew: sql<number>`count(*) filter (where status = 'new')::int`,
+        statusInProgress: sql<number>`count(*) filter (where status = 'in_progress')::int`,
+        statusUnderReview: sql<number>`count(*) filter (where status = 'under_review')::int`,
+        itSupport: sql<number>`count(*) filter (where category = 'it_support')::int`,
+        digitalTransformation: sql<number>`count(*) filter (where category = 'digital_transformation')::int`,
+        critical: sql<number>`count(*) filter (where severity = 'critical' and status in ('new','in_progress','under_review'))::int`,
+        itOpen: sql<number>`count(*) filter (where category = 'it_support' and status in ('new','in_progress','under_review'))::int`,
+        itResolved: sql<number>`count(*) filter (where category = 'it_support' and status in ('resolved','closed'))::int`,
+        dtOpen: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('new','in_progress','under_review'))::int`,
+        dtResolved: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('resolved','closed'))::int`,
+        avgCloseMs: sql<number>`coalesce(avg(extract(epoch from (resolved_at - created_at)) * 1000) filter (where status in ('resolved','closed') and resolved_at is not null), 0)`,
+      }).from(tickets);
 
-      const openStatuses = ["new", "in_progress", "under_review"];
-      const openTickets = allTickets.filter(t => openStatuses.includes(t.status));
+      const avgCloseTimeHours = Math.round((Number(counts.avgCloseMs) / (1000 * 60 * 60)) * 100) / 100;
+      const avgCloseTimeDays = Math.round((avgCloseTimeHours / 24) * 100) / 100;
 
-      const resolvedOrClosed = allTickets.filter(t => (t.status === "resolved" || t.status === "closed") && t.resolvedAt && t.createdAt);
-      let avgCloseTimeHours = 0;
-      let avgCloseTimeDays = 0;
-      if (resolvedOrClosed.length > 0) {
-        const totalMs = resolvedOrClosed.reduce((sum, t) => {
-          const created = new Date(t.createdAt!).getTime();
-          const resolved = new Date(t.resolvedAt!).getTime();
-          return sum + (resolved - created);
-        }, 0);
-        avgCloseTimeHours = Math.round((totalMs / resolvedOrClosed.length / (1000 * 60 * 60)) * 100) / 100;
-        avgCloseTimeDays = Math.round((avgCloseTimeHours / 24) * 100) / 100;
-      }
+      const overdueRows = await db.select({ id: tickets.id }).from(tickets)
+        .where(sql`status in ('new','in_progress','under_review') AND (
+          (severity = 'critical' AND created_at < now() - interval '4 hours') OR
+          (severity = 'high' AND created_at < now() - interval '24 hours') OR
+          (severity = 'medium' AND created_at < now() - interval '48 hours') OR
+          (severity = 'low' AND created_at < now() - interval '72 hours')
+        )`);
 
-      const byDepartmentLoad = {
-        it_support: {
-          total: allTickets.filter(t => t.category === "it_support").length,
-          open: allTickets.filter(t => t.category === "it_support" && openStatuses.includes(t.status)).length,
-          resolved: allTickets.filter(t => t.category === "it_support" && (t.status === "resolved" || t.status === "closed")).length,
-        },
-        digital_transformation: {
-          total: allTickets.filter(t => t.category === "digital_transformation").length,
-          open: allTickets.filter(t => t.category === "digital_transformation" && openStatuses.includes(t.status)).length,
-          resolved: allTickets.filter(t => t.category === "digital_transformation" && (t.status === "resolved" || t.status === "closed")).length,
-        },
-      };
-
-      const now = Date.now();
-      const slaThresholds: Record<string, number> = {
-        critical: 4 * 60 * 60 * 1000,
-        high: 24 * 60 * 60 * 1000,
-        medium: 48 * 60 * 60 * 1000,
-        low: 72 * 60 * 60 * 1000,
-      };
-      const overdueTickets: string[] = [];
-      for (const t of openTickets) {
-        const threshold = slaThresholds[t.severity];
-        if (threshold && t.createdAt) {
-          const elapsed = now - new Date(t.createdAt).getTime();
-          if (elapsed > threshold) {
-            overdueTickets.push(t.id);
-          }
-        }
-      }
+      const overdueTickets = overdueRows.map(r => r.id);
 
       const stats = {
-        total: allTickets.length,
-        open: openTickets.length,
-        resolved: allTickets.filter(t => t.status === "resolved").length,
-        closed: allTickets.filter(t => t.status === "closed").length,
-        itSupport: allTickets.filter(t => t.category === "it_support").length,
-        digitalTransformation: allTickets.filter(t => t.category === "digital_transformation").length,
-        critical: allTickets.filter(t => t.severity === "critical" && openStatuses.includes(t.status)).length,
+        total: counts.total,
+        open: counts.open,
+        resolved: counts.resolved,
+        closed: counts.closed,
+        itSupport: counts.itSupport,
+        digitalTransformation: counts.digitalTransformation,
+        critical: counts.critical,
         byStatus: {
-          new: allTickets.filter(t => t.status === "new").length,
-          in_progress: allTickets.filter(t => t.status === "in_progress").length,
-          under_review: allTickets.filter(t => t.status === "under_review").length,
-          resolved: allTickets.filter(t => t.status === "resolved").length,
-          closed: allTickets.filter(t => t.status === "closed").length,
+          new: counts.statusNew,
+          in_progress: counts.statusInProgress,
+          under_review: counts.statusUnderReview,
+          resolved: counts.resolved,
+          closed: counts.closed,
         },
         avgCloseTimeHours,
         avgCloseTimeDays,
-        byDepartmentLoad,
+        byDepartmentLoad: {
+          it_support: {
+            total: counts.itSupport,
+            open: counts.itOpen,
+            resolved: counts.itResolved,
+          },
+          digital_transformation: {
+            total: counts.digitalTransformation,
+            open: counts.dtOpen,
+            resolved: counts.dtResolved,
+          },
+        },
         slaBreaches: overdueTickets.length,
         overdueTickets,
       };
@@ -1699,6 +1709,14 @@ export async function registerRoutes(
         error: 0,
       };
 
+      const allExisting = await storage.getAllCustomers({ limit: 100000, offset: 0 });
+      const existingEmails = new Set(
+        allExisting.customers.map(c => (c.email || "").toLowerCase().trim()).filter(Boolean)
+      );
+      const existingPhones = new Set(
+        allExisting.customers.map(c => (c.contact || "").replace(/\D/g, "")).filter(Boolean)
+      );
+
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const firstName = mapping.firstName ? String(row[mapping.firstName] ?? "").trim() : "";
@@ -1716,8 +1734,8 @@ export async function registerRoutes(
 
         try {
           if (email) {
-            const existing = await storage.getAllCustomers({ search: email });
-            if (existing.customers.some(c => c.email === email)) {
+            const emailLower = email.toLowerCase().trim();
+            if (existingEmails.has(emailLower)) {
               skipped++;
               skipReasons.duplicate_email++;
               errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email "${email}" already exists`);
@@ -1727,14 +1745,11 @@ export async function registerRoutes(
 
           if (contact) {
             const phoneDigits = contact.replace(/\D/g, "");
-            if (phoneDigits) {
-              const existing = await storage.getAllCustomers({ search: contact });
-              if (existing.customers.some(c => (c.contact || "").replace(/\D/g, "") === phoneDigits)) {
-                skipped++;
-                skipReasons.duplicate_phone++;
-                errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - phone "${contact}" already exists`);
-                continue;
-              }
+            if (phoneDigits && existingPhones.has(phoneDigits)) {
+              skipped++;
+              skipReasons.duplicate_phone++;
+              errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - phone "${contact}" already exists`);
+              continue;
             }
           }
 
@@ -1751,6 +1766,9 @@ export async function registerRoutes(
             status: "active",
           });
           imported++;
+
+          if (email) existingEmails.add(email.toLowerCase().trim());
+          if (contact) existingPhones.add(contact.replace(/\D/g, ""));
         } catch (err: any) {
           skipped++;
           skipReasons.error++;
@@ -1896,7 +1914,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/customers/merge", isAuthenticated, async (req, res) => {
+  app.post("/api/customers/merge", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
       const { primaryId, secondaryIds } = req.body;
@@ -1948,7 +1966,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/customers/duplicates/bulk", isAuthenticated, async (req, res) => {
+  app.delete("/api/customers/duplicates/bulk", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
       const { ids } = req.body;
@@ -2044,7 +2062,11 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Blueprint not found" });
       }
-      const blueprint = await storage.updateBlueprint(req.params.id, req.body);
+      const bpParsed = insertBlueprintSchema.partial().safeParse(req.body);
+      if (!bpParsed.success) {
+        return res.status(400).json({ message: "Invalid blueprint data", errors: bpParsed.error.errors });
+      }
+      const blueprint = await storage.updateBlueprint(req.params.id, bpParsed.data);
       res.json(blueprint);
     } catch (error) {
       console.error("Error updating blueprint:", error);
@@ -2793,7 +2815,29 @@ export async function registerRoutes(
   });
 
   app.post("/api/admin/cleanup-all-data", isAuthenticated, isAdmin, async (req, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ message: "Data cleanup is disabled in production" });
+    }
+
+    const { confirmation } = req.body;
+    if (confirmation !== "DELETE_ALL_DATA") {
+      return res.status(400).json({ message: "Confirmation string required: DELETE_ALL_DATA" });
+    }
+
     try {
+      const user = (req as any).managedUser as ManagedUser;
+
+      await storage.createAuditLog({
+        action: "full_data_cleanup",
+        category: "admin",
+        userId: user.id,
+        userEmail: user.email,
+        details: { warning: "All data wiped" },
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || null,
+        status: "success",
+      });
+
       await db.execute(sql`DELETE FROM project_assignments`);
       await db.execute(sql`DELETE FROM project_comments`);
       await db.execute(sql`DELETE FROM project_tags`);
@@ -2805,10 +2849,8 @@ export async function registerRoutes(
       await db.execute(sql`DELETE FROM customer_profiles`);
       await db.execute(sql`DELETE FROM customers`);
       await db.execute(sql`DELETE FROM collaboration_blueprints`);
-      await db.execute(sql`DELETE FROM audit_logs`);
       await db.execute(sql`DELETE FROM faq_entries`);
       await db.execute(sql`DELETE FROM user_manuals`);
-      await db.execute(sql`DELETE FROM managed_users`);
       res.json({ success: true, message: "All data cleaned up" });
     } catch (error) {
       console.error("Error cleaning up data:", error);
