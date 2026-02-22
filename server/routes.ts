@@ -1620,58 +1620,58 @@ export async function registerRoutes(
 
       const allData = await storage.getAllCustomers({ limit: 10000, offset: 0 });
       const allCustomers = allData.customers;
-      const visited = new Set<string>();
       const groups: { matchType: string; records: typeof allCustomers }[] = [];
+      const usedIds = new Set<string>();
 
-      for (let i = 0; i < allCustomers.length; i++) {
-        if (visited.has(allCustomers[i].id)) continue;
-        const group = [allCustomers[i]];
-        visited.add(allCustomers[i].id);
-
-        for (let j = i + 1; j < allCustomers.length; j++) {
-          if (visited.has(allCustomers[j].id)) continue;
-          let matched = false;
-          let matchType = "";
-
-          if (criteria.email && allCustomers[i].email && allCustomers[j].email) {
-            if (allCustomers[i].email.toLowerCase().trim() === allCustomers[j].email.toLowerCase().trim()) {
-              matched = true;
-              matchType = "email";
-            }
-          }
-
-          if (!matched && criteria.name) {
-            const fnA = (allCustomers[i].firstName || "").toLowerCase().trim();
-            const lnA = (allCustomers[i].lastName || "").toLowerCase().trim();
-            const fnB = (allCustomers[j].firstName || "").toLowerCase().trim();
-            const lnB = (allCustomers[j].lastName || "").toLowerCase().trim();
-            if (fnA && lnA && fnB && lnB && fnA === fnB && lnA === lnB) {
-              matched = true;
-              matchType = "name";
-            }
-          }
-
-          if (!matched && criteria.phone && allCustomers[i].contact && allCustomers[j].contact) {
-            const phoneA = allCustomers[i].contact.replace(/\D/g, "");
-            const phoneB = allCustomers[j].contact.replace(/\D/g, "");
-            if (phoneA && phoneB && phoneA === phoneB) {
-              matched = true;
-              matchType = "phone";
-            }
-          }
-
-          if (matched) {
-            group.push(allCustomers[j]);
-            visited.add(allCustomers[j].id);
+      if (criteria.email) {
+        const emailMap = new Map<string, typeof allCustomers>();
+        for (const c of allCustomers) {
+          const email = (c.email || "").toLowerCase().trim();
+          if (!email) continue;
+          if (!emailMap.has(email)) emailMap.set(email, []);
+          emailMap.get(email)!.push(c);
+        }
+        for (const [, records] of emailMap) {
+          if (records.length > 1) {
+            groups.push({ matchType: "email", records });
+            records.forEach(r => usedIds.add(r.id));
           }
         }
+      }
 
-        if (group.length > 1) {
-          let matchType = "mixed";
-          if (criteria.email) matchType = "email";
-          else if (criteria.name) matchType = "name";
-          else if (criteria.phone) matchType = "phone";
-          groups.push({ matchType, records: group });
+      if (criteria.name) {
+        const nameMap = new Map<string, typeof allCustomers>();
+        for (const c of allCustomers) {
+          if (usedIds.has(c.id)) continue;
+          const fn = (c.firstName || "").toLowerCase().trim();
+          const ln = (c.lastName || "").toLowerCase().trim();
+          if (!fn || !ln) continue;
+          const key = `${fn}|${ln}`;
+          if (!nameMap.has(key)) nameMap.set(key, []);
+          nameMap.get(key)!.push(c);
+        }
+        for (const [, records] of nameMap) {
+          if (records.length > 1) {
+            groups.push({ matchType: "name", records });
+            records.forEach(r => usedIds.add(r.id));
+          }
+        }
+      }
+
+      if (criteria.phone) {
+        const phoneMap = new Map<string, typeof allCustomers>();
+        for (const c of allCustomers) {
+          if (usedIds.has(c.id)) continue;
+          const phone = (c.contact || "").replace(/\D/g, "");
+          if (!phone) continue;
+          if (!phoneMap.has(phone)) phoneMap.set(phone, []);
+          phoneMap.get(phone)!.push(c);
+        }
+        for (const [, records] of phoneMap) {
+          if (records.length > 1) {
+            groups.push({ matchType: "phone", records });
+            records.forEach(r => usedIds.add(r.id));
+          }
         }
       }
 
