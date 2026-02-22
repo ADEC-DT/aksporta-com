@@ -29,6 +29,7 @@ export const managedUsers = pgTable("managed_users", {
   mfaBackupCodes: text("mfa_backup_codes").array(),
   theme: varchar("theme").notNull().default("system"),
   emailNotifications: boolean("email_notifications").notNull().default(true),
+  notificationPreferences: jsonb("notification_preferences"),
   lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -363,6 +364,27 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
 
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
+
+// Import logs table (tracking Customer DB import history)
+export const importLogs = pgTable("import_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fileName: varchar("file_name").notNull(),
+  totalRows: integer("total_rows").notNull().default(0),
+  imported: integer("imported").notNull().default(0),
+  skipped: integer("skipped").notNull().default(0),
+  skipReasons: jsonb("skip_reasons"),
+  importedBy: varchar("imported_by").notNull(),
+  importedByName: varchar("imported_by_name"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertImportLogSchema = createInsertSchema(importLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertImportLog = z.infer<typeof insertImportLogSchema>;
+export type ImportLog = typeof importLogs.$inferSelect;
 
 // Customer profiles table (extended profile data)
 export const customerProfiles = pgTable("customer_profiles", {

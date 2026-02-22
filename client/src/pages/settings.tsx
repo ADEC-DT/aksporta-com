@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { User, Lock, Palette, Shield, Loader2, AlertCircle, Copy, Check } from "lucide-react";
+import { User, Lock, Palette, Shield, Loader2, AlertCircle, Copy, Check, Camera, Bell } from "lucide-react";
 import type { ManagedUser } from "@shared/schema";
 
 type ProfileData = Omit<ManagedUser, "password" | "mfaSecret" | "mfaBackupCodes">;
@@ -59,9 +59,22 @@ export default function SettingsPage() {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const [notifPrefs, setNotifPrefs] = useState({
+    ticketUpdates: true,
+    projectDeadlines: true,
+    systemAlerts: true,
+    importNotifications: true,
+  });
 
   const { data: profile, isLoading: profileLoading } = useQuery<ProfileData>({
     queryKey: ["/api/settings/profile"],
+    enabled: !!authUser,
+  });
+
+  const { data: savedNotifPrefs } = useQuery<{ ticketUpdates: boolean; projectDeadlines: boolean; systemAlerts: boolean; importNotifications: boolean }>({
+    queryKey: ["/api/settings/notifications"],
     enabled: !!authUser,
   });
 
@@ -78,6 +91,12 @@ export default function SettingsPage() {
       });
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (savedNotifPrefs) {
+      setNotifPrefs(savedNotifPrefs);
+    }
+  }, [savedNotifPrefs]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: Partial<ProfileData>) => {
@@ -103,6 +122,44 @@ export default function SettingsPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to update preferences", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const res = await fetch("/api/settings/avatar", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Upload failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: "Avatar updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to upload avatar", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateNotifPrefsMutation = useMutation({
+    mutationFn: async (data: typeof notifPrefs) => {
+      return apiRequest("PATCH", "/api/settings/notifications", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/notifications"] });
+      toast({ title: "Notification preferences updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
     },
   });
 
@@ -167,6 +224,23 @@ export default function SettingsPage() {
       toast({ title: "Failed to disable MFA", description: error.message, variant: "destructive" });
     },
   });
+
+  function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum size is 2MB", variant: "destructive" });
+      return;
+    }
+    uploadAvatarMutation.mutate(file);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  }
+
+  function handleNotifChange(key: string, value: boolean) {
+    const updated = { ...notifPrefs, [key]: value };
+    setNotifPrefs(updated);
+    updateNotifPrefsMutation.mutate(updated);
+  }
 
   function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -289,16 +363,14 @@ export default function SettingsPage() {
             <User className="mr-2 h-4 w-4" />
             Profile
           </TabsTrigger>
-          {/* COMMENTED OUT: Security and Preferences tabs - can be restored later
-          <TabsTrigger value="security" data-testid="tab-security">
-            <Lock className="mr-2 h-4 w-4" />
-            Security
-          </TabsTrigger>
           <TabsTrigger value="preferences" data-testid="tab-preferences">
             <Palette className="mr-2 h-4 w-4" />
             Preferences
           </TabsTrigger>
-          */}
+          <TabsTrigger value="notifications" data-testid="tab-notifications">
+            <Bell className="mr-2 h-4 w-4" />
+            Notifications
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -312,13 +384,41 @@ export default function SettingsPage() {
             <CardContent>
               <form onSubmit={handleProfileSubmit} className="space-y-6">
                 <div className="flex items-center gap-6">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={profile.profilePicture || undefined} />
-                    <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative group">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={profile.profilePicture || undefined} />
+                      <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+                    </Avatar>
+                    <button
+                      className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={() => avatarInputRef.current?.click()}
+                      data-testid="button-upload-avatar"
+                    >
+                      <Camera className="h-5 w-5 text-white" />
+                    </button>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                    {uploadAvatarMutation.isPending && (
+                      <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <p className="font-medium">{profile.displayName || profile.username}</p>
                     <p className="text-sm text-muted-foreground">{profile.email}</p>
+                    <button 
+                      className="text-xs text-primary hover:underline mt-1"
+                      onClick={() => avatarInputRef.current?.click()}
+                      data-testid="link-change-photo"
+                    >
+                      Change photo
+                    </button>
                   </div>
                 </div>
 
@@ -469,7 +569,6 @@ export default function SettingsPage() {
         </TabsContent>
         */}
 
-        {/* COMMENTED OUT: Preferences TabsContent - can be restored later
         <TabsContent value="preferences" className="space-y-6">
           <Card>
             <CardHeader>
@@ -502,32 +601,36 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
+        <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>
-                Manage your notification preferences
-              </CardDescription>
+              <CardTitle>Notification Preferences</CardTitle>
+              <CardDescription>Choose which notifications you want to receive</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Email Notifications</p>
-                  <p className="text-sm text-muted-foreground">
-                    Receive email updates about your account
-                  </p>
+            <CardContent className="space-y-6">
+              {[
+                { key: "ticketUpdates", title: "Ticket Updates", description: "Get notified when your tickets are updated or commented on" },
+                { key: "projectDeadlines", title: "Project Deadlines", description: "Alerts about upcoming and overdue task deadlines" },
+                { key: "systemAlerts", title: "System Alerts", description: "Important system notifications and maintenance updates" },
+                { key: "importNotifications", title: "Import Notifications", description: "Updates about customer data imports and results" },
+              ].map(({ key, title, description }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{title}</p>
+                    <p className="text-sm text-muted-foreground">{description}</p>
+                  </div>
+                  <Switch
+                    checked={notifPrefs[key as keyof typeof notifPrefs]}
+                    onCheckedChange={(v) => handleNotifChange(key, v)}
+                    data-testid={`switch-notif-${key}`}
+                  />
                 </div>
-                <Switch
-                  checked={profile.emailNotifications}
-                  onCheckedChange={handleNotificationsChange}
-                  data-testid="switch-email-notifications"
-                />
-              </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
-        */}
       </Tabs>
 
       {/* Password Change Dialog */}

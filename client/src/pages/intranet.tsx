@@ -51,11 +51,15 @@ import {
   FileText,
   Database,
   TrendingUp,
+  TrendingDown,
+  Timer,
+  Users,
   Eye,
   ChevronRight,
   AlertTriangle,
   CircleDot
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import type { Ticket as TicketType, TicketComment } from "@shared/schema";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -113,6 +117,12 @@ function getSubcategoryLabel(category: string, subcategory: string | null): stri
   return subcategory;
 }
 
+type DepartmentLoad = {
+  total: number;
+  open: number;
+  resolved: number;
+};
+
 type TicketStats = {
   total: number;
   open: number;
@@ -122,6 +132,14 @@ type TicketStats = {
   digitalTransformation: number;
   critical: number;
   byStatus: Record<string, number>;
+  avgCloseTimeHours?: number;
+  avgCloseTimeDays?: number;
+  byDepartmentLoad?: {
+    it_support: DepartmentLoad;
+    digital_transformation: DepartmentLoad;
+  };
+  slaBreaches?: number;
+  overdueTickets?: string[];
 };
 
 export default function IntranetPage() {
@@ -630,6 +648,10 @@ export default function IntranetPage() {
                 <TabsTrigger value="all" data-testid="tab-all">All Tickets</TabsTrigger>
                 <TabsTrigger value="it_support" data-testid="tab-it">IT Support</TabsTrigger>
                 <TabsTrigger value="digital_transformation" data-testid="tab-dt">Digital Transformation</TabsTrigger>
+                <TabsTrigger value="analytics" data-testid="tab-analytics">
+                  <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                  Analytics
+                </TabsTrigger>
               </TabsList>
 
               <div className="flex items-center gap-2">
@@ -659,6 +681,176 @@ export default function IntranetPage() {
               </div>
             </div>
 
+            {activeTab === "analytics" ? (
+              <div className="p-4 space-y-4">
+                <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                  <Card data-testid="card-avg-resolution">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                          <Timer className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold font-outfit" data-testid="text-avg-resolution-value">
+                            {stats?.avgCloseTimeHours != null
+                              ? stats.avgCloseTimeHours < 48
+                                ? `${Math.round(stats.avgCloseTimeHours)}h`
+                                : `${Math.round(stats.avgCloseTimeDays || stats.avgCloseTimeHours / 24)}d`
+                              : "—"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Avg Resolution Time</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card data-testid="card-sla-breaches">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${(stats?.slaBreaches || 0) > 0 ? "bg-red-100 dark:bg-red-900/30" : "bg-green-100 dark:bg-green-900/30"}`}>
+                          <AlertTriangle className={`h-5 w-5 ${(stats?.slaBreaches || 0) > 0 ? "text-red-600" : "text-green-600"}`} />
+                        </div>
+                        <div>
+                          <p className={`text-2xl font-bold font-outfit ${(stats?.slaBreaches || 0) > 0 ? "text-red-600" : ""}`} data-testid="text-sla-breaches-value">
+                            {stats?.slaBreaches ?? 0}
+                          </p>
+                          <p className="text-xs text-muted-foreground">SLA Breaches</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card data-testid="card-it-load">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+                          <Monitor className="h-5 w-5 text-cyan-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold font-outfit" data-testid="text-it-load-value">
+                            {stats?.byDepartmentLoad?.it_support
+                              ? `${stats.byDepartmentLoad.it_support.open}/${stats.byDepartmentLoad.it_support.total}`
+                              : "0/0"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">IT Support Load</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card data-testid="card-dt-load">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                          <Zap className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold font-outfit" data-testid="text-dt-load-value">
+                            {stats?.byDepartmentLoad?.digital_transformation
+                              ? `${stats.byDepartmentLoad.digital_transformation.open}/${stats.byDepartmentLoad.digital_transformation.total}`
+                              : "0/0"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">DT Load</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card data-testid="card-department-breakdown">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold">Department Breakdown</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {(() => {
+                        const itTotal = stats?.byDepartmentLoad?.it_support?.total || 0;
+                        const dtTotal = stats?.byDepartmentLoad?.digital_transformation?.total || 0;
+                        const maxVal = Math.max(itTotal, dtTotal, 1);
+                        return (
+                          <>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm flex items-center gap-2">
+                                  <Monitor className="h-3.5 w-3.5 text-blue-600" />
+                                  IT Support
+                                </span>
+                                <span className="text-sm font-semibold" data-testid="text-it-breakdown-count">{itTotal}</span>
+                              </div>
+                              <div className="h-3 rounded-md bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-md bg-blue-500 transition-all"
+                                  style={{ width: `${(itTotal / maxVal) * 100}%` }}
+                                  data-testid="bar-it-breakdown"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm flex items-center gap-2">
+                                  <Zap className="h-3.5 w-3.5 text-purple-600" />
+                                  Digital Transformation
+                                </span>
+                                <span className="text-sm font-semibold" data-testid="text-dt-breakdown-count">{dtTotal}</span>
+                              </div>
+                              <div className="h-3 rounded-md bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-md bg-purple-500 transition-all"
+                                  style={{ width: `${(dtTotal / maxVal) * 100}%` }}
+                                  data-testid="bar-dt-breakdown"
+                                />
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  <Card data-testid="card-resolution-performance">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold">Resolution Performance</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {(() => {
+                        const itLoad = stats?.byDepartmentLoad?.it_support;
+                        const dtLoad = stats?.byDepartmentLoad?.digital_transformation;
+                        const itPct = itLoad && itLoad.total > 0 ? Math.round((itLoad.resolved / itLoad.total) * 100) : 0;
+                        const dtPct = dtLoad && dtLoad.total > 0 ? Math.round((dtLoad.resolved / dtLoad.total) * 100) : 0;
+                        return (
+                          <>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm flex items-center gap-2">
+                                  <Monitor className="h-3.5 w-3.5 text-blue-600" />
+                                  IT Support
+                                </span>
+                                <span className="text-xs text-muted-foreground" data-testid="text-it-resolution-ratio">
+                                  {itLoad ? `${itLoad.resolved}/${itLoad.total}` : "0/0"} ({itPct}%)
+                                </span>
+                              </div>
+                              <Progress value={itPct} className="h-2" data-testid="progress-it-resolution" />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm flex items-center gap-2">
+                                  <Zap className="h-3.5 w-3.5 text-purple-600" />
+                                  Digital Transformation
+                                </span>
+                                <span className="text-xs text-muted-foreground" data-testid="text-dt-resolution-ratio">
+                                  {dtLoad ? `${dtLoad.resolved}/${dtLoad.total}` : "0/0"} ({dtPct}%)
+                                </span>
+                              </div>
+                              <Progress value={dtPct} className="h-2" data-testid="progress-dt-resolution" />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            ) : (
             <div className="p-4">
               {isLoading ? (
                 <div className="flex justify-center py-12">
@@ -693,6 +885,7 @@ export default function IntranetPage() {
                         const sev = severityConfig[ticket.severity] || severityConfig.low;
                         const cat = categoryConfig[ticket.category] || categoryConfig.other;
                         const StatusIcon = st.icon;
+                        const isOverdue = stats?.overdueTickets?.includes(ticket.id);
 
                         return (
                           <TableRow
@@ -724,6 +917,12 @@ export default function IntranetPage() {
                               <div className="flex items-center gap-1.5">
                                 <StatusIcon className={`h-3.5 w-3.5 ${st.color}`} />
                                 <span className={`text-xs ${st.color}`}>{st.label}</span>
+                                {isOverdue && (
+                                  <Badge variant="destructive" className="text-[9px] px-1 py-0 ml-1" data-testid={`badge-sla-${ticket.id}`}>
+                                    <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                    SLA
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -749,6 +948,7 @@ export default function IntranetPage() {
                 </div>
               )}
             </div>
+            )}
           </Tabs>
         </CardContent>
       </Card>

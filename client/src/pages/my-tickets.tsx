@@ -81,6 +81,7 @@ export default function MyTicketsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [newTicket, setNewTicket] = useState({
     subject: "",
     description: "",
@@ -154,8 +155,9 @@ export default function MyTicketsPage() {
       ticket.description.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = categoryFilter === null || ticket.category === categoryFilter;
+    const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
     
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const ticketsByCategory = Object.keys(categoryConfig).reduce((acc, key) => {
@@ -388,7 +390,7 @@ export default function MyTicketsPage() {
           </div>
 
           <div>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <Ticket className="h-5 w-5" />
                 <h2 className="text-lg font-semibold">
@@ -405,10 +407,40 @@ export default function MyTicketsPage() {
                   </Button>
                 )}
               </div>
-              <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-new-ticket">
-                <Plus className="mr-2 h-4 w-4" />
-                New Ticket
-              </Button>
+              <div className="flex items-center gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-36 h-9" data-testid="select-status-filter">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="under_review">Under Review</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-new-ticket">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Ticket
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              {Object.entries(statusConfig).map(([key, config]) => {
+                const count = tickets.filter(t => t.status === key).length;
+                if (count === 0) return null;
+                return (
+                  <button key={key} onClick={() => setStatusFilter(key === statusFilter ? "all" : key)}
+                    className={`flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 ${statusFilter === key ? 'ring-2 ring-primary' : ''} ${config.bgColor}`}
+                    data-testid={`button-status-filter-${key}`}>
+                    <span className={`h-2 w-2 rounded-full ${config.color.replace('text-', 'bg-')}`} />
+                    <span className={config.color}>{config.label}: {count}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {isLoading ? (
@@ -442,11 +474,17 @@ export default function MyTicketsPage() {
                   const status = statusConfig[ticket.status] || statusConfig.new;
                   const severity = severityConfig[ticket.severity] || severityConfig.low;
                   const category = categoryConfig[ticket.category] || categoryConfig.other;
+                  const priorityBorderColor = {
+                    low: "border-l-blue-400",
+                    medium: "border-l-yellow-400",
+                    high: "border-l-orange-400",
+                    critical: "border-l-red-500",
+                  }[ticket.severity] || "border-l-blue-400";
 
                   return (
                     <Card 
                       key={ticket.id} 
-                      className="cursor-pointer hover-elevate"
+                      className={`cursor-pointer hover-elevate border-l-4 rounded-none ${priorityBorderColor}`}
                       onClick={() => setSelectedTicket(ticket)}
                       data-testid={`card-ticket-${ticket.id}`}
                     >

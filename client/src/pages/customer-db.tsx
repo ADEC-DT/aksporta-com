@@ -39,7 +39,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle, ScanSearch, Merge, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle, ScanSearch, Merge, Trash2, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { format } from "date-fns";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer } from "@shared/schema";
@@ -55,7 +56,10 @@ export default function CustomerDBPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
-  const [activeTab, setActiveTab] = useState<"records" | "cleanup">("records");
+  const [activeTab, setActiveTab] = useState<"records" | "cleanup" | "history">("records");
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [unitFilter, setUnitFilter] = useState<string>("");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
   const [fileColumns, setFileColumns] = useState<string[]>([]);
@@ -73,16 +77,34 @@ export default function CustomerDBPage() {
   const [scanDone, setScanDone] = useState(false);
 
   const { data, isLoading } = useQuery<{ customers: Customer[]; total: number }>({
-    queryKey: ["/api/customers", searchQuery, currentPage],
+    queryKey: ["/api/customers", searchQuery, currentPage, sortBy, sortOrder, unitFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.set("search", searchQuery);
       params.set("limit", String(pageSize));
       params.set("offset", String((currentPage - 1) * pageSize));
+      if (sortBy) params.set("sortBy", sortBy);
+      if (sortOrder) params.set("sortOrder", sortOrder);
+      if (unitFilter) params.set("unit", unitFilter);
       const res = await fetch(`/api/customers?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch customers");
       return res.json();
     },
+  });
+
+  const { data: importLogs = [], isLoading: logsLoading } = useQuery<{
+    id: string;
+    fileName: string;
+    totalRows: number;
+    imported: number;
+    skipped: number;
+    skipReasons: { empty_row?: number; duplicate_email?: number; duplicate_phone?: number; error?: number } | null;
+    importedBy: string;
+    importedByName: string | null;
+    createdAt: string;
+  }[]>({
+    queryKey: ["/api/customers/import-logs"],
+    enabled: activeTab === "history",
   });
 
   const previewMutation = useMutation({
@@ -662,12 +684,24 @@ export default function CustomerDBPage() {
           <ScanSearch className="h-4 w-4" />
           Data Cleanup
         </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          data-testid="tab-history"
+        >
+          <Clock className="h-4 w-4" />
+          History
+        </button>
       </div>
 
       {activeTab === "records" && (
       <>
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card data-testid="stat-total-customers">
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card
+          className={`cursor-pointer hover-elevate ${!unitFilter ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => { setUnitFilter(""); setCurrentPage(1); }}
+          data-testid="card-unit-all"
+        >
           <CardContent className="flex items-center gap-4 p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
               <Users className="h-6 w-6 text-blue-600" />
@@ -678,55 +712,47 @@ export default function CustomerDBPage() {
               ) : (
                 <p className="text-2xl font-bold">{totalCustomers}</p>
               )}
-              <p className="text-sm text-muted-foreground">Total Customers</p>
+              <p className="text-sm text-muted-foreground">All Customers</p>
             </div>
           </CardContent>
         </Card>
-        <Card data-testid="stat-mall-customers">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-900/30">
-              <Store className="h-6 w-6 text-pink-600" />
-            </div>
-            <div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-12" />
-              ) : (
-                <p className="text-2xl font-bold">{mallCount}</p>
-              )}
-              <p className="text-sm text-muted-foreground">Boutique Mall</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-equestrian-customers">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-              <CircleDot className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-12" />
-              ) : (
-                <p className="text-2xl font-bold">{equestrianCount}</p>
-              )}
-              <p className="text-sm text-muted-foreground">Equestrian</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-corporate-customers">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-              <Briefcase className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              {isLoading ? (
-                <Skeleton className="h-8 w-12" />
-              ) : (
-                <p className="text-2xl font-bold">{corporateCount}</p>
-              )}
-              <p className="text-sm text-muted-foreground">Corporate</p>
-            </div>
-          </CardContent>
-        </Card>
+        {businessUnits.map((unit) => {
+          const isActive = unitFilter === unit.name;
+          const Icon = unit.icon;
+          const colorMap: Record<string, { bg: string; icon: string }> = {
+            mall: { bg: "bg-pink-100 dark:bg-pink-900/30", icon: "text-pink-600" },
+            equestrian: { bg: "bg-green-100 dark:bg-green-900/30", icon: "text-green-600" },
+            corporate: { bg: "bg-purple-100 dark:bg-purple-900/30", icon: "text-purple-600" },
+          };
+          const colors = colorMap[unit.id] || { bg: "bg-muted", icon: "text-muted-foreground" };
+          const countMap: Record<string, number> = {
+            "Boutique Mall": mallCount,
+            "Equestrian Center": equestrianCount,
+            "Corporate": corporateCount,
+          };
+          return (
+            <Card
+              key={unit.id}
+              className={`cursor-pointer hover-elevate ${isActive ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => { setUnitFilter(isActive ? "" : unit.name); setCurrentPage(1); }}
+              data-testid={`card-unit-${unit.id}`}
+            >
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${colors.bg}`}>
+                  <Icon className={`h-6 w-6 ${colors.icon}`} />
+                </div>
+                <div>
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold">{countMap[unit.name] ?? 0}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">{unit.name}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <Card>
@@ -737,11 +763,56 @@ export default function CustomerDBPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>First Name</TableHead>
-                <TableHead>Last Name</TableHead>
-                <TableHead>Phone Number</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Resource</TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => { if (sortBy === "firstName") { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); } else { setSortBy("firstName"); setSortOrder("asc"); } setCurrentPage(1); }}
+                  data-testid="sort-firstName"
+                >
+                  <div className="flex items-center gap-1">
+                    First Name
+                    {sortBy === "firstName" && <span className="text-xs">{sortOrder === "asc" ? "↑" : "↓"}</span>}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => { if (sortBy === "lastName") { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); } else { setSortBy("lastName"); setSortOrder("asc"); } setCurrentPage(1); }}
+                  data-testid="sort-lastName"
+                >
+                  <div className="flex items-center gap-1">
+                    Last Name
+                    {sortBy === "lastName" && <span className="text-xs">{sortOrder === "asc" ? "↑" : "↓"}</span>}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => { if (sortBy === "contact") { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); } else { setSortBy("contact"); setSortOrder("asc"); } setCurrentPage(1); }}
+                  data-testid="sort-contact"
+                >
+                  <div className="flex items-center gap-1">
+                    Phone Number
+                    {sortBy === "contact" && <span className="text-xs">{sortOrder === "asc" ? "↑" : "↓"}</span>}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => { if (sortBy === "email") { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); } else { setSortBy("email"); setSortOrder("asc"); } setCurrentPage(1); }}
+                  data-testid="sort-email"
+                >
+                  <div className="flex items-center gap-1">
+                    Email
+                    {sortBy === "email" && <span className="text-xs">{sortOrder === "asc" ? "↑" : "↓"}</span>}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => { if (sortBy === "source") { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); } else { setSortBy("source"); setSortOrder("asc"); } setCurrentPage(1); }}
+                  data-testid="sort-source"
+                >
+                  <div className="flex items-center gap-1">
+                    Resource
+                    {sortBy === "source" && <span className="text-xs">{sortOrder === "asc" ? "↑" : "↓"}</span>}
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -999,6 +1070,54 @@ export default function CustomerDBPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {activeTab === "history" && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Import History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {logsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : importLogs.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8" data-testid="history-empty">
+                No import history yet. Import a file to see logs here.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>File Name</TableHead>
+                    <TableHead>Total Rows</TableHead>
+                    <TableHead>Imported</TableHead>
+                    <TableHead>Skipped</TableHead>
+                    <TableHead>Imported By</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importLogs.map((log) => (
+                    <TableRow key={log.id} data-testid={`row-import-log-${log.id}`}>
+                      <TableCell className="text-sm">
+                        {format(new Date(log.createdAt), "MMM d, yyyy h:mm a")}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{log.fileName}</TableCell>
+                      <TableCell className="text-sm">{log.totalRows}</TableCell>
+                      <TableCell className="text-sm text-green-600 dark:text-green-400">{log.imported}</TableCell>
+                      <TableCell className="text-sm text-yellow-600 dark:text-yellow-400">{log.skipped}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{log.importedByName || log.importedBy}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

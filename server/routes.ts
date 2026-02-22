@@ -2,9 +2,9 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, importLogs, managedUsers, customers } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -441,6 +441,98 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Avatar upload
+  const avatarUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = ["image/jpeg", "image/png", "image/webp"];
+      if (allowed.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only JPEG, PNG, and WebP images are accepted"));
+      }
+    },
+  });
+
+  app.post("/api/settings/avatar", isAuthenticated, avatarUpload.single("avatar"), async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file uploaded" });
+      }
+
+      const base64 = req.file.buffer.toString("base64");
+      const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
+
+      const updated = await storage.updateManagedUser(user.id, { profilePicture: dataUrl } as any);
+      if (updated) {
+        const { password, mfaSecret, mfaBackupCodes, ...profile } = updated;
+        res.json(profile);
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error: any) {
+      console.error("Error uploading avatar:", error);
+      if (error.message?.includes("accepted")) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to upload avatar" });
+    }
+  });
+
+  // Notification preferences
+  app.get("/api/settings/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const prefs = (user as any).notificationPreferences || {
+        ticketUpdates: true,
+        projectDeadlines: true,
+        systemAlerts: true,
+        importNotifications: true,
+      };
+      res.json(prefs);
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      res.status(500).json({ message: "Failed to fetch notification preferences" });
+    }
+  });
+
+  app.patch("/api/settings/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const notifSchema = z.object({
+        ticketUpdates: z.boolean().optional(),
+        projectDeadlines: z.boolean().optional(),
+        systemAlerts: z.boolean().optional(),
+        importNotifications: z.boolean().optional(),
+      });
+
+      const parsed = notifSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      const currentPrefs = (user as any).notificationPreferences || {
+        ticketUpdates: true,
+        projectDeadlines: true,
+        systemAlerts: true,
+        importNotifications: true,
+      };
+
+      const newPrefs = { ...currentPrefs, ...parsed.data };
+
+      await db.update(managedUsers)
+        .set({ notificationPreferences: newPrefs, updatedAt: new Date() })
+        .where(eq(managedUsers.id, user.id));
+
+      res.json(newPrefs);
+    } catch (error) {
+      console.error("Error updating notification preferences:", error);
+      res.status(500).json({ message: "Failed to update notification preferences" });
     }
   });
 
@@ -1207,21 +1299,74 @@ export async function registerRoutes(
     try {
       const allResult = await storage.getAllTickets({ limit: 9999 });
       const allTickets = allResult.tickets;
+
+      const openStatuses = ["new", "in_progress", "under_review"];
+      const openTickets = allTickets.filter(t => openStatuses.includes(t.status));
+
+      const resolvedOrClosed = allTickets.filter(t => (t.status === "resolved" || t.status === "closed") && t.resolvedAt && t.createdAt);
+      let avgCloseTimeHours = 0;
+      let avgCloseTimeDays = 0;
+      if (resolvedOrClosed.length > 0) {
+        const totalMs = resolvedOrClosed.reduce((sum, t) => {
+          const created = new Date(t.createdAt!).getTime();
+          const resolved = new Date(t.resolvedAt!).getTime();
+          return sum + (resolved - created);
+        }, 0);
+        avgCloseTimeHours = Math.round((totalMs / resolvedOrClosed.length / (1000 * 60 * 60)) * 100) / 100;
+        avgCloseTimeDays = Math.round((avgCloseTimeHours / 24) * 100) / 100;
+      }
+
+      const byDepartmentLoad = {
+        it_support: {
+          total: allTickets.filter(t => t.category === "it_support").length,
+          open: allTickets.filter(t => t.category === "it_support" && openStatuses.includes(t.status)).length,
+          resolved: allTickets.filter(t => t.category === "it_support" && (t.status === "resolved" || t.status === "closed")).length,
+        },
+        digital_transformation: {
+          total: allTickets.filter(t => t.category === "digital_transformation").length,
+          open: allTickets.filter(t => t.category === "digital_transformation" && openStatuses.includes(t.status)).length,
+          resolved: allTickets.filter(t => t.category === "digital_transformation" && (t.status === "resolved" || t.status === "closed")).length,
+        },
+      };
+
+      const now = Date.now();
+      const slaThresholds: Record<string, number> = {
+        critical: 4 * 60 * 60 * 1000,
+        high: 24 * 60 * 60 * 1000,
+        medium: 48 * 60 * 60 * 1000,
+        low: 72 * 60 * 60 * 1000,
+      };
+      const overdueTickets: string[] = [];
+      for (const t of openTickets) {
+        const threshold = slaThresholds[t.severity];
+        if (threshold && t.createdAt) {
+          const elapsed = now - new Date(t.createdAt).getTime();
+          if (elapsed > threshold) {
+            overdueTickets.push(t.id);
+          }
+        }
+      }
+
       const stats = {
         total: allTickets.length,
-        open: allTickets.filter(t => t.status === "new" || t.status === "in_progress" || t.status === "under_review").length,
+        open: openTickets.length,
         resolved: allTickets.filter(t => t.status === "resolved").length,
         closed: allTickets.filter(t => t.status === "closed").length,
         itSupport: allTickets.filter(t => t.category === "it_support").length,
         digitalTransformation: allTickets.filter(t => t.category === "digital_transformation").length,
-        critical: allTickets.filter(t => t.severity === "critical" && t.status !== "closed" && t.status !== "resolved").length,
+        critical: allTickets.filter(t => t.severity === "critical" && openStatuses.includes(t.status)).length,
         byStatus: {
           new: allTickets.filter(t => t.status === "new").length,
           in_progress: allTickets.filter(t => t.status === "in_progress").length,
           under_review: allTickets.filter(t => t.status === "under_review").length,
           resolved: allTickets.filter(t => t.status === "resolved").length,
           closed: allTickets.filter(t => t.status === "closed").length,
-        }
+        },
+        avgCloseTimeHours,
+        avgCloseTimeDays,
+        byDepartmentLoad,
+        slaBreaches: overdueTickets.length,
+        overdueTickets,
       };
       res.json(stats);
     } catch (error) {
@@ -1301,15 +1446,18 @@ export async function registerRoutes(
 
   // Customer DB API Routes
   
-  // Get all customers with optional search and type filter
+  // Get all customers with optional search, type, unit filter, and sorting
   app.get("/api/customers", isAuthenticated, async (req, res) => {
     try {
-      const { search, type, limit, offset } = req.query;
+      const { search, type, unit, limit, offset, sortBy, sortOrder } = req.query;
       const result = await storage.getAllCustomers({
         search: search as string,
         type: type as string,
+        unit: unit as string,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
+        sortBy: sortBy as string,
+        sortOrder: sortOrder as string,
       });
       res.json(result);
     } catch (error) {
@@ -1621,10 +1769,57 @@ export async function registerRoutes(
         status: "success",
       });
 
+      await db.insert(importLogs).values({
+        fileName: req.body.fileName || "import.xlsx",
+        totalRows: rows.length,
+        imported,
+        skipped,
+        skipReasons,
+        importedBy: user.id,
+        importedByName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+      });
+
       res.json({ imported, skipped, totalRows: rows.length, errors: errors.slice(0, 50), skipReasons });
     } catch (error: any) {
       console.error("Error importing customers:", error);
       res.status(500).json({ message: "Failed to import customers: " + (error.message || "Unknown error") });
+    }
+  });
+
+  // Import log CRUD endpoints
+  app.post("/api/customers/import-log", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const { fileName, totalRows, imported, skipped, skipReasons } = req.body;
+
+      if (!fileName) {
+        return res.status(400).json({ message: "fileName is required" });
+      }
+
+      const [log] = await db.insert(importLogs).values({
+        fileName,
+        totalRows: totalRows || 0,
+        imported: imported || 0,
+        skipped: skipped || 0,
+        skipReasons: skipReasons || null,
+        importedBy: user.id,
+        importedByName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+      }).returning();
+
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Error creating import log:", error);
+      res.status(500).json({ message: "Failed to create import log" });
+    }
+  });
+
+  app.get("/api/customers/import-logs", isAuthenticated, async (req, res) => {
+    try {
+      const logs = await db.select().from(importLogs).orderBy(desc(importLogs.createdAt));
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching import logs:", error);
+      res.status(500).json({ message: "Failed to fetch import logs" });
     }
   });
 

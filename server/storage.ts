@@ -92,7 +92,7 @@ export interface IStorage {
   deleteUserManual(id: string): Promise<boolean>;
   
   // Customers CRUD
-  getAllCustomers(options?: { search?: string; type?: string; limit?: number; offset?: number }): Promise<{ customers: Customer[]; total: number }>;
+  getAllCustomers(options?: { search?: string; type?: string; unit?: string; limit?: number; offset?: number; sortBy?: string; sortOrder?: string }): Promise<{ customers: Customer[]; total: number }>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByExternalCode(code: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
@@ -513,8 +513,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Customer methods
-  async getAllCustomers(options?: { search?: string; type?: string; limit?: number; offset?: number }): Promise<{ customers: Customer[]; total: number }> {
-    const { search, type, limit = 50, offset = 0 } = options || {};
+  async getAllCustomers(options?: { search?: string; type?: string; unit?: string; limit?: number; offset?: number; sortBy?: string; sortOrder?: string }): Promise<{ customers: Customer[]; total: number }> {
+    const { search, type, unit, limit = 50, offset = 0, sortBy, sortOrder } = options || {};
     
     let conditions = [];
     if (search) {
@@ -530,6 +530,9 @@ export class DatabaseStorage implements IStorage {
     if (type) {
       conditions.push(eq(customers.type, type));
     }
+    if (unit) {
+      conditions.push(eq(customers.primaryUnit, unit));
+    }
     
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     
@@ -537,12 +540,24 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)::int` })
       .from(customers)
       .where(whereClause);
+
+    const sortColumnMap: Record<string, any> = {
+      firstName: customers.firstName,
+      lastName: customers.lastName,
+      email: customers.email,
+      contact: customers.contact,
+      primaryUnit: customers.primaryUnit,
+      source: customers.source,
+      createdAt: customers.createdAt,
+    };
+    const sortCol = sortColumnMap[sortBy || ""] || customers.createdAt;
+    const orderFn = sortOrder === "asc" ? asc : desc;
     
     const result = await db
       .select()
       .from(customers)
       .where(whereClause)
-      .orderBy(desc(customers.createdAt))
+      .orderBy(orderFn(sortCol))
       .limit(limit)
       .offset(offset);
     

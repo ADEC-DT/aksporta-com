@@ -125,6 +125,18 @@ const portalSections = [
   { name: "it_dt", title: "IT & DT" },
 ];
 
+function getDeadlineStatus(deadline: string | null, status: string): "overdue" | "due_soon" | null {
+  if (!deadline || status === "completed" || status === "cancelled") return null;
+  const deadlineDate = new Date(deadline);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadlineDate.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return "overdue";
+  if (diffDays <= 3) return "due_soon";
+  return null;
+}
+
 type ProjectTag = {
   id: string;
   name: string;
@@ -444,7 +456,7 @@ export default function ProjectsPage() {
   const [sprintsDialogOpen, setSprintsDialogOpen] = useState(false);
   const [location] = useLocation();
   const activeView = location.includes("/tuesday") ? "tuesday" : "monday";
-  const [tuesdayDisplayMode, setTuesdayDisplayMode] = useState<"table" | "kanban" | "gantt">("table");
+  const [tuesdayDisplayMode, setTuesdayDisplayMode] = useState<"table" | "kanban" | "gantt" | "workload">("table");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [blueprintDialogOpen, setBlueprintDialogOpen] = useState(false);
   const [editingBlueprint, setEditingBlueprint] = useState<CollaborationBlueprint | null>(null);
@@ -819,6 +831,30 @@ export default function ProjectsPage() {
     completed: projectsData.filter((p) => p.status === "completed").length,
   };
 
+  const workloadData = useMemo(() => {
+    if (!projectsData || projectsData.length === 0) return [];
+    const userMap = new Map<string, { name: string; total: number; inProgress: number; completed: number; overdue: number }>();
+
+    projectsData.forEach(project => {
+      if (!project.assignments || project.assignments.length === 0) return;
+      project.assignments.forEach((assignment: any) => {
+        const name = assignment.user
+          ? (assignment.user.firstName && assignment.user.lastName
+            ? `${assignment.user.firstName} ${assignment.user.lastName}`
+            : assignment.user.username || "Unknown")
+          : "Unknown";
+        const existing = userMap.get(assignment.userId) || { name, total: 0, inProgress: 0, completed: 0, overdue: 0 };
+        existing.total++;
+        if (project.status === "in_progress") existing.inProgress++;
+        if (project.status === "completed") existing.completed++;
+        if (project.deadline && new Date(project.deadline) < new Date() && project.status !== "completed" && project.status !== "cancelled") existing.overdue++;
+        userMap.set(assignment.userId, existing);
+      });
+    });
+
+    return Array.from(userMap.values()).sort((a, b) => b.total - a.total);
+  }, [projectsData]);
+
   // Project form
   const projectForm = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
@@ -1080,11 +1116,20 @@ export default function ProjectsPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className={`rounded-none rounded-r-md ${tuesdayDisplayMode === "gantt" ? "bg-muted" : ""} toggle-elevate ${tuesdayDisplayMode === "gantt" ? "toggle-elevated" : ""}`}
+                    className={`rounded-none ${tuesdayDisplayMode === "gantt" ? "bg-muted" : ""} toggle-elevate ${tuesdayDisplayMode === "gantt" ? "toggle-elevated" : ""}`}
                     onClick={() => setTuesdayDisplayMode("gantt")}
                     data-testid="button-tuesday-gantt-view"
                   >
                     <GanttChart className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={`rounded-none rounded-r-md ${tuesdayDisplayMode === "workload" ? "bg-muted" : ""} toggle-elevate ${tuesdayDisplayMode === "workload" ? "toggle-elevated" : ""}`}
+                    onClick={() => setTuesdayDisplayMode("workload")}
+                    data-testid="button-tuesday-workload-view"
+                  >
+                    <Users className="h-4 w-4" />
                   </Button>
                 </div>
               )}
@@ -1257,11 +1302,22 @@ export default function ProjectsPage() {
                       </PopoverContent>
                     </Popover>
 
-                    <span className={`text-xs ${timeline.color}`}>
-                      {project.deadline
-                        ? format(new Date(project.deadline), "MMM d, yyyy")
-                        : "—"}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs ${timeline.color}`}>
+                        {project.deadline
+                          ? format(new Date(project.deadline), "MMM d, yyyy")
+                          : "—"}
+                      </span>
+                      {(() => {
+                        const deadlineStatus = getDeadlineStatus(project.deadline, project.status);
+                        return (
+                          <>
+                            {deadlineStatus === "overdue" && <Badge data-testid={`deadline-overdue-${project.id}`} className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px]">Overdue</Badge>}
+                            {deadlineStatus === "due_soon" && <Badge data-testid={`deadline-due-soon-${project.id}`} className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 text-[10px]">Due Soon</Badge>}
+                          </>
+                        );
+                      })()}
+                    </div>
 
                     <div className="flex flex-wrap gap-1 overflow-hidden">
                       {(project as any).tags?.length > 0 ? (
@@ -1649,9 +1705,20 @@ export default function ProjectsPage() {
                                                     </Avatar>
                                                   )}
                                                 </div>
-                                                {project.deadline && (
-                                                  <span className={`text-[10px] ${timeline.color}`}>{timeline.text}</span>
-                                                )}
+                                                <div className="flex items-center gap-1">
+                                                  {project.deadline && (
+                                                    <span className={`text-[10px] ${timeline.color}`}>{timeline.text}</span>
+                                                  )}
+                                                  {(() => {
+                                                    const deadlineStatus = getDeadlineStatus(project.deadline, project.status);
+                                                    return (
+                                                      <>
+                                                        {deadlineStatus === "overdue" && <Badge data-testid={`kanban-deadline-overdue-${project.id}`} className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px]">Overdue</Badge>}
+                                                        {deadlineStatus === "due_soon" && <Badge data-testid={`kanban-deadline-due-soon-${project.id}`} className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 text-[10px]">Due Soon</Badge>}
+                                                      </>
+                                                    );
+                                                  })()}
+                                                </div>
                                               </div>
                                             </CardContent>
                                           </Card>
@@ -1674,6 +1741,87 @@ export default function ProjectsPage() {
                       })()}
                     </div>
                   </DragDropContext>
+                )}
+              </div>
+            )}
+
+            {activeView === "tuesday" && tuesdayDisplayMode === "workload" && (
+              <div className="space-y-4" data-testid="tuesday-workload-view">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-lg font-semibold font-outfit">Team Workload Report</h2>
+                  <Badge variant="secondary" className="ml-2 text-xs" data-testid="workload-member-count">
+                    {workloadData.length} {workloadData.length === 1 ? 'member' : 'members'}
+                  </Badge>
+                </div>
+                {workloadData.length === 0 ? (
+                  <Card className="p-12 text-center" data-testid="workload-empty">
+                    <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No workload data</h3>
+                    <p className="text-muted-foreground">Assign team members to tasks to see workload distribution.</p>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {workloadData.map((member, index) => {
+                      const completionPercent = member.total > 0 ? Math.round((member.completed / member.total) * 100) : 0;
+                      const initials = member.name
+                        .split(" ")
+                        .map(n => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2);
+
+                      return (
+                        <Card key={index} data-testid={`workload-card-${index}`}>
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                                  {initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate" data-testid={`workload-name-${index}`}>{member.name}</p>
+                                <p className="text-xs text-muted-foreground" data-testid={`workload-total-${index}`}>{member.total} {member.total === 1 ? 'task' : 'tasks'} assigned</p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Progress</span>
+                                <span className="font-medium" data-testid={`workload-progress-${index}`}>{completionPercent}%</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-green-500 transition-all"
+                                  style={{ width: `${completionPercent}%` }}
+                                  data-testid={`workload-progress-bar-${index}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="h-3 w-3 text-blue-500" />
+                                <span className="text-muted-foreground">In Progress</span>
+                                <span className="font-medium" data-testid={`workload-in-progress-${index}`}>{member.inProgress}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                <span className="text-muted-foreground">Completed</span>
+                                <span className="font-medium" data-testid={`workload-completed-${index}`}>{member.completed}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <AlertCircle className={`h-3 w-3 ${member.overdue > 0 ? "text-red-500" : "text-muted-foreground"}`} />
+                                <span className={member.overdue > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>Overdue</span>
+                                <span className={`font-medium ${member.overdue > 0 ? "text-red-600 dark:text-red-400" : ""}`} data-testid={`workload-overdue-${index}`}>{member.overdue}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
