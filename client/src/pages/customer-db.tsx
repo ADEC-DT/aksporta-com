@@ -338,15 +338,15 @@ export default function CustomerDBPage() {
                       { key: "email", label: "Email", required: false },
                       { key: "source", label: "Resource", required: false },
                     ].map((field) => (
-                      <div key={field.key} className="grid grid-cols-[140px_1fr] items-center gap-3 min-w-0">
-                        <Label className="text-sm font-medium shrink-0">
+                      <div key={field.key} className="flex items-center gap-3">
+                        <Label className="text-sm font-medium shrink-0 w-[120px]">
                           {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <Select
                           value={columnMapping[field.key] || "__none__"}
                           onValueChange={(v) => setColumnMapping({ ...columnMapping, [field.key]: v === "__none__" ? "" : v })}
                         >
-                          <SelectTrigger data-testid={`select-map-${field.key}`} className="min-w-0 overflow-hidden">
+                          <SelectTrigger data-testid={`select-map-${field.key}`} className="w-[220px] overflow-hidden">
                             <SelectValue placeholder="Select column..." className="truncate" />
                           </SelectTrigger>
                           <SelectContent className="max-h-48 max-w-[300px] overflow-y-auto" position="popper" sideOffset={4}>
