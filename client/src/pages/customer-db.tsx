@@ -38,10 +38,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, FileText, Users, Building2, User, Plus, Loader2, Store, CircleDot, Briefcase } from "lucide-react";
+import { Search, Download, FileText, Users, Building2, User, Plus, Loader2, Store, CircleDot, Briefcase, Upload, CheckCircle, AlertCircle } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, CustomerWithProfile } from "@shared/schema";
+import { useRef } from "react";
 
 const businessUnits = [
   { id: "mall", name: "Boutique Mall", icon: Store },
@@ -65,7 +66,10 @@ const emptyForm = {
 export default function CustomerDBPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { data, isLoading } = useQuery<{ customers: Customer[]; total: number }>({
@@ -101,6 +105,46 @@ export default function CustomerDBPage() {
       });
     },
   });
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/customers/import", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Import failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"], refetchType: "all" });
+      setImportResult(data);
+      toast({
+        title: "Import completed",
+        description: `${data.imported} customers imported, ${data.skipped} skipped.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Import failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportResult(null);
+    importMutation.mutate(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleAddCustomer = () => {
     const code = `C${String(Date.now()).slice(-6)}`;
@@ -220,6 +264,104 @@ export default function CustomerDBPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileUpload}
+            data-testid="input-import-file"
+          />
+          <Button
+            variant="outline"
+            onClick={() => setImportDialogOpen(true)}
+            disabled={importMutation.isPending}
+            data-testid="button-import-file"
+          >
+            {importMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="mr-2 h-4 w-4" />
+            )}
+            Import File
+          </Button>
+          <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) setImportResult(null); }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Import Customers from Excel</DialogTitle>
+                <DialogDescription>
+                  Upload an Excel file (.xlsx, .xls) with customer data. The file should have columns for: Customer Name, Phone Number, Email, and Resource/Source.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3">
+                  <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Click to select an Excel file</p>
+                    <p className="text-xs text-muted-foreground mt-1">Supported formats: .xlsx, .xls, .csv (max 10MB)</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={importMutation.isPending}
+                    data-testid="button-select-file"
+                  >
+                    {importMutation.isPending ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                    ) : (
+                      <>Select File</>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-1">
+                  <p className="font-medium text-sm">Expected columns:</p>
+                  <p>- <strong>Customer Name</strong> (required)</p>
+                  <p>- <strong>Phone Number</strong> / Mobile / Contact</p>
+                  <p>- <strong>Email</strong> (required)</p>
+                  <p>- <strong>Resource</strong> / Source / Channel (where the customer came from)</p>
+                </div>
+
+                {importResult && (
+                  <div className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <span className="font-medium">Import Results</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                        <p className="text-lg font-bold text-green-700 dark:text-green-400">{importResult.imported}</p>
+                        <p className="text-xs text-muted-foreground">Imported</p>
+                      </div>
+                      <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+                        <p className="text-lg font-bold text-yellow-700 dark:text-yellow-400">{importResult.skipped}</p>
+                        <p className="text-xs text-muted-foreground">Skipped</p>
+                      </div>
+                      <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                        <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{importResult.totalRows}</p>
+                        <p className="text-xs text-muted-foreground">Total Rows</p>
+                      </div>
+                    </div>
+                    {importResult.errors.length > 0 && (
+                      <div className="mt-2 text-xs space-y-1 max-h-32 overflow-y-auto">
+                        {importResult.errors.map((err, i) => (
+                          <div key={i} className="flex items-start gap-1 text-yellow-700 dark:text-yellow-400">
+                            <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span>{err}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setImportDialogOpen(false); setImportResult(null); }} data-testid="button-close-import">
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-customer">
@@ -443,10 +585,12 @@ export default function CustomerDBPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
+                <TableHead>Customer Name</TableHead>
+                <TableHead>Phone Number</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Resource</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Business Unit</TableHead>
-                <TableHead>Contact</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -454,15 +598,17 @@ export default function CustomerDBPage() {
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                   </TableRow>
                 ))
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                    {searchQuery ? "No customers found matching your search" : "No customers yet. Add your first customer to get started."}
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    {searchQuery ? "No customers found matching your search" : "No customers yet. Add your first customer or import from an Excel file."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -477,6 +623,17 @@ export default function CustomerDBPage() {
                         {customer.name}
                       </Link>
                     </TableCell>
+                    <TableCell className="text-muted-foreground">{customer.contact}</TableCell>
+                    <TableCell className="text-muted-foreground">{customer.email}</TableCell>
+                    <TableCell>
+                      {customer.source ? (
+                        <Badge variant="outline" className="text-xs">
+                          {customer.source}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         className={
@@ -488,8 +645,19 @@ export default function CustomerDBPage() {
                         {customer.type}
                       </Badge>
                     </TableCell>
-                    <TableCell>{customer.primaryUnit}</TableCell>
-                    <TableCell className="text-muted-foreground">{customer.contact}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          customer.primaryUnit === "Corporate"
+                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0"
+                            : customer.primaryUnit === "Equestrian Center"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0"
+                            : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-0"
+                        }
+                      >
+                        {customer.primaryUnit}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

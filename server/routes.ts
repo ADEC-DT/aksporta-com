@@ -9,6 +9,8 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
+import multer from "multer";
+import * as XLSX from "xlsx";
 
 const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
@@ -1476,6 +1478,119 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting customer:", error);
       res.status(500).json({ message: "Failed to delete customer" });
+    }
+  });
+
+  // Import customers from Excel file
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  
+  app.post("/api/customers/import", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const allowedExtensions = [".xlsx", ".xls", ".csv"];
+      const fileName = req.file.originalname?.toLowerCase() || "";
+      const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+      if (!hasValidExtension) {
+        return res.status(400).json({ message: "Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file." });
+      }
+
+      const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      if (!sheetName) {
+        return res.status(400).json({ message: "Excel file has no sheets" });
+      }
+
+      const sheet = workbook.Sheets[sheetName];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (rows.length === 0) {
+        return res.status(400).json({ message: "Excel file has no data rows" });
+      }
+
+      const headerMap: Record<string, string> = {};
+      const firstRowKeys = Object.keys(rows[0]);
+      for (const key of firstRowKeys) {
+        const lower = key.toLowerCase().trim();
+        if (lower.includes("name") && !lower.includes("phone")) headerMap["name"] = key;
+        else if (lower.includes("phone") || lower.includes("mobile") || lower.includes("contact")) headerMap["contact"] = key;
+        else if (lower.includes("email") || lower.includes("e-mail")) headerMap["email"] = key;
+        else if (lower.includes("source") || lower.includes("resource") || lower.includes("origin") || lower.includes("channel")) headerMap["source"] = key;
+      }
+
+      if (!headerMap["name"]) {
+        return res.status(400).json({ 
+          message: "Could not find a 'Name' column. Please ensure your Excel file has columns for: Customer Name, Phone Number, Email, Resource/Source.",
+          detectedColumns: firstRowKeys
+        });
+      }
+
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = String(row[headerMap["name"]] || "").trim();
+        const contact = String(row[headerMap["contact"]] || "").trim();
+        const email = String(row[headerMap["email"]] || "").trim();
+        const source = String(row[headerMap["source"]] || "").trim();
+
+        if (!name) {
+          skipped++;
+          continue;
+        }
+
+        if (!email) {
+          skipped++;
+          errors.push(`Row ${i + 2}: "${name}" skipped - email is required`);
+          continue;
+        }
+
+        try {
+          const existing = await storage.getAllCustomers({ search: email });
+          if (existing.customers.some(c => c.email === email)) {
+            skipped++;
+            errors.push(`Row ${i + 2}: "${name}" skipped - email "${email}" already exists`);
+            continue;
+          }
+
+          const code = `IMP${String(Date.now()).slice(-4)}${String(i).padStart(3, "0")}`;
+          await storage.createCustomer({
+            externalCode: code,
+            name,
+            type: "Individual",
+            primaryUnit: "Corporate",
+            email,
+            contact: contact || "",
+            source: source || "Excel Import",
+            status: "active",
+          });
+          imported++;
+        } catch (err: any) {
+          skipped++;
+          errors.push(`Row ${i + 2}: "${name}" failed - ${err.message || "unknown error"}`);
+        }
+      }
+
+      await storage.createAuditLog({
+        action: "customers_imported",
+        category: "customer_db",
+        userId: user.id,
+        userEmail: user.email,
+        details: { imported, skipped, totalRows: rows.length, fileName: req.file.originalname },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.json({ imported, skipped, totalRows: rows.length, errors: errors.slice(0, 20) });
+    } catch (error: any) {
+      console.error("Error importing customers:", error);
+      res.status(500).json({ message: "Failed to import customers: " + (error.message || "Unknown error") });
     }
   });
 
