@@ -58,7 +58,7 @@ export default function CustomerDBPage() {
   const [filePreview, setFilePreview] = useState<Record<string, string>[]>([]);
   const [fileTotalRows, setFileTotalRows] = useState(0);
   const [fileData, setFileData] = useState<string>("");
-  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ name: "", contact: "", email: "", source: "" });
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ firstName: "", lastName: "", contact: "", email: "", source: "" });
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -95,7 +95,7 @@ export default function CustomerDBPage() {
       setFilePreview(data.preview);
       setFileTotalRows(data.totalRows);
       setFileData(data.fileData);
-      setColumnMapping({ name: "", contact: "", email: "", source: "" });
+      setColumnMapping({ firstName: "", lastName: "", contact: "", email: "", source: "" });
       setImportStep("mapping");
     },
     onError: (error: Error) => {
@@ -139,8 +139,8 @@ export default function CustomerDBPage() {
   };
 
   const handleImportSubmit = () => {
-    if (!columnMapping.name) {
-      toast({ title: "Customer Name is required", description: "Please select which column maps to Customer Name", variant: "destructive" });
+    if (!columnMapping.firstName) {
+      toast({ title: "First Name is required", description: "Please select which column maps to First Name", variant: "destructive" });
       return;
     }
     importMutation.mutate({ fileData, mapping: columnMapping });
@@ -152,7 +152,7 @@ export default function CustomerDBPage() {
     setFilePreview([]);
     setFileTotalRows(0);
     setFileData("");
-    setColumnMapping({ name: "", contact: "", email: "", source: "" });
+    setColumnMapping({ firstName: "", lastName: "", contact: "", email: "", source: "" });
     setImportResult(null);
   };
 
@@ -163,11 +163,11 @@ export default function CustomerDBPage() {
   const corporateCount = customers.filter((c) => c.primaryUnit === "Corporate").length;
 
   const exportToCSV = () => {
-    const headers = ["ID", "Name", "Type", "Primary Unit", "Contact", "Email"];
+    const headers = ["ID", "First Name", "Last Name", "Type", "Primary Unit", "Contact", "Email"];
     const csvContent = [
       headers.join(","),
       ...customers.map((c) =>
-        [c.externalCode, `"${c.name}"`, c.type, `"${c.primaryUnit}"`, c.contact, c.email].join(",")
+        [c.externalCode, `"${c.firstName}"`, `"${c.lastName}"`, c.type, `"${c.primaryUnit}"`, c.contact, c.email].join(",")
       ),
     ].join("\n");
 
@@ -201,7 +201,8 @@ export default function CustomerDBPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Customer</th>
+                  <th>First Name</th>
+                  <th>Last Name</th>
                   <th>Type</th>
                   <th>Primary Unit</th>
                   <th>Contact</th>
@@ -212,7 +213,8 @@ export default function CustomerDBPage() {
                   .map(
                     (c) => `
                   <tr>
-                    <td>${c.name}</td>
+                    <td>${c.firstName}</td>
+                    <td>${c.lastName}</td>
                     <td>${c.type}</td>
                     <td>${c.primaryUnit}</td>
                     <td>${c.contact}</td>
@@ -330,7 +332,8 @@ export default function CustomerDBPage() {
                 <div className="space-y-4 py-4">
                   <div className="grid gap-3">
                     {[
-                      { key: "name", label: "Customer Name", required: true },
+                      { key: "firstName", label: "First Name", required: true },
+                      { key: "lastName", label: "Last Name", required: false },
                       { key: "contact", label: "Phone Number", required: false },
                       { key: "email", label: "Email", required: false },
                       { key: "source", label: "Resource", required: false },
@@ -422,7 +425,7 @@ export default function CustomerDBPage() {
                     </Button>
                     <Button
                       onClick={handleImportSubmit}
-                      disabled={!columnMapping.name || importMutation.isPending}
+                      disabled={!columnMapping.firstName || importMutation.isPending}
                       data-testid="button-start-import"
                     >
                       {importMutation.isPending ? (
@@ -520,7 +523,8 @@ export default function CustomerDBPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer Name</TableHead>
+                <TableHead>First Name</TableHead>
+                <TableHead>Last Name</TableHead>
                 <TableHead>Phone Number</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Resource</TableHead>
@@ -530,7 +534,8 @@ export default function CustomerDBPage() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-36" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
@@ -538,7 +543,7 @@ export default function CustomerDBPage() {
                 ))
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     {searchQuery ? "No customers found matching your search" : "No customers yet. Add your first customer or import from an Excel file."}
                   </TableCell>
                 </TableRow>
@@ -551,9 +556,10 @@ export default function CustomerDBPage() {
                         className="font-medium text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                         data-testid={`link-customer-${customer.id}`}
                       >
-                        {customer.name}
+                        {customer.firstName}
                       </Link>
                     </TableCell>
+                    <TableCell className="text-muted-foreground">{customer.lastName}</TableCell>
                     <TableCell className="text-muted-foreground">{customer.contact}</TableCell>
                     <TableCell className="text-muted-foreground">{customer.email}</TableCell>
                     <TableCell>

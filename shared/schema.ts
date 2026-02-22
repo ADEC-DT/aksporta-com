@@ -339,7 +339,8 @@ export type CustomerGender = typeof customerGenders[number];
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   externalCode: varchar("external_code").notNull().unique(),
-  name: varchar("name").notNull(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull().default(""),
   type: varchar("type").notNull().default("Individual"),
   primaryUnit: varchar("primary_unit").notNull(),
   email: varchar("email").notNull().unique(),

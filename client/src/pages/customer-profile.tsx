@@ -102,7 +102,7 @@ export default function CustomerProfilePage() {
               )}
             </div>
             <div className="text-center">
-              <h2 className="text-xl font-semibold">{customer.name}</h2>
+              <h2 className="text-xl font-semibold">{customer.firstName} {customer.lastName}</h2>
               <Badge
                 className={`mt-2 ${
                   isIndividual
@@ -138,7 +138,7 @@ export default function CustomerProfilePage() {
                   <User className="h-4 w-4" />
                   <span>Full Name</span>
                 </div>
-                <p className="font-medium" data-testid="text-customer-name">{customer.name}</p>
+                <p className="font-medium" data-testid="text-customer-name">{customer.firstName} {customer.lastName}</p>
               </div>
 
               <div className="space-y-1">

@@ -1378,7 +1378,7 @@ export async function registerRoutes(
         category: "customer_db",
         userId: user.id,
         userEmail: user.email,
-        details: { customerId: customer.id, customerName: customer.name },
+        details: { customerId: customer.id, customerName: `${customer.firstName} ${customer.lastName}` },
         ipAddress: req.ip || req.socket.remoteAddress,
         userAgent: req.headers["user-agent"],
         status: "success",
@@ -1468,7 +1468,7 @@ export async function registerRoutes(
         category: "customer_db",
         userId: user.id,
         userEmail: user.email,
-        details: { customerId: req.params.id, customerName: existing.name },
+        details: { customerId: req.params.id, customerName: `${existing.firstName} ${existing.lastName}` },
         ipAddress: req.ip || req.socket.remoteAddress,
         userAgent: req.headers["user-agent"],
         status: "success",
@@ -1534,8 +1534,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "File data and column mapping are required" });
       }
 
-      if (!mapping.name) {
-        return res.status(400).json({ message: "Customer Name mapping is required" });
+      if (!mapping.firstName) {
+        return res.status(400).json({ message: "First Name mapping is required" });
       }
 
       const buffer = Buffer.from(fileData, "base64");
@@ -1547,19 +1547,20 @@ export async function registerRoutes(
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const name = String(row[mapping.name] ?? "").trim();
+        const firstName = String(row[mapping.firstName] ?? "").trim();
+        const lastName = mapping.lastName ? String(row[mapping.lastName] ?? "").trim() : "";
         const contact = mapping.contact ? String(row[mapping.contact] ?? "").trim() : "";
         const email = mapping.email ? String(row[mapping.email] ?? "").trim() : "";
         const source = mapping.source ? String(row[mapping.source] ?? "").trim() : "";
 
-        if (!name) {
+        if (!firstName) {
           skipped++;
           continue;
         }
 
         if (!email) {
           skipped++;
-          errors.push(`Row ${i + 2}: "${name}" skipped - email is empty`);
+          errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email is empty`);
           continue;
         }
 
@@ -1567,14 +1568,15 @@ export async function registerRoutes(
           const existing = await storage.getAllCustomers({ search: email });
           if (existing.customers.some(c => c.email === email)) {
             skipped++;
-            errors.push(`Row ${i + 2}: "${name}" skipped - email "${email}" already exists`);
+            errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email "${email}" already exists`);
             continue;
           }
 
           const code = `IMP${String(Date.now()).slice(-4)}${String(i).padStart(3, "0")}`;
           await storage.createCustomer({
             externalCode: code,
-            name,
+            firstName,
+            lastName,
             type: "Individual",
             primaryUnit: "Corporate",
             email,
@@ -1585,7 +1587,7 @@ export async function registerRoutes(
           imported++;
         } catch (err: any) {
           skipped++;
-          errors.push(`Row ${i + 2}: "${name}" failed - ${err.message || "unknown error"}`);
+          errors.push(`Row ${i + 2}: "${firstName} ${lastName}" failed - ${err.message || "unknown error"}`);
         }
       }
 
