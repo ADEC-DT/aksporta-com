@@ -1641,9 +1641,11 @@ export async function registerRoutes(
           }
 
           if (!matched && criteria.name) {
-            const nameA = `${allCustomers[i].firstName} ${allCustomers[i].lastName}`.toLowerCase().trim();
-            const nameB = `${allCustomers[j].firstName} ${allCustomers[j].lastName}`.toLowerCase().trim();
-            if (nameA && nameB && nameA === nameB) {
+            const fnA = (allCustomers[i].firstName || "").toLowerCase().trim();
+            const lnA = (allCustomers[i].lastName || "").toLowerCase().trim();
+            const fnB = (allCustomers[j].firstName || "").toLowerCase().trim();
+            const lnB = (allCustomers[j].lastName || "").toLowerCase().trim();
+            if (fnA && lnA && fnB && lnB && fnA === fnB && lnA === lnB) {
               matched = true;
               matchType = "name";
             }
