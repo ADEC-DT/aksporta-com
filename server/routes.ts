@@ -1534,8 +1534,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "File data and column mapping are required" });
       }
 
-      if (!mapping.firstName) {
-        return res.status(400).json({ message: "First Name mapping is required" });
+      if (!mapping.firstName && !mapping.lastName && !mapping.email && !mapping.contact) {
+        return res.status(400).json({ message: "At least one field mapping is required" });
       }
 
       const buffer = Buffer.from(fileData, "base64");
@@ -1545,41 +1545,35 @@ export async function registerRoutes(
       let skipped = 0;
       const errors: string[] = [];
       const skipReasons: Record<string, number> = {
-        missing_name: 0,
-        missing_email: 0,
+        empty_row: 0,
         duplicate_email: 0,
         error: 0,
       };
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const firstName = String(row[mapping.firstName] ?? "").trim();
+        const firstName = mapping.firstName ? String(row[mapping.firstName] ?? "").trim() : "";
         const lastName = mapping.lastName ? String(row[mapping.lastName] ?? "").trim() : "";
         const contact = mapping.contact ? String(row[mapping.contact] ?? "").trim() : "";
         const email = mapping.email ? String(row[mapping.email] ?? "").trim() : "";
         const source = mapping.source ? String(row[mapping.source] ?? "").trim() : "";
 
-        if (!firstName) {
+        if (!firstName && !lastName && !email && !contact) {
           skipped++;
-          skipReasons.missing_name++;
-          errors.push(`Row ${i + 2}: skipped - first name is empty`);
-          continue;
-        }
-
-        if (!email) {
-          skipped++;
-          skipReasons.missing_email++;
-          errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email is empty`);
+          skipReasons.empty_row++;
+          errors.push(`Row ${i + 2}: skipped - row is completely empty`);
           continue;
         }
 
         try {
-          const existing = await storage.getAllCustomers({ search: email });
-          if (existing.customers.some(c => c.email === email)) {
-            skipped++;
-            skipReasons.duplicate_email++;
-            errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email "${email}" already exists`);
-            continue;
+          if (email) {
+            const existing = await storage.getAllCustomers({ search: email });
+            if (existing.customers.some(c => c.email === email)) {
+              skipped++;
+              skipReasons.duplicate_email++;
+              errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email "${email}" already exists`);
+              continue;
+            }
           }
 
           const code = `IMP${String(Date.now()).slice(-4)}${String(i).padStart(3, "0")}`;

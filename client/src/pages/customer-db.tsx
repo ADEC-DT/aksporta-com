@@ -63,7 +63,7 @@ export default function CustomerDBPage() {
   const [fileTotalRows, setFileTotalRows] = useState(0);
   const [fileData, setFileData] = useState<string>("");
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ firstName: "", lastName: "", contact: "", email: "", source: "" });
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[]; skipReasons?: { missing_name: number; missing_email: number; duplicate_email: number; error: number } } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[]; skipReasons?: { empty_row: number; duplicate_email: number; error: number } } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -253,8 +253,9 @@ export default function CustomerDBPage() {
   };
 
   const handleImportSubmit = () => {
-    if (!columnMapping.firstName) {
-      toast({ title: "First Name is required", description: "Please select which column maps to First Name", variant: "destructive" });
+    const hasAnyMapping = columnMapping.firstName || columnMapping.lastName || columnMapping.contact || columnMapping.email;
+    if (!hasAnyMapping) {
+      toast({ title: "At least one field is required", description: "Please map at least one column to a field", variant: "destructive" });
       return;
     }
     importMutation.mutate({ fileData, mapping: columnMapping });
@@ -540,33 +541,17 @@ export default function CustomerDBPage() {
                             </div>
                           </div>
                         )}
-                        {importResult.skipReasons.missing_email > 0 && (
+                        {importResult.skipReasons.empty_row > 0 && (
                           <div className="flex items-center gap-3">
                             <div className="flex-1">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-muted-foreground">Missing email address</span>
-                                <span className="text-xs font-medium">{importResult.skipReasons.missing_email}</span>
+                                <span className="text-xs text-muted-foreground">Empty row (no data in any field)</span>
+                                <span className="text-xs font-medium">{importResult.skipReasons.empty_row}</span>
                               </div>
                               <div className="h-2 rounded-full bg-muted overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-yellow-500"
-                                  style={{ width: `${(importResult.skipReasons.missing_email / importResult.skipped) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {importResult.skipReasons.missing_name > 0 && (
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-muted-foreground">Missing first name</span>
-                                <span className="text-xs font-medium">{importResult.skipReasons.missing_name}</span>
-                              </div>
-                              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-red-500"
-                                  style={{ width: `${(importResult.skipReasons.missing_name / importResult.skipped) * 100}%` }}
+                                  style={{ width: `${(importResult.skipReasons.empty_row / importResult.skipped) * 100}%` }}
                                 />
                               </div>
                             </div>
@@ -618,7 +603,7 @@ export default function CustomerDBPage() {
                     </Button>
                     <Button
                       onClick={handleImportSubmit}
-                      disabled={!columnMapping.firstName || importMutation.isPending}
+                      disabled={(!columnMapping.firstName && !columnMapping.lastName && !columnMapping.contact && !columnMapping.email) || importMutation.isPending}
                       data-testid="button-start-import"
                     >
                       {importMutation.isPending ? (
