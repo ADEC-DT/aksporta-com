@@ -338,16 +338,16 @@ export default function CustomerDBPage() {
                       { key: "email", label: "Email", required: false },
                       { key: "source", label: "Resource", required: false },
                     ].map((field) => (
-                      <div key={field.key} className="grid grid-cols-[140px_1fr] items-center gap-3">
-                        <Label className="text-sm font-medium">
+                      <div key={field.key} className="grid grid-cols-[140px_1fr] items-center gap-3 min-w-0">
+                        <Label className="text-sm font-medium shrink-0">
                           {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <Select
                           value={columnMapping[field.key] || "__none__"}
                           onValueChange={(v) => setColumnMapping({ ...columnMapping, [field.key]: v === "__none__" ? "" : v })}
                         >
-                          <SelectTrigger data-testid={`select-map-${field.key}`}>
-                            <SelectValue placeholder="Select column..." />
+                          <SelectTrigger data-testid={`select-map-${field.key}`} className="min-w-0 overflow-hidden">
+                            <SelectValue placeholder="Select column..." className="truncate" />
                           </SelectTrigger>
                           <SelectContent className="max-h-48 max-w-[300px] overflow-y-auto" position="popper" sideOffset={4}>
                             <SelectItem value="__none__">-- Skip --</SelectItem>
@@ -365,10 +365,10 @@ export default function CustomerDBPage() {
                       <p className="text-sm font-medium">Preview (first {filePreview.length} rows):</p>
                       <div className="border rounded-lg overflow-auto max-h-48">
                         <Table>
-                          <TableHeader>
+                          <TableHeader className="sticky top-0 z-10 bg-background">
                             <TableRow>
                               {fileColumns.map((col) => (
-                                <TableHead key={col} className="text-xs whitespace-nowrap">{col}</TableHead>
+                                <TableHead key={col} className="text-xs whitespace-nowrap bg-background">{col}</TableHead>
                               ))}
                             </TableRow>
                           </TableHeader>
