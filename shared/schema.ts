@@ -344,6 +344,7 @@ export const customers = pgTable("customers", {
   primaryUnit: varchar("primary_unit").notNull(),
   email: varchar("email").notNull().unique(),
   contact: varchar("contact").notNull(),
+  source: varchar("source"),
   status: varchar("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
