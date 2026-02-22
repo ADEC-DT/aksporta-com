@@ -349,7 +349,7 @@ export default function CustomerDBPage() {
                           <SelectTrigger data-testid={`select-map-${field.key}`}>
                             <SelectValue placeholder="Select column..." />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-48 overflow-y-auto" position="popper" sideOffset={4}>
                             <SelectItem value="__none__">-- Skip --</SelectItem>
                             {fileColumns.map((col) => (
                               <SelectItem key={col} value={col}>{col}</SelectItem>
