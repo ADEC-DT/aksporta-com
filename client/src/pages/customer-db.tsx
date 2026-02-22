@@ -38,10 +38,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, FileText, Users, Building2, User, Plus, Loader2, Store, CircleDot, Briefcase, Upload, CheckCircle, AlertCircle } from "lucide-react";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Search, Download, FileText, Users, Loader2, Store, CircleDot, Briefcase, Upload, AlertCircle } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, CustomerWithProfile } from "@shared/schema";
+import type { Customer } from "@shared/schema";
 import { useRef } from "react";
 
 const businessUnits = [
@@ -50,24 +50,15 @@ const businessUnits = [
   { id: "corporate", name: "Corporate", icon: Briefcase },
 ];
 
-const emptyForm = {
-  name: "",
-  type: "Individual",
-  primaryUnit: "Boutique Mall",
-  contact: "",
-  email: "",
-  externalCode: "",
-  dateOfBirth: "",
-  gender: "",
-  nationality: "",
-  occupation: "",
-};
-
 export default function CustomerDBPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [formData, setFormData] = useState(emptyForm);
+  const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
+  const [fileColumns, setFileColumns] = useState<string[]>([]);
+  const [filePreview, setFilePreview] = useState<Record<string, string>[]>([]);
+  const [fileTotalRows, setFileTotalRows] = useState(0);
+  const [fileData, setFileData] = useState<string>("");
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ name: "", contact: "", email: "", source: "" });
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -84,35 +75,40 @@ export default function CustomerDBPage() {
     },
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (newCustomer: typeof formData) => {
-      return apiRequest("POST", "/api/customers", newCustomer);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"], refetchType: "all" });
-      setFormData(emptyForm);
-      setDialogOpen(false);
-      toast({
-        title: "Customer created",
-        description: "The customer has been added successfully.",
+  const previewMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/customers/import/preview", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to parse file");
+      }
+      return res.json() as Promise<{ columns: string[]; preview: Record<string, string>[]; totalRows: number; fileData: string }>;
+    },
+    onSuccess: (data) => {
+      setFileColumns(data.columns);
+      setFilePreview(data.preview);
+      setFileTotalRows(data.totalRows);
+      setFileData(data.fileData);
+      setColumnMapping({ name: "", contact: "", email: "", source: "" });
+      setImportStep("mapping");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create customer",
-        variant: "destructive",
-      });
+      toast({ title: "Failed to read file", description: error.message, variant: "destructive" });
     },
   });
 
   const importMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
+    mutationFn: async (payload: { fileData: string; mapping: Record<string, string> }) => {
       const res = await fetch("/api/customers/import", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
         credentials: "include",
       });
       if (!res.ok) {
@@ -124,34 +120,40 @@ export default function CustomerDBPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"], refetchType: "all" });
       setImportResult(data);
+      setImportStep("result");
       toast({
         title: "Import completed",
         description: `${data.imported} customers imported, ${data.skipped} skipped.`,
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Import failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
     },
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImportResult(null);
-    importMutation.mutate(file);
+    previewMutation.mutate(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleAddCustomer = () => {
-    const code = `C${String(Date.now()).slice(-6)}`;
-    createMutation.mutate({
-      ...formData,
-      externalCode: code,
-    });
+  const handleImportSubmit = () => {
+    if (!columnMapping.name) {
+      toast({ title: "Customer Name is required", description: "Please select which column maps to Customer Name", variant: "destructive" });
+      return;
+    }
+    importMutation.mutate({ fileData, mapping: columnMapping });
+  };
+
+  const resetImportDialog = () => {
+    setImportStep("upload");
+    setFileColumns([]);
+    setFilePreview([]);
+    setFileTotalRows(0);
+    setFileData("");
+    setColumnMapping({ name: "", contact: "", email: "", source: "" });
+    setImportResult(null);
   };
 
   const customers = data?.customers || [];
@@ -274,91 +276,173 @@ export default function CustomerDBPage() {
           />
           <Button
             variant="outline"
-            onClick={() => setImportDialogOpen(true)}
-            disabled={importMutation.isPending}
+            onClick={() => { resetImportDialog(); setImportDialogOpen(true); }}
+            disabled={previewMutation.isPending}
             data-testid="button-import-file"
           >
-            {importMutation.isPending ? (
+            {previewMutation.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
             Import File
           </Button>
-          <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) setImportResult(null); }}>
-            <DialogContent className="max-w-lg">
+          <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) resetImportDialog(); }}>
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Import Customers from Excel</DialogTitle>
+                <DialogTitle>
+                  {importStep === "upload" && "Import Customers from Excel"}
+                  {importStep === "mapping" && "Map Columns"}
+                  {importStep === "result" && "Import Results"}
+                </DialogTitle>
                 <DialogDescription>
-                  Upload an Excel file (.xlsx, .xls) with customer data. The file should have columns for: Customer Name, Phone Number, Email, and Resource/Source.
+                  {importStep === "upload" && "Upload an Excel file (.xlsx, .xls, .csv) with customer data."}
+                  {importStep === "mapping" && `File loaded with ${fileTotalRows} rows. Select which column from your file maps to each field.`}
+                  {importStep === "result" && "Import has been completed."}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3">
-                  <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Click to select an Excel file</p>
-                    <p className="text-xs text-muted-foreground mt-1">Supported formats: .xlsx, .xls, .csv (max 10MB)</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={importMutation.isPending}
-                    data-testid="button-select-file"
-                  >
-                    {importMutation.isPending ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
-                    ) : (
-                      <>Select File</>
-                    )}
-                  </Button>
-                </div>
 
-                <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-1">
-                  <p className="font-medium text-sm">Expected columns:</p>
-                  <p>- <strong>Customer Name</strong> (required)</p>
-                  <p>- <strong>Phone Number</strong> / Mobile / Contact</p>
-                  <p>- <strong>Email</strong> (required)</p>
-                  <p>- <strong>Resource</strong> / Source / Channel (where the customer came from)</p>
-                </div>
-
-                {importResult && (
-                  <div className="rounded-lg border p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <span className="font-medium">Import Results</span>
+              {importStep === "upload" && (
+                <div className="space-y-4 py-4">
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3">
+                    <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Click to select an Excel file</p>
+                      <p className="text-xs text-muted-foreground mt-1">Supported formats: .xlsx, .xls, .csv (max 10MB)</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
-                        <p className="text-lg font-bold text-green-700 dark:text-green-400">{importResult.imported}</p>
-                        <p className="text-xs text-muted-foreground">Imported</p>
-                      </div>
-                      <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
-                        <p className="text-lg font-bold text-yellow-700 dark:text-yellow-400">{importResult.skipped}</p>
-                        <p className="text-xs text-muted-foreground">Skipped</p>
-                      </div>
-                      <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-                        <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{importResult.totalRows}</p>
-                        <p className="text-xs text-muted-foreground">Total Rows</p>
-                      </div>
-                    </div>
-                    {importResult.errors.length > 0 && (
-                      <div className="mt-2 text-xs space-y-1 max-h-32 overflow-y-auto">
-                        {importResult.errors.map((err, i) => (
-                          <div key={i} className="flex items-start gap-1 text-yellow-700 dark:text-yellow-400">
-                            <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
-                            <span>{err}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={previewMutation.isPending}
+                      data-testid="button-select-file"
+                    >
+                      {previewMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Reading file...</>
+                      ) : (
+                        <>Select File</>
+                      )}
+                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {importStep === "mapping" && (
+                <div className="space-y-4 py-4">
+                  <div className="grid gap-3">
+                    {[
+                      { key: "name", label: "Customer Name", required: true },
+                      { key: "contact", label: "Phone Number", required: false },
+                      { key: "email", label: "Email", required: false },
+                      { key: "source", label: "Resource", required: false },
+                    ].map((field) => (
+                      <div key={field.key} className="grid grid-cols-[140px_1fr] items-center gap-3">
+                        <Label className="text-sm font-medium">
+                          {field.label} {field.required && <span className="text-red-500">*</span>}
+                        </Label>
+                        <Select
+                          value={columnMapping[field.key] || "__none__"}
+                          onValueChange={(v) => setColumnMapping({ ...columnMapping, [field.key]: v === "__none__" ? "" : v })}
+                        >
+                          <SelectTrigger data-testid={`select-map-${field.key}`}>
+                            <SelectValue placeholder="Select column..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">-- Skip --</SelectItem>
+                            {fileColumns.map((col) => (
+                              <SelectItem key={col} value={col}>{col}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+
+                  {filePreview.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Preview (first {filePreview.length} rows):</p>
+                      <div className="border rounded-lg overflow-auto max-h-48">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {fileColumns.map((col) => (
+                                <TableHead key={col} className="text-xs whitespace-nowrap">{col}</TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filePreview.map((row, i) => (
+                              <TableRow key={i}>
+                                {fileColumns.map((col) => (
+                                  <TableCell key={col} className="text-xs py-1 whitespace-nowrap">{row[col]}</TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {importStep === "result" && importResult && (
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-400">{importResult.imported}</p>
+                      <p className="text-xs text-muted-foreground">Imported</p>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                      <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{importResult.skipped}</p>
+                      <p className="text-xs text-muted-foreground">Skipped</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{importResult.totalRows}</p>
+                      <p className="text-xs text-muted-foreground">Total Rows</p>
+                    </div>
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="text-xs space-y-1 max-h-32 overflow-y-auto border rounded-lg p-3">
+                      {importResult.errors.map((err, i) => (
+                        <div key={i} className="flex items-start gap-1 text-yellow-700 dark:text-yellow-400">
+                          <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span>{err}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setImportDialogOpen(false); setImportResult(null); }} data-testid="button-close-import">
-                  Close
-                </Button>
+                {importStep === "mapping" && (
+                  <>
+                    <Button variant="outline" onClick={() => setImportStep("upload")} data-testid="button-back-upload">
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleImportSubmit}
+                      disabled={!columnMapping.name || importMutation.isPending}
+                      data-testid="button-start-import"
+                    >
+                      {importMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</>
+                      ) : (
+                        <>Import {fileTotalRows} rows</>
+                      )}
+                    </Button>
+                  </>
+                )}
+                {importStep === "result" && (
+                  <Button onClick={() => { setImportDialogOpen(false); resetImportDialog(); }} data-testid="button-close-import">
+                    Close
+                  </Button>
+                )}
+                {importStep === "upload" && (
+                  <Button variant="outline" onClick={() => setImportDialogOpen(false)} data-testid="button-cancel-import">
+                    Cancel
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>

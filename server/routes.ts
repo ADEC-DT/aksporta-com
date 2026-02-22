@@ -1481,52 +1481,65 @@ export async function registerRoutes(
     }
   });
 
-  // Import customers from Excel file
+  // Import customers from Excel file - two-step flow
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-  
-  app.post("/api/customers/import", isAuthenticated, upload.single("file"), async (req, res) => {
+
+  function parseExcelFile(buffer: Buffer) {
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) throw new Error("Excel file has no sheets");
+    const sheet = workbook.Sheets[sheetName];
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    if (rows.length === 0) throw new Error("Excel file has no data rows");
+    return rows;
+  }
+
+  function validateFileExtension(filename: string) {
+    const allowedExtensions = [".xlsx", ".xls", ".csv"];
+    const lower = filename?.toLowerCase() || "";
+    return allowedExtensions.some(ext => lower.endsWith(ext));
+  }
+
+  // Step 1: Upload file and get column headers + preview rows
+  app.post("/api/customers/import/preview", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      if (!validateFileExtension(req.file.originalname)) {
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+      }
+
+      const rows = parseExcelFile(req.file.buffer);
+      const columns = Object.keys(rows[0]);
+      const preview = rows.slice(0, 5).map(row => {
+        const obj: Record<string, string> = {};
+        for (const col of columns) obj[col] = String(row[col] ?? "");
+        return obj;
+      });
+
+      const fileBase64 = req.file.buffer.toString("base64");
+      res.json({ columns, preview, totalRows: rows.length, fileData: fileBase64 });
+    } catch (error: any) {
+      console.error("Error previewing import:", error);
+      res.status(400).json({ message: error.message || "Failed to parse file" });
+    }
+  });
+
+  // Step 2: Import with user-defined column mapping
+  app.post("/api/customers/import", isAuthenticated, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
+      const { fileData, mapping } = req.body;
+
+      if (!fileData || !mapping) {
+        return res.status(400).json({ message: "File data and column mapping are required" });
       }
 
-      const allowedExtensions = [".xlsx", ".xls", ".csv"];
-      const fileName = req.file.originalname?.toLowerCase() || "";
-      const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
-      if (!hasValidExtension) {
-        return res.status(400).json({ message: "Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file." });
+      if (!mapping.name) {
+        return res.status(400).json({ message: "Customer Name mapping is required" });
       }
 
-      const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-      const sheetName = workbook.SheetNames[0];
-      if (!sheetName) {
-        return res.status(400).json({ message: "Excel file has no sheets" });
-      }
-
-      const sheet = workbook.Sheets[sheetName];
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-      if (rows.length === 0) {
-        return res.status(400).json({ message: "Excel file has no data rows" });
-      }
-
-      const headerMap: Record<string, string> = {};
-      const firstRowKeys = Object.keys(rows[0]);
-      for (const key of firstRowKeys) {
-        const lower = key.toLowerCase().trim();
-        if (lower.includes("name") && !lower.includes("phone")) headerMap["name"] = key;
-        else if (lower.includes("phone") || lower.includes("mobile") || lower.includes("contact")) headerMap["contact"] = key;
-        else if (lower.includes("email") || lower.includes("e-mail")) headerMap["email"] = key;
-        else if (lower.includes("source") || lower.includes("resource") || lower.includes("origin") || lower.includes("channel")) headerMap["source"] = key;
-      }
-
-      if (!headerMap["name"]) {
-        return res.status(400).json({ 
-          message: "Could not find a 'Name' column. Please ensure your Excel file has columns for: Customer Name, Phone Number, Email, Resource/Source.",
-          detectedColumns: firstRowKeys
-        });
-      }
+      const buffer = Buffer.from(fileData, "base64");
+      const rows = parseExcelFile(buffer);
 
       let imported = 0;
       let skipped = 0;
@@ -1534,10 +1547,10 @@ export async function registerRoutes(
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const name = String(row[headerMap["name"]] || "").trim();
-        const contact = String(row[headerMap["contact"]] || "").trim();
-        const email = String(row[headerMap["email"]] || "").trim();
-        const source = String(row[headerMap["source"]] || "").trim();
+        const name = String(row[mapping.name] ?? "").trim();
+        const contact = mapping.contact ? String(row[mapping.contact] ?? "").trim() : "";
+        const email = mapping.email ? String(row[mapping.email] ?? "").trim() : "";
+        const source = mapping.source ? String(row[mapping.source] ?? "").trim() : "";
 
         if (!name) {
           skipped++;
@@ -1546,7 +1559,7 @@ export async function registerRoutes(
 
         if (!email) {
           skipped++;
-          errors.push(`Row ${i + 2}: "${name}" skipped - email is required`);
+          errors.push(`Row ${i + 2}: "${name}" skipped - email is empty`);
           continue;
         }
 
@@ -1565,7 +1578,7 @@ export async function registerRoutes(
             type: "Individual",
             primaryUnit: "Corporate",
             email,
-            contact: contact || "",
+            contact,
             source: source || "Excel Import",
             status: "active",
           });
@@ -1581,7 +1594,7 @@ export async function registerRoutes(
         category: "customer_db",
         userId: user.id,
         userEmail: user.email,
-        details: { imported, skipped, totalRows: rows.length, fileName: req.file.originalname },
+        details: { imported, skipped, totalRows: rows.length },
         ipAddress: req.ip || req.socket.remoteAddress,
         userAgent: req.headers["user-agent"],
         status: "success",
