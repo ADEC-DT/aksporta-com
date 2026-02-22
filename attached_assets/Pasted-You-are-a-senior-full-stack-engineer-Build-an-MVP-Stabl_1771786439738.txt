@@ -1,0 +1,134 @@
+You are a senior full-stack engineer. Build an MVP “StableMaster” (equestrian stable management) web app with a left sidebar navigation and a clean admin UI similar to the provided screenshot.
+
+GOALS
+1) Ship a working MVP UI + basic CRUD flows (in-app storage is OK for MVP).
+2) Match the visual layout: left sidebar with sections + subpages, top page header, content card area, tables, “Add” buttons, modal forms.
+3) Focus on the core use cases: horses, customers, items & services, billing elements, livery agreements, facilities, basic reports.
+
+
+
+DELIVERABLES
+- A running Replit app with:
+  - Sidebar navigation and all pages/subpages wired
+  - CRUD for: Horses, Customers, Facilities, Items & Services, Livery Packages (settings), Livery Agreements, Billing Elements
+  - Forms in modal dialogs where specified
+  - Searchable dropdowns, basic validation, and consistent UX
+  - Seed/demo data on first run (4 horses, 3 customers, 6 items/services, 2 facilities, 2 stable blocks with a few stalls)
+- Clean code structure:
+  - /src/pages/...
+  - /src/components/...
+  - /src/store/...
+  - /src/models/...
+  - /src/services/storage.ts (LocalStorage repository)
+  - /src/utils/...
+
+APP INFORMATION ARCHITECTURE (SIDEBAR)
+Left sidebar title: “StableMaster” (subtitle “Equestrian Management”)
+Sections:
+A) MANAGEMENT
+- Activities
+  - Schedule (placeholder page, message: “Scheduled activities will be built later.”)
+  - Post Customer Billing Element (core page)
+- Billable Elements (optional placeholder or alias of Post Customer Billing Element)
+- Settings (optional placeholder; main settings also exists later)
+
+- Livery Agreements
+  - Livery Agreements List
+  - New Livery Agreement (stable occupancy view + create)
+  - Settings (Livery Packages)
+
+- Horses
+  - Horse List
+- Customers
+  - Customer List
+- Facilities
+  - Facilities List
+- Reports
+  - Livery Report
+B) ADMINISTRATION
+- User Management
+- Global Settings
+
+GLOBAL LAYOUT
+- Main content area with:
+  - Page title + short description under it (like screenshot)
+  - A main card container for the page content
+- Top-right primary button when relevant (e.g., “+ Add”)
+
+DATA MODEL (MVP)
+Use these TypeScript models:
+
+Facility:
+- id, name, type: "STABLE" | "ARENA" | "OTHER"
+- parentFacilityId?: string (to support parent/child)
+StableBlock:
+- id, facilityId, name (e.g., “Block A”, “Barn 1”)
+StableUnit (stall/storage unit):
+- id, stableBlockId, name/number (e.g., “A01”), unitType: "STALL" | "STORAGE"
+- status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE"
+- currentHorseId?: string (if OCCUPIED)
+
+Horse:
+- id, name, dob?, remarks?, color?, sex?, group?, status: "ACTIVE" | "INACTIVE"
+Customer:
+- id, name, email?, phone?, remarks?, status: "ACTIVE" | "INACTIVE"
+ItemService:
+- id, name, category: "SERVICE" | "ITEM"
+- unitOptions: string[] (e.g., ["each","day","month"])
+- defaultUnit: string
+- unitPrice: number
+- isActive: boolean
+BillingElement (customer billing element):
+- id
+- stableBlockId, stableUnitId
+- transactionDate (ISO date)
+- refNumber (string)
+- remarks (string)
+- horseId
+- customerId
+- itemServiceId
+- unit (string)
+- unitPrice (number, auto from item)
+- quantity (number, decimal)
+- computedLineTotal (unitPrice * quantity)
+
+LiveryPackage:
+- id, name, monthlyPrice
+- coveredItemServiceIds: string[]
+LiveryAgreement:
+- id
+- agreementType: "PERMANENT_AUTO_RENEW" | "TEMPORARY"
+- startDate, endDate? (end required for TEMPORARY)
+- facilityId, stableBlockId, stableUnitId
+- horseId
+- customerId
+- customerContact (string)
+- refNumber (string)
+- liveryPackageId
+- notes/remarks
+
+IMPORTANT BEHAVIOR REQUIREMENTS
+
+1) Activities > Schedule
+- Show a placeholder card with message “Scheduled activities will be built later.”
+- Provide a disabled “Add Activity” button (optional)
+
+2) Activities > Post Customer Billing Element (Core)
+- Show a table listing the last 10 BillingElements sorted by transactionDate desc then created time desc.
+- Columns: Date, Ref #, Customer, Horse, Block, Stall/Unit, Item, Qty, Unit, Unit Price, Total, Remarks
+- Top-right: “+ Add” button opens a modal form.
+Modal Form fields:
+A) Stable Block (searchable dropdown)
+B) Stable (StableUnit) dropdown filtered by chosen block; show only STALL units by default but allow showing STORAGE too (toggle optional)
+C) Transaction Date (date picker)
+D) Ref Number (free text)
+E) Remarks (multiline)
+F) Horse (searchable dropdown)
+G) Customer (searchable dropdown)
+H) Item (searchable dropdown from ItemService where isActive=true)
+I) Unit (dropdown populated from selected ItemService.unitOptions)
+J) Unit Price (read-only by default, auto-populated from selected item; allow override with “Edit price” toggle)
+K) Quantity (decimal input; default 1)
+Validation:
+- Required: block, unit, date, customer, horse, item, unit, quantity>0
+- Quantity supports decimals

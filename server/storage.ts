@@ -21,7 +21,16 @@ import {
   projectTagsTable, type ProjectTagRecord, type InsertProjectTag,
   sectionTemplates, type SectionTemplate, type InsertSectionTemplate,
   pageSections, type PageSection, type InsertPageSection, type PageSectionWithTemplate,
-  iconLibrary, type IconLibraryEntry, type InsertIconLibrary
+  iconLibrary, type IconLibraryEntry, type InsertIconLibrary,
+  smFacilities, type SmFacility, type InsertSmFacility,
+  smStableBlocks, type SmStableBlock, type InsertSmStableBlock,
+  smStableUnits, type SmStableUnit, type InsertSmStableUnit,
+  smHorses, type SmHorse, type InsertSmHorse,
+  smCustomers, type SmCustomer, type InsertSmCustomer,
+  smItemServices, type SmItemService, type InsertSmItemService,
+  smBillingElements, type SmBillingElement, type InsertSmBillingElement,
+  smLiveryPackages, type SmLiveryPackage, type InsertSmLiveryPackage,
+  smLiveryAgreements, type SmLiveryAgreement, type InsertSmLiveryAgreement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -190,6 +199,54 @@ export interface IStorage {
   getIconByName(name: string): Promise<IconLibraryEntry | undefined>;
   createIcon(icon: InsertIconLibrary): Promise<IconLibraryEntry>;
   deleteIcon(id: string): Promise<boolean>;
+
+  // StableMaster - Facilities
+  getSmFacilities(): Promise<SmFacility[]>;
+  createSmFacility(f: InsertSmFacility): Promise<SmFacility>;
+  updateSmFacility(id: string, d: Partial<InsertSmFacility>): Promise<SmFacility | undefined>;
+  deleteSmFacility(id: string): Promise<boolean>;
+  // StableMaster - Stable Blocks
+  getSmStableBlocks(facilityId?: string): Promise<SmStableBlock[]>;
+  createSmStableBlock(b: InsertSmStableBlock): Promise<SmStableBlock>;
+  updateSmStableBlock(id: string, d: Partial<InsertSmStableBlock>): Promise<SmStableBlock | undefined>;
+  deleteSmStableBlock(id: string): Promise<boolean>;
+  // StableMaster - Stable Units
+  getSmStableUnits(blockId?: string): Promise<SmStableUnit[]>;
+  createSmStableUnit(u: InsertSmStableUnit): Promise<SmStableUnit>;
+  updateSmStableUnit(id: string, d: Partial<InsertSmStableUnit>): Promise<SmStableUnit | undefined>;
+  deleteSmStableUnit(id: string): Promise<boolean>;
+  // StableMaster - Horses
+  getSmHorses(): Promise<SmHorse[]>;
+  getSmHorse(id: string): Promise<SmHorse | undefined>;
+  createSmHorse(h: InsertSmHorse): Promise<SmHorse>;
+  updateSmHorse(id: string, d: Partial<InsertSmHorse>): Promise<SmHorse | undefined>;
+  deleteSmHorse(id: string): Promise<boolean>;
+  // StableMaster - Customers
+  getSmCustomers(): Promise<SmCustomer[]>;
+  getSmCustomer(id: string): Promise<SmCustomer | undefined>;
+  createSmCustomer(c: InsertSmCustomer): Promise<SmCustomer>;
+  updateSmCustomer(id: string, d: Partial<InsertSmCustomer>): Promise<SmCustomer | undefined>;
+  deleteSmCustomer(id: string): Promise<boolean>;
+  // StableMaster - Items & Services
+  getSmItemServices(): Promise<SmItemService[]>;
+  getSmItemService(id: string): Promise<SmItemService | undefined>;
+  createSmItemService(i: InsertSmItemService): Promise<SmItemService>;
+  updateSmItemService(id: string, d: Partial<InsertSmItemService>): Promise<SmItemService | undefined>;
+  deleteSmItemService(id: string): Promise<boolean>;
+  // StableMaster - Billing Elements
+  getSmBillingElements(limit?: number): Promise<SmBillingElement[]>;
+  createSmBillingElement(b: InsertSmBillingElement): Promise<SmBillingElement>;
+  deleteSmBillingElement(id: string): Promise<boolean>;
+  // StableMaster - Livery Packages
+  getSmLiveryPackages(): Promise<SmLiveryPackage[]>;
+  createSmLiveryPackage(p: InsertSmLiveryPackage): Promise<SmLiveryPackage>;
+  updateSmLiveryPackage(id: string, d: Partial<InsertSmLiveryPackage>): Promise<SmLiveryPackage | undefined>;
+  deleteSmLiveryPackage(id: string): Promise<boolean>;
+  // StableMaster - Livery Agreements
+  getSmLiveryAgreements(): Promise<SmLiveryAgreement[]>;
+  createSmLiveryAgreement(a: InsertSmLiveryAgreement): Promise<SmLiveryAgreement>;
+  updateSmLiveryAgreement(id: string, d: Partial<InsertSmLiveryAgreement>): Promise<SmLiveryAgreement | undefined>;
+  deleteSmLiveryAgreement(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1060,6 +1117,167 @@ export class DatabaseStorage implements IStorage {
   async deleteIcon(id: string): Promise<boolean> {
     const result = await db.delete(iconLibrary).where(eq(iconLibrary.id, id)).returning();
     return result.length > 0;
+  }
+
+  // StableMaster implementations
+  async getSmFacilities(): Promise<SmFacility[]> {
+    return await db.select().from(smFacilities).orderBy(smFacilities.name);
+  }
+  async createSmFacility(f: InsertSmFacility): Promise<SmFacility> {
+    const [r] = await db.insert(smFacilities).values(f).returning();
+    return r;
+  }
+  async updateSmFacility(id: string, d: Partial<InsertSmFacility>): Promise<SmFacility | undefined> {
+    const [r] = await db.update(smFacilities).set(d).where(eq(smFacilities.id, id)).returning();
+    return r;
+  }
+  async deleteSmFacility(id: string): Promise<boolean> {
+    const r = await db.delete(smFacilities).where(eq(smFacilities.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmStableBlocks(facilityId?: string): Promise<SmStableBlock[]> {
+    if (facilityId) {
+      return await db.select().from(smStableBlocks).where(eq(smStableBlocks.facilityId, facilityId)).orderBy(smStableBlocks.name);
+    }
+    return await db.select().from(smStableBlocks).orderBy(smStableBlocks.name);
+  }
+  async createSmStableBlock(b: InsertSmStableBlock): Promise<SmStableBlock> {
+    const [r] = await db.insert(smStableBlocks).values(b).returning();
+    return r;
+  }
+  async updateSmStableBlock(id: string, d: Partial<InsertSmStableBlock>): Promise<SmStableBlock | undefined> {
+    const [r] = await db.update(smStableBlocks).set(d).where(eq(smStableBlocks.id, id)).returning();
+    return r;
+  }
+  async deleteSmStableBlock(id: string): Promise<boolean> {
+    const r = await db.delete(smStableBlocks).where(eq(smStableBlocks.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmStableUnits(blockId?: string): Promise<SmStableUnit[]> {
+    if (blockId) {
+      return await db.select().from(smStableUnits).where(eq(smStableUnits.stableBlockId, blockId)).orderBy(smStableUnits.name);
+    }
+    return await db.select().from(smStableUnits).orderBy(smStableUnits.name);
+  }
+  async createSmStableUnit(u: InsertSmStableUnit): Promise<SmStableUnit> {
+    const [r] = await db.insert(smStableUnits).values(u).returning();
+    return r;
+  }
+  async updateSmStableUnit(id: string, d: Partial<InsertSmStableUnit>): Promise<SmStableUnit | undefined> {
+    const [r] = await db.update(smStableUnits).set(d).where(eq(smStableUnits.id, id)).returning();
+    return r;
+  }
+  async deleteSmStableUnit(id: string): Promise<boolean> {
+    const r = await db.delete(smStableUnits).where(eq(smStableUnits.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmHorses(): Promise<SmHorse[]> {
+    return await db.select().from(smHorses).orderBy(smHorses.name);
+  }
+  async getSmHorse(id: string): Promise<SmHorse | undefined> {
+    const [r] = await db.select().from(smHorses).where(eq(smHorses.id, id));
+    return r;
+  }
+  async createSmHorse(h: InsertSmHorse): Promise<SmHorse> {
+    const [r] = await db.insert(smHorses).values(h).returning();
+    return r;
+  }
+  async updateSmHorse(id: string, d: Partial<InsertSmHorse>): Promise<SmHorse | undefined> {
+    const [r] = await db.update(smHorses).set(d).where(eq(smHorses.id, id)).returning();
+    return r;
+  }
+  async deleteSmHorse(id: string): Promise<boolean> {
+    const r = await db.delete(smHorses).where(eq(smHorses.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmCustomers(): Promise<SmCustomer[]> {
+    return await db.select().from(smCustomers).orderBy(smCustomers.name);
+  }
+  async getSmCustomer(id: string): Promise<SmCustomer | undefined> {
+    const [r] = await db.select().from(smCustomers).where(eq(smCustomers.id, id));
+    return r;
+  }
+  async createSmCustomer(c: InsertSmCustomer): Promise<SmCustomer> {
+    const [r] = await db.insert(smCustomers).values(c).returning();
+    return r;
+  }
+  async updateSmCustomer(id: string, d: Partial<InsertSmCustomer>): Promise<SmCustomer | undefined> {
+    const [r] = await db.update(smCustomers).set(d).where(eq(smCustomers.id, id)).returning();
+    return r;
+  }
+  async deleteSmCustomer(id: string): Promise<boolean> {
+    const r = await db.delete(smCustomers).where(eq(smCustomers.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmItemServices(): Promise<SmItemService[]> {
+    return await db.select().from(smItemServices).orderBy(smItemServices.name);
+  }
+  async getSmItemService(id: string): Promise<SmItemService | undefined> {
+    const [r] = await db.select().from(smItemServices).where(eq(smItemServices.id, id));
+    return r;
+  }
+  async createSmItemService(i: InsertSmItemService): Promise<SmItemService> {
+    const [r] = await db.insert(smItemServices).values(i).returning();
+    return r;
+  }
+  async updateSmItemService(id: string, d: Partial<InsertSmItemService>): Promise<SmItemService | undefined> {
+    const [r] = await db.update(smItemServices).set(d).where(eq(smItemServices.id, id)).returning();
+    return r;
+  }
+  async deleteSmItemService(id: string): Promise<boolean> {
+    const r = await db.delete(smItemServices).where(eq(smItemServices.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmBillingElements(limit?: number): Promise<SmBillingElement[]> {
+    const q = db.select().from(smBillingElements).orderBy(desc(smBillingElements.transactionDate), desc(smBillingElements.createdAt));
+    if (limit) return await q.limit(limit);
+    return await q;
+  }
+  async createSmBillingElement(b: InsertSmBillingElement): Promise<SmBillingElement> {
+    const [r] = await db.insert(smBillingElements).values(b).returning();
+    return r;
+  }
+  async deleteSmBillingElement(id: string): Promise<boolean> {
+    const r = await db.delete(smBillingElements).where(eq(smBillingElements.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmLiveryPackages(): Promise<SmLiveryPackage[]> {
+    return await db.select().from(smLiveryPackages).orderBy(smLiveryPackages.name);
+  }
+  async createSmLiveryPackage(p: InsertSmLiveryPackage): Promise<SmLiveryPackage> {
+    const [r] = await db.insert(smLiveryPackages).values(p).returning();
+    return r;
+  }
+  async updateSmLiveryPackage(id: string, d: Partial<InsertSmLiveryPackage>): Promise<SmLiveryPackage | undefined> {
+    const [r] = await db.update(smLiveryPackages).set(d).where(eq(smLiveryPackages.id, id)).returning();
+    return r;
+  }
+  async deleteSmLiveryPackage(id: string): Promise<boolean> {
+    const r = await db.delete(smLiveryPackages).where(eq(smLiveryPackages.id, id)).returning();
+    return r.length > 0;
+  }
+
+  async getSmLiveryAgreements(): Promise<SmLiveryAgreement[]> {
+    return await db.select().from(smLiveryAgreements).orderBy(desc(smLiveryAgreements.createdAt));
+  }
+  async createSmLiveryAgreement(a: InsertSmLiveryAgreement): Promise<SmLiveryAgreement> {
+    const [r] = await db.insert(smLiveryAgreements).values(a).returning();
+    return r;
+  }
+  async updateSmLiveryAgreement(id: string, d: Partial<InsertSmLiveryAgreement>): Promise<SmLiveryAgreement | undefined> {
+    const [r] = await db.update(smLiveryAgreements).set(d).where(eq(smLiveryAgreements.id, id)).returning();
+    return r;
+  }
+  async deleteSmLiveryAgreement(id: string): Promise<boolean> {
+    const r = await db.delete(smLiveryAgreements).where(eq(smLiveryAgreements.id, id)).returning();
+    return r.length > 0;
   }
 }
 

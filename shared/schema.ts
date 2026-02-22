@@ -690,3 +690,140 @@ export const insertIconLibrarySchema = createInsertSchema(iconLibrary).omit({
 
 export type InsertIconLibrary = z.infer<typeof insertIconLibrarySchema>;
 export type IconLibraryEntry = typeof iconLibrary.$inferSelect;
+
+// ========== StableMaster Tables ==========
+
+export const smFacilities = pgTable("sm_facilities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  type: varchar("type").notNull().default("STABLE"),
+  parentFacilityId: varchar("parent_facility_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmFacilitySchema = createInsertSchema(smFacilities).omit({ id: true, createdAt: true });
+export type InsertSmFacility = z.infer<typeof insertSmFacilitySchema>;
+export type SmFacility = typeof smFacilities.$inferSelect;
+
+export const smStableBlocks = pgTable("sm_stable_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  facilityId: varchar("facility_id").notNull().references(() => smFacilities.id, { onDelete: "cascade" }),
+  name: varchar("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmStableBlockSchema = createInsertSchema(smStableBlocks).omit({ id: true, createdAt: true });
+export type InsertSmStableBlock = z.infer<typeof insertSmStableBlockSchema>;
+export type SmStableBlock = typeof smStableBlocks.$inferSelect;
+
+export const smStableUnits = pgTable("sm_stable_units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stableBlockId: varchar("stable_block_id").notNull().references(() => smStableBlocks.id, { onDelete: "cascade" }),
+  name: varchar("name").notNull(),
+  unitType: varchar("unit_type").notNull().default("STALL"),
+  status: varchar("status").notNull().default("AVAILABLE"),
+  currentHorseId: varchar("current_horse_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmStableUnitSchema = createInsertSchema(smStableUnits).omit({ id: true, createdAt: true });
+export type InsertSmStableUnit = z.infer<typeof insertSmStableUnitSchema>;
+export type SmStableUnit = typeof smStableUnits.$inferSelect;
+
+export const smHorses = pgTable("sm_horses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  dob: varchar("dob"),
+  remarks: text("remarks"),
+  color: varchar("color"),
+  sex: varchar("sex"),
+  group: varchar("group"),
+  status: varchar("status").notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmHorseSchema = createInsertSchema(smHorses).omit({ id: true, createdAt: true });
+export type InsertSmHorse = z.infer<typeof insertSmHorseSchema>;
+export type SmHorse = typeof smHorses.$inferSelect;
+
+export const smCustomers = pgTable("sm_customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  remarks: text("remarks"),
+  status: varchar("status").notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmCustomerSchema = createInsertSchema(smCustomers).omit({ id: true, createdAt: true });
+export type InsertSmCustomer = z.infer<typeof insertSmCustomerSchema>;
+export type SmCustomer = typeof smCustomers.$inferSelect;
+
+export const smItemServices = pgTable("sm_item_services", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  category: varchar("category").notNull().default("SERVICE"),
+  unitOptions: text("unit_options").array().notNull(),
+  defaultUnit: varchar("default_unit").notNull(),
+  unitPrice: integer("unit_price").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmItemServiceSchema = createInsertSchema(smItemServices).omit({ id: true, createdAt: true });
+export type InsertSmItemService = z.infer<typeof insertSmItemServiceSchema>;
+export type SmItemService = typeof smItemServices.$inferSelect;
+
+export const smBillingElements = pgTable("sm_billing_elements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stableBlockId: varchar("stable_block_id"),
+  stableUnitId: varchar("stable_unit_id"),
+  transactionDate: varchar("transaction_date").notNull(),
+  refNumber: varchar("ref_number"),
+  remarks: text("remarks"),
+  horseId: varchar("horse_id"),
+  customerId: varchar("customer_id"),
+  itemServiceId: varchar("item_service_id"),
+  unit: varchar("unit"),
+  unitPrice: integer("unit_price").notNull().default(0),
+  quantity: varchar("quantity").notNull().default("1"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmBillingElementSchema = createInsertSchema(smBillingElements).omit({ id: true, createdAt: true });
+export type InsertSmBillingElement = z.infer<typeof insertSmBillingElementSchema>;
+export type SmBillingElement = typeof smBillingElements.$inferSelect;
+
+export const smLiveryPackages = pgTable("sm_livery_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  monthlyPrice: integer("monthly_price").notNull().default(0),
+  coveredItemServiceIds: text("covered_item_service_ids").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmLiveryPackageSchema = createInsertSchema(smLiveryPackages).omit({ id: true, createdAt: true });
+export type InsertSmLiveryPackage = z.infer<typeof insertSmLiveryPackageSchema>;
+export type SmLiveryPackage = typeof smLiveryPackages.$inferSelect;
+
+export const smLiveryAgreements = pgTable("sm_livery_agreements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agreementType: varchar("agreement_type").notNull().default("PERMANENT_AUTO_RENEW"),
+  startDate: varchar("start_date").notNull(),
+  endDate: varchar("end_date"),
+  facilityId: varchar("facility_id"),
+  stableBlockId: varchar("stable_block_id"),
+  stableUnitId: varchar("stable_unit_id"),
+  horseId: varchar("horse_id"),
+  customerId: varchar("customer_id"),
+  customerContact: varchar("customer_contact"),
+  refNumber: varchar("ref_number"),
+  liveryPackageId: varchar("livery_package_id"),
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmLiveryAgreementSchema = createInsertSchema(smLiveryAgreements).omit({ id: true, createdAt: true });
+export type InsertSmLiveryAgreement = z.infer<typeof insertSmLiveryAgreementSchema>;
+export type SmLiveryAgreement = typeof smLiveryAgreements.$inferSelect;

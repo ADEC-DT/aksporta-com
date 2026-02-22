@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections } from "@shared/schema";
+import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections, smFacilities, smStableBlocks, smStableUnits, smHorses, smCustomers, smItemServices, smLiveryPackages } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const defaultServices = [
@@ -491,5 +491,72 @@ export async function seedExternalServices() {
     await seedSectionTemplatesAndPages();
   } catch (error) {
     console.error("Failed to seed external services:", error);
+  }
+}
+
+export async function seedStableMasterData() {
+  try {
+    const existing = await db.select().from(smFacilities);
+    if (existing.length > 0) {
+      console.log("StableMaster data already seeded");
+      return;
+    }
+    console.log("Seeding StableMaster data...");
+
+    const [fac1] = await db.insert(smFacilities).values({ name: "Main Stables", type: "STABLE" }).returning();
+    const [fac2] = await db.insert(smFacilities).values({ name: "Training Arena", type: "ARENA" }).returning();
+
+    const [blockA] = await db.insert(smStableBlocks).values({ facilityId: fac1.id, name: "Block A" }).returning();
+    const [blockB] = await db.insert(smStableBlocks).values({ facilityId: fac1.id, name: "Block B" }).returning();
+
+    const stallNames = ["A01", "A02", "A03", "A04", "A05", "A06"];
+    for (let i = 0; i < stallNames.length; i++) {
+      await db.insert(smStableUnits).values({
+        stableBlockId: blockA.id,
+        name: stallNames[i],
+        unitType: "STALL",
+        status: i < 2 ? "OCCUPIED" : "AVAILABLE",
+      });
+    }
+    const stallBNames = ["B01", "B02", "B03", "B04"];
+    for (let i = 0; i < stallBNames.length; i++) {
+      await db.insert(smStableUnits).values({
+        stableBlockId: blockB.id,
+        name: stallBNames[i],
+        unitType: i === 3 ? "STORAGE" : "STALL",
+        status: i < 2 ? "OCCUPIED" : "AVAILABLE",
+      });
+    }
+
+    await db.insert(smHorses).values([
+      { name: "Thunder", color: "Bay", sex: "Stallion", status: "ACTIVE", dob: "2018-03-15" },
+      { name: "Storm", color: "Black", sex: "Mare", status: "ACTIVE", dob: "2019-07-22" },
+      { name: "Blaze", color: "Chestnut", sex: "Gelding", status: "ACTIVE", dob: "2017-11-08" },
+      { name: "Misty", color: "Grey", sex: "Mare", status: "ACTIVE", dob: "2020-01-30" },
+    ]);
+
+    await db.insert(smCustomers).values([
+      { name: "Sarah Johnson", email: "sarah@example.com", phone: "+971501234567", status: "ACTIVE" },
+      { name: "Ahmed Al Maktoum", email: "ahmed@example.com", phone: "+971502345678", status: "ACTIVE" },
+      { name: "Emily Carter", email: "emily@example.com", phone: "+971503456789", status: "ACTIVE" },
+    ]);
+
+    await db.insert(smItemServices).values([
+      { name: "Full Board", category: "SERVICE", unitOptions: ["month"], defaultUnit: "month", unitPrice: 350000, isActive: true },
+      { name: "Horseshoeing", category: "SERVICE", unitOptions: ["each"], defaultUnit: "each", unitPrice: 45000, isActive: true },
+      { name: "Veterinary Checkup", category: "SERVICE", unitOptions: ["each"], defaultUnit: "each", unitPrice: 25000, isActive: true },
+      { name: "Hay Bale", category: "ITEM", unitOptions: ["each", "day"], defaultUnit: "each", unitPrice: 3500, isActive: true },
+      { name: "Feed Supplement", category: "ITEM", unitOptions: ["each", "day", "month"], defaultUnit: "each", unitPrice: 12000, isActive: true },
+      { name: "Arena Rental", category: "SERVICE", unitOptions: ["each", "day"], defaultUnit: "each", unitPrice: 15000, isActive: true },
+    ]);
+
+    await db.insert(smLiveryPackages).values([
+      { name: "Full Livery", monthlyPrice: 450000, coveredItemServiceIds: [] },
+      { name: "Part Livery", monthlyPrice: 280000, coveredItemServiceIds: [] },
+    ]);
+
+    console.log("StableMaster seed data created");
+  } catch (error) {
+    console.error("Failed to seed StableMaster data:", error);
   }
 }

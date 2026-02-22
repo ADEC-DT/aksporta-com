@@ -2814,6 +2814,202 @@ export async function registerRoutes(
     }
   });
 
+  // ========== StableMaster API Routes ==========
+
+  // Facilities
+  app.get("/api/sm/facilities", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmFacilities()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/facilities", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmFacility(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/facilities/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmFacility(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/facilities/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmFacility(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Stable Blocks
+  app.get("/api/sm/stable-blocks", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getSmStableBlocks(req.query.facilityId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/stable-blocks", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmStableBlock(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/stable-blocks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmStableBlock(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/stable-blocks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmStableBlock(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Stable Units
+  app.get("/api/sm/stable-units", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getSmStableUnits(req.query.blockId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/stable-units", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmStableUnit(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/stable-units/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmStableUnit(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/stable-units/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmStableUnit(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Horses
+  app.get("/api/sm/horses", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmHorses()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/horses", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmHorse(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/horses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmHorse(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/horses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmHorse(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // SM Customers
+  app.get("/api/sm/customers", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmCustomers()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/customers", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmCustomer(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmCustomer(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmCustomer(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Items & Services
+  app.get("/api/sm/item-services", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmItemServices()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/item-services", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmItemService(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/item-services/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmItemService(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/item-services/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmItemService(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Billing Elements
+  app.get("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      res.json(await storage.getSmBillingElements(limit));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmBillingElement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/billing-elements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmBillingElement(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Livery Packages
+  app.get("/api/sm/livery-packages", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmLiveryPackages()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/livery-packages", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmLiveryPackage(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/livery-packages/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmLiveryPackage(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/livery-packages/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmLiveryPackage(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Livery Agreements
+  app.get("/api/sm/livery-agreements", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmLiveryAgreements()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/livery-agreements", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmLiveryAgreement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/livery-agreements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmLiveryAgreement(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/livery-agreements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmLiveryAgreement(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.post("/api/admin/cleanup-all-data", isAuthenticated, isAdmin, async (req, res) => {
     if (process.env.NODE_ENV === "production") {
       return res.status(403).json({ message: "Data cleanup is disabled in production" });

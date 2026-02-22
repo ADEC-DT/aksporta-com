@@ -39,6 +39,7 @@ import ProjectGroupPage from "@/pages/project-group";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import DynamicServicePage from "@/pages/dynamic-service";
+import StableMasterPage from "@/pages/stable-master";
 import LoginPage from "@/pages/login";
 import { NotificationDropdown } from "@/components/notification-dropdown";
 import { NotificationReminder } from "@/components/notification-reminder";
