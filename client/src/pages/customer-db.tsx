@@ -589,8 +589,6 @@ export default function CustomerDBPage() {
                 <TableHead>Phone Number</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Resource</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Business Unit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -601,13 +599,11 @@ export default function CustomerDBPage() {
                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-36" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                   </TableRow>
                 ))
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                     {searchQuery ? "No customers found matching your search" : "No customers yet. Add your first customer or import from an Excel file."}
                   </TableCell>
                 </TableRow>
@@ -633,30 +629,6 @@ export default function CustomerDBPage() {
                       ) : (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          customer.type === "Corporate"
-                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0"
-                            : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0"
-                        }
-                      >
-                        {customer.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          customer.primaryUnit === "Corporate"
-                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0"
-                            : customer.primaryUnit === "Equestrian Center"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0"
-                            : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-0"
-                        }
-                      >
-                        {customer.primaryUnit}
-                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))
