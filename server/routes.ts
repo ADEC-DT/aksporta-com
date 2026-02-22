@@ -1547,6 +1547,7 @@ export async function registerRoutes(
       const skipReasons: Record<string, number> = {
         empty_row: 0,
         duplicate_email: 0,
+        duplicate_phone: 0,
         error: 0,
       };
 
@@ -1573,6 +1574,19 @@ export async function registerRoutes(
               skipReasons.duplicate_email++;
               errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email "${email}" already exists`);
               continue;
+            }
+          }
+
+          if (contact) {
+            const phoneDigits = contact.replace(/\D/g, "");
+            if (phoneDigits) {
+              const existing = await storage.getAllCustomers({ search: contact });
+              if (existing.customers.some(c => (c.contact || "").replace(/\D/g, "") === phoneDigits)) {
+                skipped++;
+                skipReasons.duplicate_phone++;
+                errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - phone "${contact}" already exists`);
+                continue;
+              }
             }
           }
 

@@ -63,7 +63,7 @@ export default function CustomerDBPage() {
   const [fileTotalRows, setFileTotalRows] = useState(0);
   const [fileData, setFileData] = useState<string>("");
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ firstName: "", lastName: "", contact: "", email: "", source: "" });
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[]; skipReasons?: { empty_row: number; duplicate_email: number; error: number } } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[]; skipReasons?: { empty_row: number; duplicate_email: number; duplicate_phone: number; error: number } } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -536,6 +536,22 @@ export default function CustomerDBPage() {
                                 <div
                                   className="h-full rounded-full bg-orange-500"
                                   style={{ width: `${(importResult.skipReasons.duplicate_email / importResult.skipped) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {importResult.skipReasons.duplicate_phone > 0 && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Duplicate phone (already in database)</span>
+                                <span className="text-xs font-medium">{importResult.skipReasons.duplicate_phone}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-amber-500"
+                                  style={{ width: `${(importResult.skipReasons.duplicate_phone / importResult.skipped) * 100}%` }}
                                 />
                               </div>
                             </div>
