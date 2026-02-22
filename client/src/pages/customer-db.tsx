@@ -63,7 +63,7 @@ export default function CustomerDBPage() {
   const [fileTotalRows, setFileTotalRows] = useState(0);
   const [fileData, setFileData] = useState<string>("");
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ firstName: "", lastName: "", contact: "", email: "", source: "" });
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[]; skipReasons?: { missing_name: number; missing_email: number; duplicate_email: number; error: number } } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -519,15 +519,93 @@ export default function CustomerDBPage() {
                       <p className="text-xs text-muted-foreground">Total Rows</p>
                     </div>
                   </div>
-                  {importResult.errors.length > 0 && (
-                    <div className="text-xs space-y-1 max-h-32 overflow-y-auto border rounded-lg p-3">
-                      {importResult.errors.map((err, i) => (
-                        <div key={i} className="flex items-start gap-1 text-yellow-700 dark:text-yellow-400">
-                          <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
-                          <span>{err}</span>
-                        </div>
-                      ))}
+
+                  {importResult.skipped > 0 && importResult.skipReasons && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <p className="text-sm font-medium">Why were records skipped?</p>
+                      <div className="space-y-2">
+                        {importResult.skipReasons.duplicate_email > 0 && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Duplicate email (already in database)</span>
+                                <span className="text-xs font-medium">{importResult.skipReasons.duplicate_email}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-orange-500"
+                                  style={{ width: `${(importResult.skipReasons.duplicate_email / importResult.skipped) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {importResult.skipReasons.missing_email > 0 && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Missing email address</span>
+                                <span className="text-xs font-medium">{importResult.skipReasons.missing_email}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-yellow-500"
+                                  style={{ width: `${(importResult.skipReasons.missing_email / importResult.skipped) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {importResult.skipReasons.missing_name > 0 && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Missing first name</span>
+                                <span className="text-xs font-medium">{importResult.skipReasons.missing_name}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-red-500"
+                                  style={{ width: `${(importResult.skipReasons.missing_name / importResult.skipped) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {importResult.skipReasons.error > 0 && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Import error</span>
+                                <span className="text-xs font-medium">{importResult.skipReasons.error}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-red-700"
+                                  style={{ width: `${(importResult.skipReasons.error / importResult.skipped) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  )}
+
+                  {importResult.errors.length > 0 && (
+                    <details className="border rounded-lg">
+                      <summary className="text-xs font-medium cursor-pointer px-3 py-2 text-muted-foreground hover:text-foreground">
+                        Show detailed log ({importResult.errors.length} entries)
+                      </summary>
+                      <div className="text-xs space-y-1 max-h-40 overflow-y-auto px-3 pb-3">
+                        {importResult.errors.map((err, i) => (
+                          <div key={i} className="flex items-start gap-1 text-yellow-700 dark:text-yellow-400">
+                            <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span>{err}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}

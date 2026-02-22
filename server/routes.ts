@@ -1544,6 +1544,12 @@ export async function registerRoutes(
       let imported = 0;
       let skipped = 0;
       const errors: string[] = [];
+      const skipReasons: Record<string, number> = {
+        missing_name: 0,
+        missing_email: 0,
+        duplicate_email: 0,
+        error: 0,
+      };
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -1555,11 +1561,14 @@ export async function registerRoutes(
 
         if (!firstName) {
           skipped++;
+          skipReasons.missing_name++;
+          errors.push(`Row ${i + 2}: skipped - first name is empty`);
           continue;
         }
 
         if (!email) {
           skipped++;
+          skipReasons.missing_email++;
           errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email is empty`);
           continue;
         }
@@ -1568,6 +1577,7 @@ export async function registerRoutes(
           const existing = await storage.getAllCustomers({ search: email });
           if (existing.customers.some(c => c.email === email)) {
             skipped++;
+            skipReasons.duplicate_email++;
             errors.push(`Row ${i + 2}: "${firstName} ${lastName}" skipped - email "${email}" already exists`);
             continue;
           }
@@ -1587,6 +1597,7 @@ export async function registerRoutes(
           imported++;
         } catch (err: any) {
           skipped++;
+          skipReasons.error++;
           errors.push(`Row ${i + 2}: "${firstName} ${lastName}" failed - ${err.message || "unknown error"}`);
         }
       }
@@ -1602,7 +1613,7 @@ export async function registerRoutes(
         status: "success",
       });
 
-      res.json({ imported, skipped, totalRows: rows.length, errors: errors.slice(0, 20) });
+      res.json({ imported, skipped, totalRows: rows.length, errors: errors.slice(0, 50), skipReasons });
     } catch (error: any) {
       console.error("Error importing customers:", error);
       res.status(500).json({ message: "Failed to import customers: " + (error.message || "Unknown error") });
