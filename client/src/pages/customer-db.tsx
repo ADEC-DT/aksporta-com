@@ -290,7 +290,7 @@ export default function CustomerDBPage() {
             Import File
           </Button>
           <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) resetImportDialog(); }}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {importStep === "upload" && "Import Customers from Excel"}
@@ -349,10 +349,10 @@ export default function CustomerDBPage() {
                           <SelectTrigger data-testid={`select-map-${field.key}`}>
                             <SelectValue placeholder="Select column..." />
                           </SelectTrigger>
-                          <SelectContent className="max-h-48 overflow-y-auto" position="popper" sideOffset={4}>
+                          <SelectContent className="max-h-48 max-w-[300px] overflow-y-auto" position="popper" sideOffset={4}>
                             <SelectItem value="__none__">-- Skip --</SelectItem>
                             {fileColumns.map((col) => (
-                              <SelectItem key={col} value={col}>{col}</SelectItem>
+                              <SelectItem key={col} value={col} className="truncate">{col}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
