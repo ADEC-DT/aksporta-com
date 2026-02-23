@@ -2977,6 +2977,109 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/sm/horses/import/preview", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      if (!validateFileExtension(req.file.originalname)) {
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+      }
+      const rows = parseExcelFile(req.file.buffer);
+      const columns = Object.keys(rows[0]);
+      const preview = rows.slice(0, 5).map(row => {
+        const obj: Record<string, string> = {};
+        for (const col of columns) obj[col] = String(row[col] ?? "");
+        return obj;
+      });
+      const fileBase64 = req.file.buffer.toString("base64");
+      res.json({ columns, preview, totalRows: rows.length, fileData: fileBase64 });
+    } catch (error: any) {
+      console.error("Error previewing horse import:", error);
+      res.status(400).json({ message: error.message || "Failed to parse file" });
+    }
+  });
+
+  app.post("/api/sm/horses/import", isAuthenticated, async (req, res) => {
+    try {
+      const { fileData, mapping } = req.body;
+      if (!fileData || typeof fileData !== "string") {
+        return res.status(400).json({ message: "File data is required" });
+      }
+      if (!mapping || typeof mapping !== "object") {
+        return res.status(400).json({ message: "Column mapping is required" });
+      }
+      if (!mapping.name) {
+        return res.status(400).json({ message: "Horse name mapping is required" });
+      }
+      const buffer = Buffer.from(fileData, "base64");
+      const rows = parseExcelFile(buffer);
+
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      const skipReasons: Record<string, number> = { empty_row: 0, duplicate_name: 0, error: 0 };
+
+      const existingHorses = await storage.getSmHorses();
+      const existingNames = new Set(existingHorses.map(h => h.name.toLowerCase().trim()));
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = mapping.name ? String(row[mapping.name] ?? "").trim() : "";
+        const color = mapping.color ? String(row[mapping.color] ?? "").trim() : "";
+        const sex = mapping.sex ? String(row[mapping.sex] ?? "").trim().toUpperCase() : "";
+        const dob = mapping.dob ? String(row[mapping.dob] ?? "").trim() : "";
+        const remarks = mapping.remarks ? String(row[mapping.remarks] ?? "").trim() : "";
+        const status = mapping.status ? String(row[mapping.status] ?? "").trim().toUpperCase() : "ACTIVE";
+
+        if (!name) {
+          skipped++;
+          skipReasons.empty_row++;
+          errors.push(`Row ${i + 2}: skipped - no horse name`);
+          continue;
+        }
+
+        if (existingNames.has(name.toLowerCase().trim())) {
+          skipped++;
+          skipReasons.duplicate_name++;
+          errors.push(`Row ${i + 2}: "${name}" skipped - horse name already exists`);
+          continue;
+        }
+
+        try {
+          const validSex = ["STALLION", "MARE", "GELDING", "COLT", "FILLY"].includes(sex) ? sex : null;
+          const validStatus = ["ACTIVE", "INACTIVE", "RETIRED"].includes(status) ? status : "ACTIVE";
+
+          let parsedDob: string | null = null;
+          if (dob) {
+            const d = new Date(dob);
+            if (!isNaN(d.getTime())) {
+              parsedDob = d.toISOString().split("T")[0];
+            }
+          }
+
+          await storage.createSmHorse({
+            name,
+            color: color || null,
+            sex: validSex,
+            dob: parsedDob,
+            remarks: remarks || null,
+            status: validStatus,
+          });
+          imported++;
+          existingNames.add(name.toLowerCase().trim());
+        } catch (err: any) {
+          skipped++;
+          skipReasons.error++;
+          errors.push(`Row ${i + 2}: "${name}" failed - ${err.message || "unknown error"}`);
+        }
+      }
+
+      res.json({ imported, skipped, totalRows: rows.length, errors: errors.slice(0, 50), skipReasons });
+    } catch (error: any) {
+      console.error("Error importing horses:", error);
+      res.status(500).json({ message: "Failed to import horses: " + (error.message || "Unknown error") });
+    }
+  });
+
   // SM Customers
   app.get("/api/sm/customers", isAuthenticated, async (_req, res) => {
     try { res.json(await storage.getSmCustomers()); } catch (e: any) { res.status(500).json({ message: e.message }); }
