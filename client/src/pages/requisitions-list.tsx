@@ -60,7 +60,7 @@ export default function RequisitionsListPage() {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/erp")} data-testid="button-back-erp">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/finance")} data-testid="button-back-finance">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -68,7 +68,7 @@ export default function RequisitionsListPage() {
             <p className="text-muted-foreground">Manage approval request forms</p>
           </div>
         </div>
-        <Button onClick={() => navigate("/erp/procurement/requisitions/new")} data-testid="button-new-requisition">
+        <Button onClick={() => navigate("/finance/procurement/requisitions/new")} data-testid="button-new-requisition">
           <Plus className="h-4 w-4 mr-2" />
           New Request
         </Button>
@@ -131,7 +131,7 @@ export default function RequisitionsListPage() {
                       className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("select, button")) return;
-                        navigate(`/erp/procurement/requisitions/${req.id}`);
+                        navigate(`/finance/procurement/requisitions/${req.id}`);
                       }}
                       data-testid={`row-requisition-${req.id}`}
                     >

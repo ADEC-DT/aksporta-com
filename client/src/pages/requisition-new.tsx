@@ -95,7 +95,7 @@ export default function RequisitionNewPage() {
     },
     onSuccess: () => {
       toast({ title: "Request submitted", description: "Your approval request form has been submitted successfully." });
-      navigate("/erp/procurement/requisitions");
+      navigate("/finance/procurement/requisitions");
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to submit request", variant: "destructive" });
@@ -136,7 +136,7 @@ export default function RequisitionNewPage() {
   return (
     <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/erp/procurement/requisitions")} data-testid="button-back-list">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/finance/procurement/requisitions")} data-testid="button-back-list">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -309,7 +309,7 @@ export default function RequisitionNewPage() {
         </Card>
 
         <div className="flex gap-3 justify-end">
-          <Button type="button" variant="outline" onClick={() => navigate("/erp/procurement/requisitions")} data-testid="button-cancel">
+          <Button type="button" variant="outline" onClick={() => navigate("/finance/procurement/requisitions")} data-testid="button-cancel">
             Cancel
           </Button>
           <Button type="submit" disabled={submitMutation.isPending} data-testid="button-submit">

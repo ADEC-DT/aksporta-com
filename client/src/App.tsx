@@ -10,7 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import ERPDashboard from "@/pages/erp-dashboard";
+import FinanceDashboard from "@/pages/erp-dashboard";
 import HRDashboard from "@/pages/hr-dashboard";
 import LiveryDashboard from "@/pages/livery-dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -53,7 +53,7 @@ import { Input } from "@/components/ui/input";
 const ALLOWED_ROUTES_FOR_NON_ADMIN = [
   "/dashboard",
   "/applications/customer-db",
-  "/erp",
+  "/finance",
   "/netsuite",
   "/events",
   "/intranet",
@@ -121,11 +121,12 @@ function ProtectedRoutes() {
                   <Redirect to="/dashboard" />
                 </Route>
                 <Route path="/dashboard" component={Dashboard} />
-                <Route path="/erp/procurement/requisitions/new" component={RequisitionNewPage} />
-                <Route path="/erp/procurement/requisitions/:id" component={RequisitionDetailPage} />
-                <Route path="/erp/procurement/requisitions" component={RequisitionsListPage} />
-                <Route path="/erp" component={ERPDashboard} />
-                <Route path="/netsuite" component={ERPDashboard} />
+                <Route path="/finance/procurement/requisitions/new" component={RequisitionNewPage} />
+                <Route path="/finance/procurement/requisitions/:id" component={RequisitionDetailPage} />
+                <Route path="/finance/procurement/requisitions" component={RequisitionsListPage} />
+                <Route path="/finance" component={FinanceDashboard} />
+                <Route path="/erp" component={FinanceDashboard} />
+                <Route path="/netsuite" component={FinanceDashboard} />
                 <Route path="/hr" component={HRMSPage} />
                 <Route path="/livery" component={LiveryDashboard} />
                 <Route path="/admin" component={AdminDashboard} />

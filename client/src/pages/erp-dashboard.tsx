@@ -96,7 +96,7 @@ const procurementModules = [
     subtitle: "5 Awaiting Approval",
     icon: Receipt,
     action: "View Requisitions",
-    url: "/erp/procurement/requisitions",
+    url: "/finance/procurement/requisitions",
   },
   {
     id: "requisition-arf",
@@ -104,7 +104,7 @@ const procurementModules = [
     subtitle: "Approval Request Form",
     icon: FileCheck,
     action: "New",
-    url: "/erp/procurement/requisitions/new",
+    url: "/finance/procurement/requisitions/new",
   },
 ];
 
@@ -150,7 +150,7 @@ const recentPayments = [
   { id: "PAY-005", customer: "CloudNine Corp", amount: "$45,000", status: "failed", date: "Jan 13, 2026" },
 ];
 
-export default function ERPDashboard() {
+export default function FinanceDashboard() {
   const [activeTab, setActiveTab] = useState("finance");
   const [, navigate] = useLocation();
 
@@ -159,7 +159,7 @@ export default function ERPDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-outfit">NetSuite Enterprise</h1>
+          <h1 className="text-2xl font-bold font-outfit">Finance</h1>
           <p className="text-muted-foreground">Finance, Procurement, and Inventory Management.</p>
         </div>
         <Button className="w-fit" data-testid="button-launch-netsuite">
