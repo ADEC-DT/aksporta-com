@@ -1,0 +1,103 @@
+1) Add a new tile on the Procurement page
+On the Procurement tiles row, add one additional tile next to the existing ones:
+Tile title: Requisition ARF
+Subtitle: Approval Request Form
+Counter text: optional (can be blank for now)
+Button label: New
+When the user clicks New, navigate to a new page:
+/erp/procurement/requisitions/new (or equivalent route used in this project)
+2) Create a New Request form page
+Create a full page form titled:
+Approval Request Form
+Fields (match labels exactly):
+Date: (date picker; default today)
+1. Request Information
+Request Title: (text, required)
+Department: (dropdown or text, required)
+Requested By: (text, required)
+Position: (text)
+Date of Request: (date picker; default today, required)
+2. Description of Request
+Please provide a detailed explanation of what is being requested: (multiline textarea, required)
+3. Justification / Business Need
+(multiline textarea, required)
+4. Budget Details
+Estimated Cost (AED): (number, required)
+Budget Line / Account Code (if applicable): (text)
+Is this budgeted? (radio: Yes / No, required)
+Vendor Name (if applicable): (text)
+5. Supporting Documents
+Allow users to upload attachments:
+Accept jpg, png, pdf
+Allow multiple files
+Show a list of selected/uploaded files (name + size)
+Store and associate uploaded files with the request record (persist them; not just client-side)
+6. Timeline
+Required By Date: (date picker, required)
+Project / Activity Start Date (if applicable): (date picker)
+Form actions:
+Primary button: Submit
+Secondary button: Cancel (returns to requisitions list page)
+Validation:
+Required fields must block submit and show inline errors.
+On submit:
+Save the request to the database
+Set initial Status = "Submitted"
+Then redirect user to the requisitions list page and show a success toast/message.
+3) Make the existing “Requisitions – 5 Awaiting Approval” tile open the requisitions list
+The existing tile/button “View Requisitions” must navigate to:
+/erp/procurement/requisitions
+4) Create the requisitions list page
+Page: Requisitions
+Display all requests in a table, one request per row.
+Columns:
+Request ID (or auto-generated reference)
+Request Title
+Department
+Requested By
+Estimated Cost (AED)
+Date of Request
+Required By Date
+Status
+Created At (optional)
+Features:
+Sort by Created At descending by default
+Search box (search in title, department, requester)
+Filter by Status
+Status:
+Each row has a Status dropdown editable in the table.
+Status values: Submitted, Awaiting Approval, Approved, Rejected
+When status is changed, persist immediately (or with a “Save” button per row) and show a confirmation toast.
+Row click:
+Clicking a row opens a details page:
+/erp/procurement/requisitions/:id
+Details page shows all form fields + list of attachments with download links.
+5) Data model + storage
+Create a requisitions table/collection with at least:
+id
+date
+requestTitle
+department
+requestedBy
+position
+dateOfRequest
+description
+justification
+estimatedCostAed
+budgetLineAccountCode
+isBudgeted (boolean)
+vendorName
+requiredByDate
+projectStartDate
+status
+createdAt
+updatedAt
+Attachments:
+Create a related requisition_attachments table/collection (or embedded array) with:
+id
+requisitionId
+filename
+fileType
+fileSize
+storagePath/url
+uploadedAt
