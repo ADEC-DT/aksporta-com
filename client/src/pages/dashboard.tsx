@@ -116,7 +116,7 @@ const intranetUpdates: IntranetItem[] = [
 
 const quickLinks = [
   { title: "IT Support Request", icon: Laptop, url: "/intranet" },
-  { title: "Expense Claims", icon: FileText, url: "/erp" },
+  { title: "Expense Claims", icon: FileText, url: "/finance" },
   { title: "Meeting Room Booking", icon: Calendar, url: "/events" },
 ];
 

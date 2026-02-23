@@ -27,7 +27,7 @@ const defaultReminders: Reminder[] = [
   {
     id: 2,
     title: "NetSuite Monthly Reconciliation",
-    source: "ERP Task",
+    source: "Finance Task",
     time: "Due in 30 minutes",
     overdue: false,
     initials: "NS",

@@ -110,7 +110,7 @@ type BlueprintFormValues = z.infer<typeof blueprintFormSchema>;
 const portalSections = [
   { name: "dashboard", title: "Dashboard" },
   { name: "business_units", title: "Business Units" },
-  { name: "erp", title: "ERP System" },
+  { name: "erp", title: "Finance" },
   { name: "hrms", title: "HRMS" },
   { name: "customer_db", title: "Customer Database" },
   { name: "equestrian", title: "Equestrian Center" },

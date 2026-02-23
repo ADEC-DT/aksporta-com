@@ -179,7 +179,7 @@ export function CollaborationStampMini({ status }: { status: string }) {
 const sectionTitleMap: Record<string, string> = {
   dashboard: "Dashboard",
   business_units: "Business Units",
-  erp: "ERP System",
+  erp: "Finance",
   hrms: "HRMS",
   customer_db: "Customer Database",
   equestrian: "Equestrian Center",

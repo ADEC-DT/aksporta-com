@@ -96,8 +96,8 @@ export function registerStripeRoutes(app: Express) {
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'payment',
-        success_url: successUrl || `${req.protocol}://${req.get('host')}/erp?payment=success`,
-        cancel_url: cancelUrl || `${req.protocol}://${req.get('host')}/erp?payment=cancelled`,
+        success_url: successUrl || `${req.protocol}://${req.get('host')}/finance?payment=success`,
+        cancel_url: cancelUrl || `${req.protocol}://${req.get('host')}/finance?payment=cancelled`,
       });
 
       res.json({ url: session.url });

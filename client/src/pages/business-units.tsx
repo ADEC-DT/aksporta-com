@@ -51,7 +51,7 @@ const businessUnits = [
       { label: "DEPARTMENTS", value: "8" },
       { label: "PROJECTS", value: "12" },
     ],
-    url: "/erp",
+    url: "/finance",
   },
 ];
 
