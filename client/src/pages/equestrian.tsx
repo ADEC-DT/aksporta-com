@@ -32,8 +32,6 @@ import {
 import type { PageSectionWithTemplate } from "@shared/schema";
 
 const sectionRouteMap: Record<string, string> = {
-  "/equestrian/overview": "Equestrian Overview",
-  "/equestrian/equinem": "Equinem",
   "/equestrian/stable-assets": "Stable Assets Manager",
 };
 
@@ -704,9 +702,6 @@ function RenderEquestrianSection({ section }: { section: PageSectionWithTemplate
       );
     }
 
-    case "Equinem":
-      return null;
-
     default:
       return null;
   }
@@ -719,7 +714,7 @@ function renderSection(section: PageSectionWithTemplate) {
 export default function EquestrianPage() {
   const [location] = useLocation();
   const activeSectionTitle = sectionRouteMap[location] || null;
-  const isOverview = location === "/equestrian/overview" || !activeSectionTitle;
+  const isOverview = !activeSectionTitle;
 
   const filterSection = (section: PageSectionWithTemplate) => {
     if (!activeSectionTitle) return true;
@@ -729,7 +724,7 @@ export default function EquestrianPage() {
   return (
     <ServicePageLayout
       serviceUrl={SERVICE_URL}
-      title={isOverview ? "Equestrian Center" : ""}
+      title={isOverview ? "Equestrian" : ""}
       subtitle={isOverview ? "Complete management of riding school, livery, and veterinary services" : ""}
       collaborationSection="equestrian"
       renderSection={renderSection}

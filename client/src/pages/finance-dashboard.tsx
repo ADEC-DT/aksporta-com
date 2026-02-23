@@ -234,6 +234,22 @@ export default function FinanceDashboard() {
               ))}
             </div>
           </div>
+
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold font-outfit mb-4">Power BI Dashboard</h3>
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                <iframe
+                  title="Power BI Report"
+                  src="https://app.powerbi.com/reportEmbed?reportId=b37a6c8c-cbe6-4635-84e2-1d26d0af47c7&appId=fcee7e5c-5747-4076-ae52-06342581e3ef&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3"
+                  className="w-full border-0"
+                  style={{ height: "600px" }}
+                  allowFullScreen
+                  data-testid="powerbi-embed"
+                />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Procurement Tab */}

@@ -141,11 +141,10 @@ function ProtectedRoutes() {
                 <Route path="/business-units" component={BusinessUnitsPage} />
                 <Route path="/asset-lease" component={AssetLeasePage} />
                 <Route path="/equestrian/overview" component={EquestrianPage} />
-                <Route path="/equestrian/equinem" component={EquestrianPage} />
                 <Route path="/equestrian/stable-assets/:rest*" component={StableMasterPage} />
                 <Route path="/equestrian/stable-assets" component={StableMasterPage} />
                 <Route path="/equestrian">
-                  <Redirect to="/equestrian/overview" />
+                  <Redirect to="/equestrian/stable-assets" />
                 </Route>
                 <Route path="/events" component={EventsPage} />
                 <Route path="/media-marketing" component={MediaMarketingPage} />

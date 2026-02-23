@@ -5,12 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { ExpandableSection } from "@/components/expandable-section";
 import { DetailPanel } from "@/components/detail-panel";
 import { 
   User,
   ArrowRight,
-  BarChart3,
   Wrench,
   Laptop,
   FileText,
@@ -50,7 +48,7 @@ const businessApplications = [
     statusColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     iconBg: "bg-yellow-500",
     iconText: "P",
-    url: "/analytics",
+    url: "/finance",
   },
   {
     id: "lease",
@@ -116,6 +114,7 @@ const intranetUpdates: IntranetItem[] = [
 
 const quickLinks = [
   { title: "IT Support Request", icon: Laptop, url: "/intranet" },
+  { title: "Request ARF", icon: FileText, url: "/finance/procurement/requisitions/new" },
   { title: "Expense Claims", icon: FileText, url: "/finance" },
   { title: "Meeting Room Booking", icon: Calendar, url: "/events" },
 ];
@@ -205,24 +204,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <ExpandableSection
-              title="Power BI Dashboard"
-              icon={BarChart3}
-              maxHeight="600px"
-            >
-              <Card className="overflow-hidden">
-                <CardContent className="p-0">
-                  <iframe
-                    title="Power BI Report"
-                    src="https://app.powerbi.com/reportEmbed?reportId=b37a6c8c-cbe6-4635-84e2-1d26d0af47c7&appId=fcee7e5c-5747-4076-ae52-06342581e3ef&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3"
-                    className="w-full border-0"
-                    style={{ height: "600px" }}
-                    allowFullScreen
-                    data-testid="powerbi-embed"
-                  />
-                </CardContent>
-              </Card>
-            </ExpandableSection>
           </div>
 
           <div className="space-y-6">
