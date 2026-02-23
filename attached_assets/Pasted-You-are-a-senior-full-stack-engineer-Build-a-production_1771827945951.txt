@@ -1,0 +1,334 @@
+You are a senior full-stack engineer.
+Build a production-quality MVP web application called:
+STABLEMASTER
+Equestrian Stable Management System
+IMPORTANT:
+This is an operational stable management system.
+NetSuite remains the financial ERP.
+Do NOT replicate ERP complexity.
+The application must stay simple, fast, and operational.
+====================================================
+GOAL OF THE MVP
+====================================================
+The system manages:
+- Stables (big buildings)
+- Boxes (horse stalls, storage, tack rooms)
+- Horses
+- Customers
+- Livery Agreements (recurring boarding contracts)
+- Ad-hoc billable services
+- Monthly billing preparation
+- Invoice draft generation
+The system DOES NOT replace accounting.
+It prepares billing data later sent to NetSuite.
+====================================================
+TECH STACK (MANDATORY)
+====================================================
+Frontend:
+- React
+- TypeScript
+- TailwindCSS
+- shadcn/ui components
+- lucide-react icons
+- React Router
+State:
+- Zustand or Context
+Persistence (MVP):
+- LocalStorage repository layer
+- No backend yet
+- Must be replaceable later by API
+Project structure:
+/src
+  /pages
+  /components
+  /models
+  /store
+  /services/storage.ts
+  /utils
+Seed demo data automatically on first run.
+====================================================
+GLOBAL LAYOUT
+====================================================
+Layout similar to modern admin dashboard.
+LEFT SIDEBAR navigation.
+App title:
+StableMaster
+Equestrian Management
+Main area:
+- Page title
+- Description text
+- Content card
+- Filters
+- Tables
+- Modal forms
+Desktop-first responsive UI.
+====================================================
+SIDEBAR STRUCTURE
+====================================================
+MANAGEMENT
+- Activities
+    - Schedule
+    - Post Billing Element
+- Livery Agreements
+    - Agreements
+    - New Agreement
+    - Livery Packages
+- Horses
+- Customers
+- Stable
+    - Stables
+    - Boxes
+- Billing
+ADMINISTRATION
+- Users
+- Settings
+====================================================
+DATA MODELS
+====================================================
+-------------------
+ITEMS (READ ONLY)
+-------------------
+Items are mastered in NetSuite.
+Users cannot create or edit them.
+ItemService:
+- id
+- netsuite_item_id
+- description
+- default_unit_price
+- base_unit
+- category
+- is_active
+Items page behavior:
+- Add button greyed out
+- Message:
+  "Items are mastered in NetSuite. Read-only list."
+- Columns:
+  Description | Category | Base Unit | Default Price | Active
+- Filters:
+  description search
+  category dropdown
+  active status
+NO editing allowed.
+-------------------
+STABLES
+-------------------
+A Stable = big building containing many boxes.
+Stable:
+- id
+- name
+- notes
+- is_active
+CRUD allowed.
+-------------------
+BOXES
+-------------------
+Each box belongs to ONE stable.
+Box:
+- id
+- stable_id (required)
+- name (A01, B12…)
+- box_type:
+    STALL
+    STORAGE
+    TACKING_ROOM
+- status:
+    AVAILABLE
+    OCCUPIED
+    MAINTENANCE
+- notes
+Boxes page:
+List all boxes across stables.
+Filters:
+- Stable
+- Box Type
+- Status
+- Search by name
+Users must choose a Stable when creating a Box.
+Relationship:
+Stable 1 → many Boxes
+-------------------
+HORSE
+-------------------
+Horse:
+- id
+- name
+- dob
+- color
+- sex
+- group
+- remarks
+- status
+CRUD allowed.
+-------------------
+CUSTOMER
+-------------------
+Customer:
+- id
+- name
+- phone
+- email
+- remarks
+- status
+CRUD allowed.
+-------------------
+LIVERY PACKAGES
+-------------------
+LiveryPackage:
+- id
+- name
+- monthly_price
+- covered_item_ids[]
+Used for recurring billing.
+CRUD allowed.
+-------------------
+LIVERY AGREEMENTS
+-------------------
+Represents box rental.
+IMPORTANT FEATURE:
+Support agreements WITHOUT horse.
+This is called:
+UNASSIGNED AGREEMENT
+(Customer rents box but rotates horses.)
+LiveryAgreement:
+- id
+- stable_id
+- box_id
+- agreement_type:
+    PERMANENT_AUTO_RENEW
+    TEMPORARY
+- start_date
+- end_date (only temporary)
+- customer_id
+- horse_id (nullable)
+- reference_number
+- livery_package_id
+- notes
+Rules:
+- horse_id optional
+- display "(Unassigned)" when empty
+- creating agreement reserves the box
+  → box status becomes OCCUPIED even if no horse.
+New Agreement page:
+Show box occupancy table.
+Columns:
+Stable | Box | Type | Status | Horse | Customer | Action
+Filters:
+- Stable
+- Available only toggle
+Create button appears ONLY on available boxes.
+Modal preselects stable + box.
+-------------------
+POST BILLING ELEMENT
+-------------------
+Used for ad-hoc services.
+Replace old design.
+Page shows searchable BOX list.
+Columns:
+Stable | Box | Type | Status | Horse | Customer | Action
+Filters:
+- Stable
+- Horse search
+- Customer search
+- Status
+NO “last 10 records”.
+Click “Create Billing Element”:
+Modal form:
+- Stable (locked)
+- Box (locked)
+- Transaction Date
+- Reference number
+- Remarks
+- Customer (auto from agreement if exists)
+- Horse (optional)
+- Item (NetSuite list searchable)
+- Unit (from item base_unit)
+- Unit Price (default, editable toggle)
+- Quantity (decimal)
+Creates BillingElement.
+BillingElement:
+- id
+- stable_id
+- box_id
+- horse_id nullable
+- customer_id
+- item_id
+- quantity
+- unit_price
+- transaction_date
+- remarks
+- billed=false
+-------------------
+BILLING PAGE (NEW CORE PAGE)
+-------------------
+Purpose:
+Prepare invoices.
+Shows ALL UNBILLED ELEMENTS.
+Sources:
+1) Monthly Livery Agreements (recurring)
+2) Ad-hoc Billing Elements
+Filters:
+- Customer
+- Horse
+- Date range
+Table columns:
+Checkbox
+Date
+Customer
+Horse
+Source (LIVERY / ADHOC)
+Description
+Quantity
+Unit Price
+Total
+Stable
+Box
+Reference
+-------------------
+AUTOMATIC MONTHLY LIVERY LINES
+-------------------
+For each active agreement:
+Generate virtual billing line per month.
+Rules:
+If agreement active during month:
+→ create billing line:
+quantity = 1
+price = package monthly_price
+date = first day of month
+These lines appear as UNBILLED.
+-------------------
+INVOICE GENERATION
+-------------------
+User selects billing lines.
+Constraints:
+- Must belong to ONE customer.
+Button:
+Generate Invoice
+Flow:
+1. Validate same customer
+2. Confirmation modal
+3. Create Invoice Draft
+Invoice:
+- id
+- customer_id
+- date
+- total
+- status="DRAFT"
+- lines[]
+Mark selected lines as billed.
+Show invoice list below table.
+NO NetSuite integration yet.
+====================================================
+ACTIVITIES PAGE
+====================================================
+Schedule:
+Display placeholder:
+"Scheduled activities will be built later."
+====================================================
+USERS PAGE
+====================================================
+Placeholder list only.
+====================================================
+SETTINGS PAGE
+====================================================
+Add:
+Reset Demo Data button.
