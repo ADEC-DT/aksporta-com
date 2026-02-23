@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +23,8 @@ import {
   CheckCircle,
   Shield,
   Activity,
-  ArrowUpRight
+  ArrowUpRight,
+  FileCheck
 } from "lucide-react";
 
 const financeModules = [
@@ -94,7 +96,15 @@ const procurementModules = [
     subtitle: "5 Awaiting Approval",
     icon: Receipt,
     action: "View Requisitions",
-    url: "#",
+    url: "/erp/procurement/requisitions",
+  },
+  {
+    id: "requisition-arf",
+    title: "Requisition ARF",
+    subtitle: "Approval Request Form",
+    icon: FileCheck,
+    action: "New",
+    url: "/erp/procurement/requisitions/new",
   },
 ];
 
@@ -142,6 +152,7 @@ const recentPayments = [
 
 export default function ERPDashboard() {
   const [activeTab, setActiveTab] = useState("finance");
+  const [, navigate] = useLocation();
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -227,7 +238,7 @@ export default function ERPDashboard() {
 
         {/* Procurement Tab */}
         <TabsContent value="procurement" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {procurementModules.map((module) => (
               <Card key={module.id} data-testid={`procurement-module-${module.id}`}>
                 <CardContent className="p-4">
@@ -236,7 +247,12 @@ export default function ERPDashboard() {
                     <h3 className="font-semibold">{module.title}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">{module.subtitle}</p>
-                  <Button variant="outline" className="w-full" data-testid={`button-${module.id}`}>
+                  <Button
+                    variant={module.id === "requisition-arf" ? "default" : "outline"}
+                    className="w-full"
+                    data-testid={`button-${module.id}`}
+                    onClick={() => { if (module.url !== "#") navigate(module.url); }}
+                  >
                     {module.action}
                   </Button>
                 </CardContent>

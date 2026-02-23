@@ -22,6 +22,8 @@ import {
   sectionTemplates, type SectionTemplate, type InsertSectionTemplate,
   pageSections, type PageSection, type InsertPageSection, type PageSectionWithTemplate,
   iconLibrary, type IconLibraryEntry, type InsertIconLibrary,
+  requisitions, type Requisition, type InsertRequisition,
+  requisitionAttachments, type RequisitionAttachment, type InsertRequisitionAttachment,
   smFacilities, type SmFacility, type InsertSmFacility,
   smStableBlocks, type SmStableBlock, type InsertSmStableBlock,
   smStableUnits, type SmStableUnit, type InsertSmStableUnit,
@@ -199,6 +201,17 @@ export interface IStorage {
   getIconByName(name: string): Promise<IconLibraryEntry | undefined>;
   createIcon(icon: InsertIconLibrary): Promise<IconLibraryEntry>;
   deleteIcon(id: string): Promise<boolean>;
+
+  // Requisitions
+  getAllRequisitions(options?: { search?: string; status?: string }): Promise<Requisition[]>;
+  getRequisition(id: string): Promise<Requisition | undefined>;
+  createRequisition(r: InsertRequisition): Promise<Requisition>;
+  updateRequisition(id: string, d: Partial<InsertRequisition>): Promise<Requisition | undefined>;
+  deleteRequisition(id: string): Promise<boolean>;
+  getRequisitionAttachments(requisitionId: string): Promise<RequisitionAttachment[]>;
+  getRequisitionAttachmentById(id: string): Promise<RequisitionAttachment | undefined>;
+  createRequisitionAttachment(a: InsertRequisitionAttachment): Promise<RequisitionAttachment>;
+  deleteRequisitionAttachment(id: string): Promise<boolean>;
 
   // StableMaster - Facilities
   getSmFacilities(): Promise<SmFacility[]>;
@@ -1117,6 +1130,57 @@ export class DatabaseStorage implements IStorage {
   async deleteIcon(id: string): Promise<boolean> {
     const result = await db.delete(iconLibrary).where(eq(iconLibrary.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Requisitions implementations
+  async getAllRequisitions(options?: { search?: string; status?: string }): Promise<Requisition[]> {
+    const conditions = [];
+    if (options?.status) {
+      conditions.push(eq(requisitions.status, options.status));
+    }
+    if (options?.search) {
+      const term = `%${options.search}%`;
+      conditions.push(or(
+        ilike(requisitions.requestTitle, term),
+        ilike(requisitions.department, term),
+        ilike(requisitions.requestedBy, term),
+      )!);
+    }
+    if (conditions.length > 0) {
+      return await db.select().from(requisitions).where(and(...conditions)).orderBy(desc(requisitions.createdAt));
+    }
+    return await db.select().from(requisitions).orderBy(desc(requisitions.createdAt));
+  }
+  async getRequisition(id: string): Promise<Requisition | undefined> {
+    const [r] = await db.select().from(requisitions).where(eq(requisitions.id, id));
+    return r;
+  }
+  async createRequisition(r: InsertRequisition): Promise<Requisition> {
+    const [created] = await db.insert(requisitions).values(r).returning();
+    return created;
+  }
+  async updateRequisition(id: string, d: Partial<InsertRequisition>): Promise<Requisition | undefined> {
+    const [updated] = await db.update(requisitions).set({ ...d, updatedAt: new Date() }).where(eq(requisitions.id, id)).returning();
+    return updated;
+  }
+  async deleteRequisition(id: string): Promise<boolean> {
+    const r = await db.delete(requisitions).where(eq(requisitions.id, id)).returning();
+    return r.length > 0;
+  }
+  async getRequisitionAttachments(requisitionId: string): Promise<RequisitionAttachment[]> {
+    return await db.select().from(requisitionAttachments).where(eq(requisitionAttachments.requisitionId, requisitionId));
+  }
+  async getRequisitionAttachmentById(id: string): Promise<RequisitionAttachment | undefined> {
+    const rows = await db.select().from(requisitionAttachments).where(eq(requisitionAttachments.id, id));
+    return rows[0];
+  }
+  async createRequisitionAttachment(a: InsertRequisitionAttachment): Promise<RequisitionAttachment> {
+    const [created] = await db.insert(requisitionAttachments).values(a).returning();
+    return created;
+  }
+  async deleteRequisitionAttachment(id: string): Promise<boolean> {
+    const r = await db.delete(requisitionAttachments).where(eq(requisitionAttachments.id, id)).returning();
+    return r.length > 0;
   }
 
   // StableMaster implementations

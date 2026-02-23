@@ -691,6 +691,54 @@ export const insertIconLibrarySchema = createInsertSchema(iconLibrary).omit({
 export type InsertIconLibrary = z.infer<typeof insertIconLibrarySchema>;
 export type IconLibraryEntry = typeof iconLibrary.$inferSelect;
 
+// ========== Requisitions Tables ==========
+
+export const requisitions = pgTable("requisitions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: varchar("date").notNull(),
+  requestTitle: varchar("request_title").notNull(),
+  department: varchar("department").notNull(),
+  requestedBy: varchar("requested_by").notNull(),
+  position: varchar("position"),
+  dateOfRequest: varchar("date_of_request").notNull(),
+  description: text("description").notNull(),
+  justification: text("justification").notNull(),
+  estimatedCostAed: integer("estimated_cost_aed").notNull(),
+  budgetLineAccountCode: varchar("budget_line_account_code"),
+  isBudgeted: boolean("is_budgeted").notNull().default(false),
+  vendorName: varchar("vendor_name"),
+  requiredByDate: varchar("required_by_date").notNull(),
+  projectStartDate: varchar("project_start_date"),
+  status: varchar("status").notNull().default("Submitted"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertRequisitionSchema = createInsertSchema(requisitions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRequisition = z.infer<typeof insertRequisitionSchema>;
+export type Requisition = typeof requisitions.$inferSelect;
+
+export const requisitionAttachments = pgTable("requisition_attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requisitionId: varchar("requisition_id").notNull().references(() => requisitions.id, { onDelete: "cascade" }),
+  filename: varchar("filename").notNull(),
+  fileType: varchar("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileData: text("file_data").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+export const insertRequisitionAttachmentSchema = createInsertSchema(requisitionAttachments).omit({
+  id: true,
+  uploadedAt: true,
+});
+export type InsertRequisitionAttachment = z.infer<typeof insertRequisitionAttachmentSchema>;
+export type RequisitionAttachment = typeof requisitionAttachments.$inferSelect;
+
 // ========== StableMaster Tables ==========
 
 export const smFacilities = pgTable("sm_facilities", {

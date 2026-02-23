@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, importLogs, managedUsers, customers, tickets } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -2812,6 +2812,100 @@ export async function registerRoutes(
       console.error("Error deleting icon:", error);
       res.status(500).json({ message: "Failed to delete icon" });
     }
+  });
+
+  // ========== Requisitions API Routes ==========
+
+  app.get("/api/requisitions", isAuthenticated, async (req, res) => {
+    try {
+      const search = req.query.search as string | undefined;
+      const status = req.query.status as string | undefined;
+      res.json(await storage.getAllRequisitions({ search, status }));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/requisitions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.getRequisition(req.params.id);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/requisitions", isAuthenticated, async (req, res) => {
+    try {
+      const { attachments, ...data } = req.body;
+      const parsed = insertRequisitionSchema.safeParse(data);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
+
+      const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+      const maxFileSize = 10 * 1024 * 1024;
+      if (attachments && Array.isArray(attachments)) {
+        for (const att of attachments) {
+          if (!allowedTypes.includes(att.fileType)) return res.status(400).json({ message: `Invalid file type: ${att.fileType}. Allowed: JPG, PNG, PDF` });
+          if (att.fileSize > maxFileSize) return res.status(400).json({ message: `File too large: ${att.filename}. Maximum 10MB per file.` });
+        }
+      }
+
+      const requisition = await storage.createRequisition(parsed.data);
+      if (attachments && Array.isArray(attachments)) {
+        for (const att of attachments) {
+          await storage.createRequisitionAttachment({
+            requisitionId: requisition.id,
+            filename: att.filename,
+            fileType: att.fileType,
+            fileSize: att.fileSize,
+            fileData: att.fileData,
+          });
+        }
+      }
+      res.json(requisition);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  const updateRequisitionSchema = z.object({
+    status: z.enum(["Submitted", "Awaiting Approval", "Approved", "Rejected"]).optional(),
+    requestTitle: z.string().optional(),
+    department: z.string().optional(),
+    description: z.string().optional(),
+    justification: z.string().optional(),
+  });
+
+  app.patch("/api/requisitions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateRequisitionSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid update data", errors: parsed.error.flatten() });
+      const r = await storage.updateRequisition(req.params.id, parsed.data);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/requisitions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteRequisition(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/requisitions/:id/attachments", isAuthenticated, async (req, res) => {
+    try {
+      res.json(await storage.getRequisitionAttachments(req.params.id));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/requisition-attachments/:id/download", isAuthenticated, async (req, res) => {
+    try {
+      const att = await storage.getRequisitionAttachmentById(req.params.id);
+      if (!att) return res.status(404).json({ message: "Not found" });
+      const base64Data = att.fileData.includes(",") ? att.fileData.split(",")[1] : att.fileData;
+      const buffer = Buffer.from(base64Data, "base64");
+      res.setHeader("Content-Type", att.fileType);
+      res.setHeader("Content-Disposition", `attachment; filename="${att.filename}"`);
+      res.setHeader("Content-Length", buffer.length.toString());
+      res.send(buffer);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ========== StableMaster API Routes ==========

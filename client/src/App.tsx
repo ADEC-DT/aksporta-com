@@ -40,6 +40,9 @@ import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import DynamicServicePage from "@/pages/dynamic-service";
 import StableMasterPage from "@/pages/stable-master";
+import RequisitionsListPage from "@/pages/requisitions-list";
+import RequisitionNewPage from "@/pages/requisition-new";
+import RequisitionDetailPage from "@/pages/requisition-detail";
 import LoginPage from "@/pages/login";
 import { NotificationDropdown } from "@/components/notification-dropdown";
 import { NotificationReminder } from "@/components/notification-reminder";
@@ -118,6 +121,9 @@ function ProtectedRoutes() {
                   <Redirect to="/dashboard" />
                 </Route>
                 <Route path="/dashboard" component={Dashboard} />
+                <Route path="/erp/procurement/requisitions/new" component={RequisitionNewPage} />
+                <Route path="/erp/procurement/requisitions/:id" component={RequisitionDetailPage} />
+                <Route path="/erp/procurement/requisitions" component={RequisitionsListPage} />
                 <Route path="/erp" component={ERPDashboard} />
                 <Route path="/netsuite" component={ERPDashboard} />
                 <Route path="/hr" component={HRMSPage} />
