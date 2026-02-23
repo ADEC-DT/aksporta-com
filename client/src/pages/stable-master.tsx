@@ -957,9 +957,20 @@ function CustomersPage() {
 }
 
 function ItemsPage() {
+  const { toast } = useToast();
   const [searchQ, setSearchQ] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterActive, setFilterActive] = useState("");
+
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
+  const [fileColumns, setFileColumns] = useState<string[]>([]);
+  const [filePreview, setFilePreview] = useState<Record<string, string>[]>([]);
+  const [fileTotalRows, setFileTotalRows] = useState(0);
+  const [fileData, setFileData] = useState<string>("");
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({ name: "", category: "", defaultUnit: "", unitPrice: "", isActive: "" });
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; totalRows: number; errors: string[]; skipReasons?: { empty_row: number; duplicate_name: number; error: number } } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: items = [], isLoading } = useQuery<SmItemService[]>({ queryKey: ["/api/sm/item-services"] });
 
@@ -973,17 +984,95 @@ function ItemsPage() {
     });
   }, [items, filterCategory, filterActive, searchQ]);
 
+  const resetImportDialog = () => {
+    setImportStep("upload");
+    setFileColumns([]);
+    setFilePreview([]);
+    setFileTotalRows(0);
+    setFileData("");
+    setColumnMapping({ name: "", category: "", defaultUnit: "", unitPrice: "", isActive: "" });
+    setImportResult(null);
+  };
+
+  const previewMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/sm/item-services/import/preview", { method: "POST", body: fd, credentials: "include" });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Failed to parse file"); }
+      return res.json() as Promise<{ columns: string[]; preview: Record<string, string>[]; totalRows: number; fileData: string }>;
+    },
+    onSuccess: (data) => {
+      setFileColumns(data.columns);
+      setFilePreview(data.preview);
+      setFileTotalRows(data.totalRows);
+      setFileData(data.fileData);
+      setColumnMapping({ name: "", category: "", defaultUnit: "", unitPrice: "", isActive: "" });
+      setImportStep("mapping");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to read file", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (payload: { fileData: string; mapping: Record<string, string> }) => {
+      const res = await fetch("/api/sm/item-services/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Import failed"); }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/item-services"] });
+      setImportResult(data);
+      setImportStep("result");
+      toast({ title: "Import completed", description: `${data.imported} items imported, ${data.skipped} skipped.` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    previewMutation.mutate(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImportSubmit = () => {
+    if (!columnMapping.name) {
+      toast({ title: "Item name mapping is required", description: "Please map at least the Name column", variant: "destructive" });
+      return;
+    }
+    importMutation.mutate({ fileData, mapping: columnMapping });
+  };
+
+  const ITEM_FIELDS = [
+    { key: "name", label: "Name", required: true },
+    { key: "category", label: "Category (Service/Item)", required: false },
+    { key: "defaultUnit", label: "Default Unit", required: false },
+    { key: "unitPrice", label: "Unit Price (AED)", required: false },
+    { key: "isActive", label: "Active (Yes/No)", required: false },
+  ];
+
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
         <h2 className="text-lg font-semibold" data-testid="text-items-title">Items & Services</h2>
-        <Button disabled className="opacity-50 cursor-not-allowed" data-testid="button-add-item-disabled">
-          <Plus className="h-4 w-4 mr-1" /> Add Item
-        </Button>
+        <div className="flex items-center gap-2">
+          <input type="file" ref={fileInputRef} accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} data-testid="input-item-import-file" />
+          <Button variant="outline" onClick={() => { resetImportDialog(); setImportDialogOpen(true); }} disabled={previewMutation.isPending} data-testid="button-import-items">
+            {previewMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            Import Excel
+          </Button>
+          <Button disabled className="opacity-50 cursor-not-allowed" data-testid="button-add-item-disabled">
+            <Plus className="h-4 w-4 mr-1" /> Add Item
+          </Button>
+        </div>
       </div>
       <div className="flex items-center gap-2 mb-3 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
         <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-        <span className="text-xs text-amber-700 dark:text-amber-400" data-testid="text-netsuite-message">Items are mastered in NetSuite. This is a read-only view.</span>
+        <span className="text-xs text-amber-700 dark:text-amber-400" data-testid="text-netsuite-message">Items are mastered in NetSuite. Use Import to sync items from exported NetSuite data.</span>
       </div>
       <div className="flex items-center gap-2 flex-wrap mb-4">
         <div className="relative"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder="Search items..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-7 h-9 w-[180px]" data-testid="input-search-items" /></div>
@@ -1014,11 +1103,190 @@ function ItemsPage() {
                   <td className="py-2 px-3"><Badge variant={i.isActive ? "default" : "secondary"} className="no-default-active-elevate">{i.isActive ? "Yes" : "No"}</Badge></td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No items found.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No items found. Import from an Excel file to add items.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
+
+      <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) resetImportDialog(); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {importStep === "upload" && "Import Items from Excel"}
+              {importStep === "mapping" && "Map Columns"}
+              {importStep === "result" && "Import Results"}
+            </DialogTitle>
+            <DialogDescription>
+              {importStep === "upload" && "Upload an Excel file (.xlsx, .xls, .csv) with item/service data."}
+              {importStep === "mapping" && `File loaded with ${fileTotalRows} rows. Select which column from your file maps to each item field.`}
+              {importStep === "result" && "Import has been completed."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {importStep === "upload" && (
+            <div className="space-y-4 py-4">
+              <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3">
+                <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Click to select an Excel file</p>
+                  <p className="text-xs text-muted-foreground mt-1">Supported formats: .xlsx, .xls, .csv (max 10MB)</p>
+                </div>
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={previewMutation.isPending} data-testid="button-select-item-file">
+                  {previewMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Reading file...</> : <>Select File</>}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {importStep === "mapping" && (
+            <div className="space-y-4 py-4">
+              <div className="grid gap-3">
+                {ITEM_FIELDS.map((field) => (
+                  <div key={field.key} className="flex items-center gap-3">
+                    <Label className="text-sm font-medium shrink-0 w-[180px]">
+                      {field.label} {field.required && <span className="text-red-500">*</span>}
+                    </Label>
+                    <Select
+                      value={columnMapping[field.key] || "__none__"}
+                      onValueChange={(v) => setColumnMapping({ ...columnMapping, [field.key]: v === "__none__" ? "" : v })}
+                    >
+                      <SelectTrigger data-testid={`select-item-map-${field.key}`} className="w-[220px] overflow-hidden">
+                        <SelectValue placeholder="Select column..." className="truncate" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48 max-w-[300px] overflow-y-auto" position="popper" sideOffset={4}>
+                        <SelectItem value="__none__">-- Skip --</SelectItem>
+                        {fileColumns.map((col) => (
+                          <SelectItem key={col} value={col} className="truncate">{col}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+
+              {filePreview.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Preview (first {filePreview.length} rows):</p>
+                  <div className="border rounded-lg overflow-auto max-h-48">
+                    <table className="w-full text-xs border-collapse">
+                      <thead className="sticky top-0 z-10 bg-background">
+                        <tr className="border-b border-border">
+                          {fileColumns.map((col) => (
+                            <th key={col} className="py-1.5 px-2 text-left whitespace-nowrap text-muted-foreground font-medium">{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filePreview.map((row, i) => (
+                          <tr key={i} className="border-b border-border/50">
+                            {fileColumns.map((col) => (
+                              <td key={col} className="py-1 px-2 whitespace-nowrap">{row[col]}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {importStep === "result" && importResult && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-400" data-testid="text-item-import-imported">{importResult.imported}</p>
+                  <p className="text-xs text-muted-foreground">Imported</p>
+                </div>
+                <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400" data-testid="text-item-import-skipped">{importResult.skipped}</p>
+                  <p className="text-xs text-muted-foreground">Skipped</p>
+                </div>
+                <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-400" data-testid="text-item-import-total">{importResult.totalRows}</p>
+                  <p className="text-xs text-muted-foreground">Total Rows</p>
+                </div>
+              </div>
+
+              {importResult.skipped > 0 && importResult.skipReasons && (
+                <div className="border rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium">Why were records skipped?</p>
+                  <div className="space-y-2">
+                    {importResult.skipReasons.duplicate_name > 0 && (
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">Duplicate name (already in database)</span>
+                          <span className="text-xs font-medium">{importResult.skipReasons.duplicate_name}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-orange-500" style={{ width: `${(importResult.skipReasons.duplicate_name / importResult.skipped) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {importResult.skipReasons.empty_row > 0 && (
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">Empty row (no item name)</span>
+                          <span className="text-xs font-medium">{importResult.skipReasons.empty_row}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-yellow-500" style={{ width: `${(importResult.skipReasons.empty_row / importResult.skipped) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {importResult.skipReasons.error > 0 && (
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">Import error</span>
+                          <span className="text-xs font-medium">{importResult.skipReasons.error}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-red-700" style={{ width: `${(importResult.skipReasons.error / importResult.skipped) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {importResult.errors.length > 0 && (
+                <details className="border rounded-lg">
+                  <summary className="text-xs font-medium cursor-pointer px-3 py-2 text-muted-foreground">
+                    Show detailed log ({importResult.errors.length} entries)
+                  </summary>
+                  <div className="text-xs space-y-1 max-h-40 overflow-y-auto px-3 pb-3">
+                    {importResult.errors.map((err, i) => (
+                      <div key={i} className="flex items-start gap-1 text-yellow-700 dark:text-yellow-400">
+                        <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span>{err}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {importStep === "mapping" && (
+              <>
+                <Button variant="outline" onClick={() => setImportStep("upload")} data-testid="button-item-import-back">Back</Button>
+                <Button onClick={handleImportSubmit} disabled={!columnMapping.name || importMutation.isPending} data-testid="button-item-start-import">
+                  {importMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : <>Import {fileTotalRows} rows</>}
+                </Button>
+              </>
+            )}
+            {importStep === "result" && (
+              <Button onClick={() => { setImportDialogOpen(false); resetImportDialog(); }} data-testid="button-item-import-close">Close</Button>
+            )}
+            {importStep === "upload" && (
+              <Button variant="outline" onClick={() => setImportDialogOpen(false)} data-testid="button-item-import-cancel">Cancel</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

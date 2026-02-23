@@ -3124,6 +3124,102 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/sm/item-services/import/preview", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      if (!validateFileExtension(req.file.originalname)) {
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+      }
+      const rows = parseExcelFile(req.file.buffer);
+      const columns = Object.keys(rows[0]);
+      const preview = rows.slice(0, 5).map(row => {
+        const obj: Record<string, string> = {};
+        for (const col of columns) obj[col] = String(row[col] ?? "");
+        return obj;
+      });
+      const fileBase64 = req.file.buffer.toString("base64");
+      res.json({ columns, preview, totalRows: rows.length, fileData: fileBase64 });
+    } catch (error: any) {
+      console.error("Error previewing item import:", error);
+      res.status(400).json({ message: error.message || "Failed to parse file" });
+    }
+  });
+
+  app.post("/api/sm/item-services/import", isAuthenticated, async (req, res) => {
+    try {
+      const { fileData, mapping } = req.body;
+      if (!fileData || typeof fileData !== "string") {
+        return res.status(400).json({ message: "File data is required" });
+      }
+      if (!mapping || typeof mapping !== "object") {
+        return res.status(400).json({ message: "Column mapping is required" });
+      }
+      if (!mapping.name) {
+        return res.status(400).json({ message: "Item name mapping is required" });
+      }
+      const buffer = Buffer.from(fileData, "base64");
+      const rows = parseExcelFile(buffer);
+
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      const skipReasons: Record<string, number> = { empty_row: 0, duplicate_name: 0, error: 0 };
+
+      const existingItems = await storage.getSmItemServices();
+      const existingNames = new Set(existingItems.map(i => i.name.toLowerCase().trim()));
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = mapping.name ? String(row[mapping.name] ?? "").trim() : "";
+        const category = mapping.category ? String(row[mapping.category] ?? "").trim().toUpperCase() : "SERVICE";
+        const defaultUnit = mapping.defaultUnit ? String(row[mapping.defaultUnit] ?? "").trim() : "EA";
+        const unitPriceRaw = mapping.unitPrice ? String(row[mapping.unitPrice] ?? "").trim() : "0";
+        const isActiveRaw = mapping.isActive ? String(row[mapping.isActive] ?? "").trim().toLowerCase() : "true";
+
+        if (!name) {
+          skipped++;
+          skipReasons.empty_row++;
+          errors.push(`Row ${i + 2}: skipped - no item name`);
+          continue;
+        }
+
+        if (existingNames.has(name.toLowerCase().trim())) {
+          skipped++;
+          skipReasons.duplicate_name++;
+          errors.push(`Row ${i + 2}: "${name}" skipped - item name already exists`);
+          continue;
+        }
+
+        try {
+          const validCategory = ["SERVICE", "ITEM"].includes(category) ? category : "SERVICE";
+          const priceNum = parseFloat(unitPriceRaw.replace(/[^0-9.]/g, ""));
+          const unitPrice = !isNaN(priceNum) ? Math.round(priceNum * 100) : 0;
+          const isActive = !["false", "no", "0", "inactive"].includes(isActiveRaw);
+
+          await storage.createSmItemService({
+            name,
+            category: validCategory,
+            unitOptions: [defaultUnit || "EA"],
+            defaultUnit: defaultUnit || "EA",
+            unitPrice,
+            isActive,
+          });
+          imported++;
+          existingNames.add(name.toLowerCase().trim());
+        } catch (err: any) {
+          skipped++;
+          skipReasons.error++;
+          errors.push(`Row ${i + 2}: "${name}" failed - ${err.message || "unknown error"}`);
+        }
+      }
+
+      res.json({ imported, skipped, totalRows: rows.length, errors: errors.slice(0, 50), skipReasons });
+    } catch (error: any) {
+      console.error("Error importing items:", error);
+      res.status(500).json({ message: "Failed to import items: " + (error.message || "Unknown error") });
+    }
+  });
+
   // Billing Elements
   app.get("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
     try {
