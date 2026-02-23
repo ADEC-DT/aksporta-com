@@ -4,15 +4,15 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type {
-  SmFacility,
-  SmStableBlock,
-  SmStableUnit,
+  SmStable,
+  SmBox,
   SmHorse,
   SmCustomer,
   SmItemService,
   SmBillingElement,
   SmLiveryPackage,
   SmLiveryAgreement,
+  SmInvoice,
 } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronDown,
   ChevronRight,
@@ -32,11 +33,8 @@ import {
   FileText,
   FilePlus,
   Settings,
-  Horse,
   Users,
-  Building2,
   Package,
-  BarChart3,
   Shield,
   Cog,
   Plus,
@@ -44,6 +42,12 @@ import {
   Trash2,
   PanelLeftClose,
   PanelLeft,
+  Building,
+  Box,
+  DollarSign,
+  Search,
+  AlertCircle,
+  Fence,
 } from "lucide-react";
 
 function formatAED(cents: number): string {
@@ -67,7 +71,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
         icon: Calendar,
         children: [
           { id: "schedule", label: "Schedule", icon: Calendar },
-          { id: "billing", label: "Post Customer Billing Element", icon: Receipt },
+          { id: "post-billing", label: "Post Billing Element", icon: Receipt },
         ],
       },
       {
@@ -75,40 +79,49 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
         label: "Livery Agreements",
         icon: FileText,
         children: [
-          { id: "livery-list", label: "Livery Agreements List", icon: FileText },
-          { id: "livery-new", label: "New Livery Agreement", icon: FilePlus },
-          { id: "livery-packages", label: "Settings (Packages)", icon: Settings },
+          { id: "agreements-list", label: "Agreements", icon: FileText },
+          { id: "agreement-new", label: "New Agreement", icon: FilePlus },
+          { id: "livery-packages", label: "Packages", icon: Settings },
         ],
       },
-      { id: "horses", label: "Horses", icon: Horse },
+      { id: "horses", label: "Horses", icon: Fence },
       { id: "customers", label: "Customers", icon: Users },
-      { id: "facilities", label: "Facilities", icon: Building2 },
-      { id: "items-services", label: "Items & Services", icon: Package },
-      { id: "reports", label: "Reports", icon: BarChart3 },
+      {
+        id: "stable-section",
+        label: "Stable",
+        icon: Building,
+        children: [
+          { id: "stables", label: "Stables", icon: Building },
+          { id: "boxes", label: "Boxes", icon: Box },
+        ],
+      },
+      { id: "items", label: "Items", icon: Package },
+      { id: "billing", label: "Billing", icon: DollarSign },
     ],
   },
   {
     title: "ADMINISTRATION",
     items: [
-      { id: "user-mgmt", label: "User Management", icon: Shield },
-      { id: "global-settings", label: "Global Settings", icon: Cog },
+      { id: "admin-users", label: "Users", icon: Shield },
+      { id: "admin-settings", label: "Settings", icon: Cog },
     ],
   },
 ];
 
 const ROUTE_MAP: Record<string, string> = {
   schedule: "schedule",
-  billing: "billing",
-  "livery-list": "livery",
-  "livery-new": "livery-new",
+  "post-billing": "post-billing",
+  "agreements-list": "agreements",
+  "agreement-new": "agreement-new",
   "livery-packages": "livery-packages",
   horses: "horses",
   customers: "customers",
-  facilities: "facilities",
-  "items-services": "items-services",
-  reports: "reports",
-  "user-mgmt": "user-management",
-  "global-settings": "global-settings",
+  stables: "stables",
+  boxes: "boxes",
+  items: "items",
+  billing: "billing",
+  "admin-users": "admin-users",
+  "admin-settings": "admin-settings",
 };
 
 const REVERSE_ROUTE_MAP: Record<string, string> = Object.fromEntries(
@@ -126,7 +139,7 @@ function SubSidebar({
   collapsed: boolean;
   onToggle: () => void;
 }) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ activities: true, livery: true });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ activities: true, livery: true, "stable-section": true });
 
   const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
@@ -159,51 +172,54 @@ function SubSidebar({
                   const isOpen = expanded[item.id] ?? false;
                   return (
                     <div key={item.id}>
-                      <button
-                        className="w-full flex items-center gap-2 px-4 py-1.5 text-xs text-muted-foreground hover-elevate rounded-none"
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2 px-4 h-7 text-xs text-muted-foreground rounded-none"
                         onClick={() => toggle(item.id)}
                         data-testid={`button-expand-${item.id}`}
                       >
                         {Icon && <Icon className="h-3.5 w-3.5" />}
                         <span className="flex-1 text-left">{item.label}</span>
                         {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                      </button>
+                      </Button>
                       {isOpen &&
                         item.children.map((child) => {
                           const CIcon = child.icon;
                           return (
-                            <button
+                            <Button
                               key={child.id}
-                              className={`w-full flex items-center gap-2 pl-9 pr-4 py-1.5 text-xs rounded-none ${
+                              variant="ghost"
+                              className={`w-full justify-start gap-2 pl-9 pr-4 h-7 text-xs rounded-none ${
                                 activeItem === child.id
-                                  ? "bg-accent text-accent-foreground font-medium"
-                                  : "text-muted-foreground hover-elevate"
+                                  ? "bg-primary/10 text-primary font-medium"
+                                  : "text-muted-foreground"
                               }`}
                               onClick={() => onSelect(child.id)}
                               data-testid={`button-nav-${child.id}`}
                             >
                               {CIcon && <CIcon className="h-3.5 w-3.5" />}
                               <span className="truncate">{child.label}</span>
-                            </button>
+                            </Button>
                           );
                         })}
                     </div>
                   );
                 }
                 return (
-                  <button
+                  <Button
                     key={item.id}
-                    className={`w-full flex items-center gap-2 px-4 py-1.5 text-xs rounded-none ${
+                    variant="ghost"
+                    className={`w-full justify-start gap-2 px-4 h-7 text-xs rounded-none ${
                       activeItem === item.id
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover-elevate"
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground"
                     }`}
                     onClick={() => onSelect(item.id)}
                     data-testid={`button-nav-${item.id}`}
                   >
                     {Icon && <Icon className="h-3.5 w-3.5" />}
                     <span>{item.label}</span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -217,293 +233,247 @@ function SubSidebar({
 function SchedulePage() {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Schedule</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="text-lg">Schedule</CardTitle></CardHeader>
       <CardContent>
-        <p className="text-muted-foreground" data-testid="text-schedule-placeholder">
-          Scheduled activities will be built later.
-        </p>
+        <p className="text-muted-foreground" data-testid="text-schedule-placeholder">Scheduled activities will be built later.</p>
       </CardContent>
     </Card>
   );
 }
 
-function BillingPage() {
+function StablesPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isActive, setIsActive] = useState(true);
 
-  const { data: billingElements = [], isLoading: loadingBE } = useQuery<SmBillingElement[]>({
-    queryKey: ["/api/sm/billing-elements", "?limit=10"],
-  });
-  const { data: blocks = [] } = useQuery<SmStableBlock[]>({ queryKey: ["/api/sm/stable-blocks"] });
-  const { data: units = [] } = useQuery<SmStableUnit[]>({ queryKey: ["/api/sm/stable-units"] });
-  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
-  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
-  const { data: itemServices = [] } = useQuery<SmItemService[]>({ queryKey: ["/api/sm/item-services"] });
+  const { data: stables = [], isLoading } = useQuery<SmStable[]>({ queryKey: ["/api/sm/stables"] });
+  const { data: boxes = [] } = useQuery<SmBox[]>({ queryKey: ["/api/sm/boxes"] });
 
-  const [formBlock, setFormBlock] = useState("");
-  const [formUnit, setFormUnit] = useState("");
-  const [formDate, setFormDate] = useState("");
-  const [formRef, setFormRef] = useState("");
-  const [formRemarks, setFormRemarks] = useState("");
-  const [formHorse, setFormHorse] = useState("");
-  const [formCustomer, setFormCustomer] = useState("");
-  const [formItem, setFormItem] = useState("");
-  const [formItemUnit, setFormItemUnit] = useState("");
-  const [formUnitPrice, setFormUnitPrice] = useState("");
-  const [formQty, setFormQty] = useState("1");
-  const [editPrice, setEditPrice] = useState(false);
+  const resetForm = () => { setName(""); setNotes(""); setIsActive(true); setEditingId(null); };
 
-  const filteredUnits = useMemo(
-    () => units.filter((u) => u.stableBlockId === formBlock && u.unitType === "STALL"),
-    [units, formBlock]
-  );
-
-  const selectedItem = useMemo(
-    () => itemServices.find((i) => i.id === formItem),
-    [itemServices, formItem]
-  );
-
-  useEffect(() => {
-    if (selectedItem) {
-      setFormUnitPrice((selectedItem.unitPrice / 100).toFixed(2));
-      if (selectedItem.unitOptions?.length) {
-        setFormItemUnit(selectedItem.defaultUnit || selectedItem.unitOptions[0]);
-      }
-      setEditPrice(false);
-    }
-  }, [selectedItem]);
-
-  const resetForm = () => {
-    setFormBlock("");
-    setFormUnit("");
-    setFormDate("");
-    setFormRef("");
-    setFormRemarks("");
-    setFormHorse("");
-    setFormCustomer("");
-    setFormItem("");
-    setFormItemUnit("");
-    setFormUnitPrice("");
-    setFormQty("1");
-    setEditPrice(false);
-  };
-
-  const createMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("POST", "/api/sm/billing-elements", data);
+      if (editingId) await apiRequest("PATCH", `/api/sm/stables/${editingId}`, data);
+      else await apiRequest("POST", "/api/sm/stables", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/billing-elements"] });
-      toast({ title: "Billing element created" });
-      setDialogOpen(false);
-      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/stables"] });
+      toast({ title: editingId ? "Stable updated" : "Stable created" });
+      setDialogOpen(false); resetForm();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/sm/billing-elements/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/billing-elements"] });
-      toast({ title: "Deleted" });
-    },
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/stables/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/stables"] }); queryClient.invalidateQueries({ queryKey: ["/api/sm/boxes"] }); toast({ title: "Stable deleted" }); },
   });
 
-  const handleSubmit = () => {
-    if (!formBlock || !formUnit || !formDate || !formCustomer || !formHorse || !formItem) {
-      toast({ title: "Missing required fields", variant: "destructive" });
-      return;
-    }
-    const qty = parseFloat(formQty);
-    if (!qty || qty <= 0) {
-      toast({ title: "Quantity must be > 0", variant: "destructive" });
-      return;
-    }
-    createMutation.mutate({
-      stableBlockId: formBlock,
-      stableUnitId: formUnit,
-      transactionDate: formDate,
-      refNumber: formRef || null,
-      remarks: formRemarks || null,
-      horseId: formHorse,
-      customerId: formCustomer,
-      itemServiceId: formItem,
-      unit: formItemUnit || null,
-      unitPrice: Math.round(parseFloat(formUnitPrice) * 100),
-      quantity: formQty,
-    });
+  const openEdit = (s: SmStable) => {
+    setEditingId(s.id); setName(s.name); setNotes(s.notes || ""); setIsActive(s.isActive); setDialogOpen(true);
   };
-
-  const blockMap = useMemo(() => Object.fromEntries(blocks.map((b) => [b.id, b])), [blocks]);
-  const unitMap = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units]);
-  const horseMap = useMemo(() => Object.fromEntries(horses.map((h) => [h.id, h])), [horses]);
-  const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers]);
-  const itemMap = useMemo(() => Object.fromEntries(itemServices.map((i) => [i.id, i])), [itemServices]);
-
-  const sortedBE = useMemo(
-    () => [...billingElements].sort((a, b) => (b.transactionDate || "").localeCompare(a.transactionDate || "")),
-    [billingElements]
-  );
-
-  const activeItems = useMemo(() => itemServices.filter((i) => i.isActive), [itemServices]);
 
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-        <h2 className="text-lg font-semibold" data-testid="text-billing-title">Post Customer Billing Element</h2>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }} data-testid="button-add-billing">
-          <Plus className="h-4 w-4 mr-1" /> Add
-        </Button>
+        <h2 className="text-lg font-semibold" data-testid="text-stables-title">Stables</h2>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }} data-testid="button-add-stable"><Plus className="h-4 w-4 mr-1" /> Add Stable</Button>
       </div>
-      {loadingBE ? (
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+      ) : (
+        <div className="grid gap-4">
+          {stables.map((s) => {
+            const sBoxes = boxes.filter((b) => b.stableId === s.id);
+            const available = sBoxes.filter((b) => b.status === "AVAILABLE").length;
+            const occupied = sBoxes.filter((b) => b.status === "OCCUPIED").length;
+            return (
+              <Card key={s.id} data-testid={`card-stable-${s.id}`}>
+                <CardHeader className="flex flex-row items-center justify-between gap-4 py-3">
+                  <div>
+                    <CardTitle className="text-base">{s.name}</CardTitle>
+                    {s.notes && <p className="text-xs text-muted-foreground mt-0.5">{s.notes}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={s.isActive ? "default" : "secondary"} className="no-default-active-elevate">{s.isActive ? "Active" : "Inactive"}</Badge>
+                    <span className="text-xs text-muted-foreground">{sBoxes.length} boxes ({available} avail, {occupied} occ)</span>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(s)} data-testid={`button-edit-stable-${s.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-stable-${s.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </CardHeader>
+              </Card>
+            );
+          })}
+          {stables.length === 0 && <p className="text-center text-muted-foreground py-8">No stables found.</p>}
+        </div>
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingId ? "Edit Stable" : "Add Stable"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} data-testid="input-stable-name" /></div>
+            <div className="space-y-1"><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="input-stable-notes" /></div>
+            <div className="flex items-center gap-2"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-stable-active" /></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; } mutation.mutate({ name, notes: notes || null, isActive }); }} disabled={mutation.isPending} data-testid="button-submit-stable">{mutation.isPending ? "Saving..." : "Save"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function BoxesPage() {
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [stableId, setStableId] = useState("");
+  const [boxType, setBoxType] = useState("STALL");
+  const [status, setStatus] = useState("AVAILABLE");
+  const [boxNotes, setBoxNotes] = useState("");
+  const [filterStable, setFilterStable] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+
+  const { data: boxes = [], isLoading } = useQuery<SmBox[]>({ queryKey: ["/api/sm/boxes"] });
+  const { data: stables = [] } = useQuery<SmStable[]>({ queryKey: ["/api/sm/stables"] });
+
+  const stableMap = useMemo(() => Object.fromEntries(stables.map((s) => [s.id, s])), [stables]);
+
+  const filtered = useMemo(() => {
+    return boxes.filter((b) => {
+      if (filterStable && b.stableId !== filterStable) return false;
+      if (filterType && b.boxType !== filterType) return false;
+      if (filterStatus && b.status !== filterStatus) return false;
+      if (searchQ && !b.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+      return true;
+    });
+  }, [boxes, filterStable, filterType, filterStatus, searchQ]);
+
+  const resetForm = () => { setName(""); setStableId(""); setBoxType("STALL"); setStatus("AVAILABLE"); setBoxNotes(""); setEditingId(null); };
+
+  const mutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      if (editingId) await apiRequest("PATCH", `/api/sm/boxes/${editingId}`, data);
+      else await apiRequest("POST", "/api/sm/boxes", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/boxes"] });
+      toast({ title: editingId ? "Box updated" : "Box created" });
+      setDialogOpen(false); resetForm();
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/boxes/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/boxes"] }); toast({ title: "Box deleted" }); },
+  });
+
+  const openEdit = (b: SmBox) => {
+    setEditingId(b.id); setName(b.name); setStableId(b.stableId); setBoxType(b.boxType); setStatus(b.status); setBoxNotes(b.notes || ""); setDialogOpen(true);
+  };
+
+  const statusBadge = (s: string) => {
+    if (s === "AVAILABLE") return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 no-default-active-elevate">Available</Badge>;
+    if (s === "OCCUPIED") return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0 no-default-active-elevate">Occupied</Badge>;
+    if (s === "MAINTENANCE") return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 no-default-active-elevate">Maintenance</Badge>;
+    return <Badge variant="secondary" className="no-default-active-elevate">{s}</Badge>;
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+        <h2 className="text-lg font-semibold" data-testid="text-boxes-title">Boxes</h2>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }} data-testid="button-add-box"><Plus className="h-4 w-4 mr-1" /> Add Box</Button>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="relative"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder="Search boxes..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-7 h-9 w-[180px]" data-testid="input-search-boxes" /></div>
+        <Select value={filterStable} onValueChange={setFilterStable}>
+          <SelectTrigger className="w-[150px] h-9" data-testid="select-filter-stable"><SelectValue placeholder="All stables" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All stables</SelectItem>{stables.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[130px] h-9" data-testid="select-filter-type"><SelectValue placeholder="All types" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All types</SelectItem><SelectItem value="STALL">Stall</SelectItem><SelectItem value="PADDOCK">Paddock</SelectItem><SelectItem value="STORAGE">Storage</SelectItem></SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[140px] h-9" data-testid="select-filter-status"><SelectValue placeholder="All statuses" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="AVAILABLE">Available</SelectItem><SelectItem value="OCCUPIED">Occupied</SelectItem><SelectItem value="MAINTENANCE">Maintenance</SelectItem></SelectContent>
+        </Select>
+        {(filterStable || filterType || filterStatus || searchQ) && (
+          <Button variant="ghost" size="sm" onClick={() => { setFilterStable(""); setFilterType(""); setFilterStatus(""); setSearchQ(""); }} data-testid="button-clear-filters">Clear</Button>
+        )}
+      </div>
+      {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 px-2">Date</th>
-                <th className="py-2 px-2">Ref #</th>
-                <th className="py-2 px-2">Customer</th>
-                <th className="py-2 px-2">Horse</th>
-                <th className="py-2 px-2">Block</th>
-                <th className="py-2 px-2">Stall/Unit</th>
-                <th className="py-2 px-2">Item</th>
-                <th className="py-2 px-2">Qty</th>
-                <th className="py-2 px-2">Unit</th>
-                <th className="py-2 px-2">Unit Price</th>
-                <th className="py-2 px-2">Total</th>
-                <th className="py-2 px-2">Remarks</th>
-                <th className="py-2 px-2"></th>
-              </tr>
-            </thead>
+          <table className="w-full text-sm border-collapse">
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-3">Name</th><th className="py-2 px-3">Stable</th><th className="py-2 px-3">Type</th><th className="py-2 px-3">Status</th><th className="py-2 px-3">Notes</th><th className="py-2 px-3"></th>
+            </tr></thead>
             <tbody>
-              {sortedBE.map((be) => {
-                const qty = parseFloat(be.quantity) || 0;
-                const total = be.unitPrice * qty;
-                return (
-                  <tr key={be.id} className="border-b border-border/50" data-testid={`row-billing-${be.id}`}>
-                    <td className="py-2 px-2">{be.transactionDate}</td>
-                    <td className="py-2 px-2">{be.refNumber || "-"}</td>
-                    <td className="py-2 px-2">{customerMap[be.customerId || ""]?.name || "-"}</td>
-                    <td className="py-2 px-2">{horseMap[be.horseId || ""]?.name || "-"}</td>
-                    <td className="py-2 px-2">{blockMap[be.stableBlockId || ""]?.name || "-"}</td>
-                    <td className="py-2 px-2">{unitMap[be.stableUnitId || ""]?.name || "-"}</td>
-                    <td className="py-2 px-2">{itemMap[be.itemServiceId || ""]?.name || "-"}</td>
-                    <td className="py-2 px-2">{be.quantity}</td>
-                    <td className="py-2 px-2">{be.unit || "-"}</td>
-                    <td className="py-2 px-2">{formatAED(be.unitPrice)}</td>
-                    <td className="py-2 px-2">{formatAED(total)}</td>
-                    <td className="py-2 px-2 max-w-[120px] truncate">{be.remarks || "-"}</td>
-                    <td className="py-2 px-2">
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(be.id)} data-testid={`button-delete-billing-${be.id}`}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {sortedBE.length === 0 && (
-                <tr><td colSpan={13} className="py-8 text-center text-muted-foreground">No billing elements yet.</td></tr>
-              )}
+              {filtered.map((b) => (
+                <tr key={b.id} className="border-b border-border/50" data-testid={`row-box-${b.id}`}>
+                  <td className="py-2 px-3 font-medium">{b.name}</td>
+                  <td className="py-2 px-3">{stableMap[b.stableId]?.name || "-"}</td>
+                  <td className="py-2 px-3"><Badge variant="outline" className="no-default-active-elevate">{b.boxType}</Badge></td>
+                  <td className="py-2 px-3">{statusBadge(b.status)}</td>
+                  <td className="py-2 px-3 text-xs max-w-[200px] truncate">{b.notes || "-"}</td>
+                  <td className="py-2 px-3">
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(b)} data-testid={`button-edit-box-${b.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(b.id)} data-testid={`button-delete-box-${b.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">No boxes found.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Billing Element</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingId ? "Edit Box" : "Add Box"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} data-testid="input-box-name" /></div>
             <div className="space-y-1">
-              <Label>Stable Block *</Label>
-              <Select value={formBlock} onValueChange={(v) => { setFormBlock(v); setFormUnit(""); }}>
-                <SelectTrigger data-testid="select-billing-block"><SelectValue placeholder="Select block" /></SelectTrigger>
-                <SelectContent>{blocks.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+              <Label>Stable *</Label>
+              <Select value={stableId} onValueChange={setStableId}>
+                <SelectTrigger data-testid="select-box-stable"><SelectValue placeholder="Select stable" /></SelectTrigger>
+                <SelectContent>{stables.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Stable Unit *</Label>
-              <Select value={formUnit} onValueChange={setFormUnit}>
-                <SelectTrigger data-testid="select-billing-unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                <SelectContent>{filteredUnits.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+              <Label>Box Type</Label>
+              <Select value={boxType} onValueChange={setBoxType}>
+                <SelectTrigger data-testid="select-box-type"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="STALL">Stall</SelectItem><SelectItem value="PADDOCK">Paddock</SelectItem><SelectItem value="STORAGE">Storage</SelectItem></SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Transaction Date *</Label>
-              <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} data-testid="input-billing-date" />
-            </div>
-            <div className="space-y-1">
-              <Label>Ref Number</Label>
-              <Input value={formRef} onChange={(e) => setFormRef(e.target.value)} data-testid="input-billing-ref" />
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label>Remarks</Label>
-              <Textarea value={formRemarks} onChange={(e) => setFormRemarks(e.target.value)} data-testid="input-billing-remarks" />
-            </div>
-            <div className="space-y-1">
-              <Label>Horse *</Label>
-              <Select value={formHorse} onValueChange={setFormHorse}>
-                <SelectTrigger data-testid="select-billing-horse"><SelectValue placeholder="Select horse" /></SelectTrigger>
-                <SelectContent>{horses.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
+              <Label>Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger data-testid="select-box-status"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="AVAILABLE">Available</SelectItem><SelectItem value="OCCUPIED">Occupied</SelectItem><SelectItem value="MAINTENANCE">Maintenance</SelectItem></SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <Label>Customer *</Label>
-              <Select value={formCustomer} onValueChange={setFormCustomer}>
-                <SelectTrigger data-testid="select-billing-customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Item *</Label>
-              <Select value={formItem} onValueChange={setFormItem}>
-                <SelectTrigger data-testid="select-billing-item"><SelectValue placeholder="Select item" /></SelectTrigger>
-                <SelectContent>{activeItems.map((i) => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Unit</Label>
-              <Select value={formItemUnit} onValueChange={setFormItemUnit}>
-                <SelectTrigger data-testid="select-billing-item-unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                <SelectContent>
-                  {(selectedItem?.unitOptions || []).map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="flex items-center gap-2">
-                Unit Price
-                <button className="text-[10px] text-primary underline" onClick={() => setEditPrice(!editPrice)} data-testid="button-toggle-edit-price">
-                  {editPrice ? "Lock price" : "Edit price"}
-                </button>
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formUnitPrice}
-                onChange={(e) => setFormUnitPrice(e.target.value)}
-                readOnly={!editPrice}
-                className={!editPrice ? "opacity-70" : ""}
-                data-testid="input-billing-unit-price"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Quantity *</Label>
-              <Input type="number" step="0.01" min="0.01" value={formQty} onChange={(e) => setFormQty(e.target.value)} data-testid="input-billing-qty" />
-            </div>
+            <div className="space-y-1"><Label>Notes</Label><Textarea value={boxNotes} onChange={(e) => setBoxNotes(e.target.value)} data-testid="input-box-notes" /></div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-billing">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-billing">
-              {createMutation.isPending ? "Saving..." : "Save"}
-            </Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!name.trim() || !stableId) { toast({ title: "Name and stable required", variant: "destructive" }); return; } mutation.mutate({ name, stableId, boxType, status, notes: boxNotes || null }); }} disabled={mutation.isPending} data-testid="button-submit-box">{mutation.isPending ? "Saving..." : "Save"}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -526,7 +496,7 @@ function HorsesPage() {
 
   const resetForm = () => { setName(""); setColor(""); setSex(""); setDob(""); setRemarks(""); setStatus("ACTIVE"); setEditingId(null); };
 
-  const createMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       if (editingId) await apiRequest("PATCH", `/api/sm/horses/${editingId}`, data);
       else await apiRequest("POST", "/api/sm/horses", data);
@@ -534,34 +504,18 @@ function HorsesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sm/horses"] });
       toast({ title: editingId ? "Horse updated" : "Horse created" });
-      setDialogOpen(false);
-      resetForm();
+      setDialogOpen(false); resetForm();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/horses/${id}`); },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/horses"] });
-      toast({ title: "Horse deleted" });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/horses"] }); toast({ title: "Horse deleted" }); },
   });
 
   const openEdit = (h: SmHorse) => {
-    setEditingId(h.id);
-    setName(h.name);
-    setColor(h.color || "");
-    setSex(h.sex || "");
-    setDob(h.dob || "");
-    setRemarks(h.remarks || "");
-    setStatus(h.status);
-    setDialogOpen(true);
-  };
-
-  const handleSubmit = () => {
-    if (!name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
-    createMutation.mutate({ name, color: color || null, sex: sex || null, dob: dob || null, remarks: remarks || null, status });
+    setEditingId(h.id); setName(h.name); setColor(h.color || ""); setSex(h.sex || ""); setDob(h.dob || ""); setRemarks(h.remarks || ""); setStatus(h.status); setDialogOpen(true);
   };
 
   return (
@@ -575,25 +529,16 @@ function HorsesPage() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 px-3">Name</th>
-                <th className="py-2 px-3">Color</th>
-                <th className="py-2 px-3">Sex</th>
-                <th className="py-2 px-3">Status</th>
-                <th className="py-2 px-3">Date of Birth</th>
-                <th className="py-2 px-3"></th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-3">Name</th><th className="py-2 px-3">Color</th><th className="py-2 px-3">Sex</th><th className="py-2 px-3">Status</th><th className="py-2 px-3">Date of Birth</th><th className="py-2 px-3"></th>
+            </tr></thead>
             <tbody>
               {horses.map((h) => (
                 <tr key={h.id} className="border-b border-border/50" data-testid={`row-horse-${h.id}`}>
                   <td className="py-2 px-3 font-medium">{h.name}</td>
                   <td className="py-2 px-3">{h.color || "-"}</td>
                   <td className="py-2 px-3">{h.sex || "-"}</td>
-                  <td className="py-2 px-3">
-                    <Badge variant={h.status === "ACTIVE" ? "default" : "secondary"} className="no-default-active-elevate" data-testid={`badge-horse-status-${h.id}`}>{h.status}</Badge>
-                  </td>
+                  <td className="py-2 px-3"><Badge variant={h.status === "ACTIVE" ? "default" : "secondary"} className="no-default-active-elevate">{h.status}</Badge></td>
                   <td className="py-2 px-3">{h.dob || "-"}</td>
                   <td className="py-2 px-3">
                     <div className="flex items-center gap-1">
@@ -620,11 +565,7 @@ function HorsesPage() {
               <Select value={sex} onValueChange={setSex}>
                 <SelectTrigger data-testid="select-horse-sex"><SelectValue placeholder="Select sex" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="STALLION">Stallion</SelectItem>
-                  <SelectItem value="MARE">Mare</SelectItem>
-                  <SelectItem value="GELDING">Gelding</SelectItem>
-                  <SelectItem value="COLT">Colt</SelectItem>
-                  <SelectItem value="FILLY">Filly</SelectItem>
+                  <SelectItem value="STALLION">Stallion</SelectItem><SelectItem value="MARE">Mare</SelectItem><SelectItem value="GELDING">Gelding</SelectItem><SelectItem value="COLT">Colt</SelectItem><SelectItem value="FILLY">Filly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -634,17 +575,13 @@ function HorsesPage() {
               <Label>Status</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger data-testid="select-horse-status"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                  <SelectItem value="RETIRED">Retired</SelectItem>
-                </SelectContent>
+                <SelectContent><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem><SelectItem value="RETIRED">Retired</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-horse">{createMutation.isPending ? "Saving..." : "Save"}</Button>
+            <Button onClick={() => { if (!name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; } mutation.mutate({ name, color: color || null, sex: sex || null, dob: dob || null, remarks: remarks || null, status }); }} disabled={mutation.isPending} data-testid="button-submit-horse">{mutation.isPending ? "Saving..." : "Save"}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -666,7 +603,7 @@ function CustomersPage() {
 
   const resetForm = () => { setName(""); setEmail(""); setPhone(""); setRemarks(""); setStatus("ACTIVE"); setEditingId(null); };
 
-  const createMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       if (editingId) await apiRequest("PATCH", `/api/sm/customers/${editingId}`, data);
       else await apiRequest("POST", "/api/sm/customers", data);
@@ -674,8 +611,7 @@ function CustomersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sm/customers"] });
       toast({ title: editingId ? "Customer updated" : "Customer created" });
-      setDialogOpen(false);
-      resetForm();
+      setDialogOpen(false); resetForm();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -689,11 +625,6 @@ function CustomersPage() {
     setEditingId(c.id); setName(c.name); setEmail(c.email || ""); setPhone(c.phone || ""); setRemarks(c.remarks || ""); setStatus(c.status); setDialogOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
-    createMutation.mutate({ name, email: email || null, phone: phone || null, remarks: remarks || null, status });
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
@@ -705,24 +636,16 @@ function CustomersPage() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 px-3">Name</th>
-                <th className="py-2 px-3">Email</th>
-                <th className="py-2 px-3">Phone</th>
-                <th className="py-2 px-3">Status</th>
-                <th className="py-2 px-3"></th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-3">Name</th><th className="py-2 px-3">Email</th><th className="py-2 px-3">Phone</th><th className="py-2 px-3">Status</th><th className="py-2 px-3"></th>
+            </tr></thead>
             <tbody>
               {customers.map((c) => (
                 <tr key={c.id} className="border-b border-border/50" data-testid={`row-customer-${c.id}`}>
                   <td className="py-2 px-3 font-medium">{c.name}</td>
                   <td className="py-2 px-3">{c.email || "-"}</td>
                   <td className="py-2 px-3">{c.phone || "-"}</td>
-                  <td className="py-2 px-3">
-                    <Badge variant={c.status === "ACTIVE" ? "default" : "secondary"} className="no-default-active-elevate" data-testid={`badge-customer-status-${c.id}`}>{c.status}</Badge>
-                  </td>
+                  <td className="py-2 px-3"><Badge variant={c.status === "ACTIVE" ? "default" : "secondary"} className="no-default-active-elevate">{c.status}</Badge></td>
                   <td className="py-2 px-3">
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)} data-testid={`button-edit-customer-${c.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -749,16 +672,13 @@ function CustomersPage() {
               <Label>Status</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger data-testid="select-customer-status"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
+                <SelectContent><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-customer">{createMutation.isPending ? "Saving..." : "Save"}</Button>
+            <Button onClick={() => { if (!name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; } mutation.mutate({ name, email: email || null, phone: phone || null, remarks: remarks || null, status }); }} disabled={mutation.isPending} data-testid="button-submit-customer">{mutation.isPending ? "Saving..." : "Save"}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -766,599 +686,69 @@ function CustomersPage() {
   );
 }
 
-function FacilitiesPage() {
-  const { toast } = useToast();
-  const [facilityDialog, setFacilityDialog] = useState(false);
-  const [blockDialog, setBlockDialog] = useState(false);
-  const [unitDialog, setUnitDialog] = useState(false);
-  const [editingFacility, setEditingFacility] = useState<string | null>(null);
-  const [editingBlock, setEditingBlock] = useState<string | null>(null);
-  const [editingUnit, setEditingUnit] = useState<string | null>(null);
-
-  const [fName, setFName] = useState("");
-  const [fType, setFType] = useState("STABLE");
-  const [bName, setBName] = useState("");
-  const [bFacilityId, setBFacilityId] = useState("");
-  const [uName, setUName] = useState("");
-  const [uBlockId, setUBlockId] = useState("");
-  const [uType, setUType] = useState("STALL");
-  const [uStatus, setUStatus] = useState("AVAILABLE");
-
-  const { data: facilities = [], isLoading } = useQuery<SmFacility[]>({ queryKey: ["/api/sm/facilities"] });
-  const { data: blocks = [] } = useQuery<SmStableBlock[]>({ queryKey: ["/api/sm/stable-blocks"] });
-  const { data: units = [] } = useQuery<SmStableUnit[]>({ queryKey: ["/api/sm/stable-units"] });
-
-  const facilityMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      if (editingFacility) await apiRequest("PATCH", `/api/sm/facilities/${editingFacility}`, data);
-      else await apiRequest("POST", "/api/sm/facilities", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/facilities"] });
-      toast({ title: editingFacility ? "Updated" : "Facility created" });
-      setFacilityDialog(false);
-    },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const blockMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      if (editingBlock) await apiRequest("PATCH", `/api/sm/stable-blocks/${editingBlock}`, data);
-      else await apiRequest("POST", "/api/sm/stable-blocks", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/stable-blocks"] });
-      toast({ title: editingBlock ? "Updated" : "Block created" });
-      setBlockDialog(false);
-    },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const unitMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      if (editingUnit) await apiRequest("PATCH", `/api/sm/stable-units/${editingUnit}`, data);
-      else await apiRequest("POST", "/api/sm/stable-units", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/stable-units"] });
-      toast({ title: editingUnit ? "Updated" : "Unit created" });
-      setUnitDialog(false);
-    },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const deleteFacility = useMutation({
-    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/facilities/${id}`); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/facilities"] }); queryClient.invalidateQueries({ queryKey: ["/api/sm/stable-blocks"] }); toast({ title: "Deleted" }); },
-  });
-
-  const deleteBlock = useMutation({
-    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/stable-blocks/${id}`); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/stable-blocks"] }); queryClient.invalidateQueries({ queryKey: ["/api/sm/stable-units"] }); toast({ title: "Deleted" }); },
-  });
-
-  const deleteUnit = useMutation({
-    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/stable-units/${id}`); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/stable-units"] }); toast({ title: "Deleted" }); },
-  });
-
-  const statusBadge = (s: string) => {
-    if (s === "AVAILABLE") return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 no-default-active-elevate">Available</Badge>;
-    if (s === "OCCUPIED") return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0 no-default-active-elevate">Occupied</Badge>;
-    if (s === "MAINTENANCE") return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 no-default-active-elevate">Maintenance</Badge>;
-    return <Badge variant="secondary" className="no-default-active-elevate">{s}</Badge>;
-  };
-
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-        <h2 className="text-lg font-semibold" data-testid="text-facilities-title">Facilities</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button onClick={() => { setEditingFacility(null); setFName(""); setFType("STABLE"); setFacilityDialog(true); }} data-testid="button-add-facility"><Plus className="h-4 w-4 mr-1" /> Facility</Button>
-          <Button variant="outline" onClick={() => { setEditingBlock(null); setBName(""); setBFacilityId(""); setBlockDialog(true); }} data-testid="button-add-block"><Plus className="h-4 w-4 mr-1" /> Block</Button>
-          <Button variant="outline" onClick={() => { setEditingUnit(null); setUName(""); setUBlockId(""); setUType("STALL"); setUStatus("AVAILABLE"); setUnitDialog(true); }} data-testid="button-add-unit"><Plus className="h-4 w-4 mr-1" /> Unit</Button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
-      ) : (
-        <div className="space-y-4">
-          {facilities.map((f) => {
-            const fBlocks = blocks.filter((b) => b.facilityId === f.id);
-            return (
-              <Card key={f.id} data-testid={`card-facility-${f.id}`}>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-base">{f.name}</CardTitle>
-                    <Badge variant="outline" className="no-default-active-elevate">{f.type}</Badge>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditingFacility(f.id); setFName(f.name); setFType(f.type); setFacilityDialog(true); }} data-testid={`button-edit-facility-${f.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteFacility.mutate(f.id)} data-testid={`button-delete-facility-${f.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {fBlocks.length === 0 && <p className="text-xs text-muted-foreground">No blocks in this facility.</p>}
-                  {fBlocks.map((b) => {
-                    const bUnits = units.filter((u) => u.stableBlockId === b.id);
-                    return (
-                      <div key={b.id} className="ml-4 mb-3">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-sm font-medium">{b.name}</span>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => { setEditingBlock(b.id); setBName(b.name); setBFacilityId(b.facilityId); setBlockDialog(true); }} data-testid={`button-edit-block-${b.id}`}><Pencil className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteBlock.mutate(b.id)} data-testid={`button-delete-block-${b.id}`}><Trash2 className="h-3 w-3" /></Button>
-                          </div>
-                        </div>
-                        <div className="ml-4 flex flex-wrap gap-2">
-                          {bUnits.map((u) => (
-                            <div key={u.id} className="flex items-center gap-1 text-xs border border-border rounded-md px-2 py-1" data-testid={`unit-${u.id}`}>
-                              <span>{u.name}</span>
-                              {statusBadge(u.status)}
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingUnit(u.id); setUName(u.name); setUBlockId(u.stableBlockId); setUType(u.unitType); setUStatus(u.status); setUnitDialog(true); }} data-testid={`button-edit-unit-${u.id}`}><Pencil className="h-2.5 w-2.5" /></Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteUnit.mutate(u.id)} data-testid={`button-delete-unit-${u.id}`}><Trash2 className="h-2.5 w-2.5" /></Button>
-                            </div>
-                          ))}
-                          {bUnits.length === 0 && <span className="text-xs text-muted-foreground">No units</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            );
-          })}
-          {facilities.length === 0 && <p className="text-center text-muted-foreground py-8">No facilities found.</p>}
-        </div>
-      )}
-
-      <Dialog open={facilityDialog} onOpenChange={setFacilityDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingFacility ? "Edit Facility" : "Add Facility"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={fName} onChange={(e) => setFName(e.target.value)} data-testid="input-facility-name" /></div>
-            <div className="space-y-1">
-              <Label>Type</Label>
-              <Select value={fType} onValueChange={setFType}>
-                <SelectTrigger data-testid="select-facility-type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="STABLE">Stable</SelectItem>
-                  <SelectItem value="ARENA">Arena</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setFacilityDialog(false)}>Cancel</Button>
-            <Button onClick={() => facilityMutation.mutate({ name: fName, type: fType })} disabled={facilityMutation.isPending} data-testid="button-submit-facility">{facilityMutation.isPending ? "Saving..." : "Save"}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={blockDialog} onOpenChange={setBlockDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingBlock ? "Edit Block" : "Add Block"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={bName} onChange={(e) => setBName(e.target.value)} data-testid="input-block-name" /></div>
-            <div className="space-y-1">
-              <Label>Facility *</Label>
-              <Select value={bFacilityId} onValueChange={setBFacilityId}>
-                <SelectTrigger data-testid="select-block-facility"><SelectValue placeholder="Select facility" /></SelectTrigger>
-                <SelectContent>{facilities.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setBlockDialog(false)}>Cancel</Button>
-            <Button onClick={() => blockMutation.mutate({ name: bName, facilityId: bFacilityId })} disabled={blockMutation.isPending} data-testid="button-submit-block">{blockMutation.isPending ? "Saving..." : "Save"}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={unitDialog} onOpenChange={setUnitDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingUnit ? "Edit Unit" : "Add Unit"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={uName} onChange={(e) => setUName(e.target.value)} data-testid="input-unit-name" /></div>
-            <div className="space-y-1">
-              <Label>Block *</Label>
-              <Select value={uBlockId} onValueChange={setUBlockId}>
-                <SelectTrigger data-testid="select-unit-block"><SelectValue placeholder="Select block" /></SelectTrigger>
-                <SelectContent>{blocks.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Unit Type</Label>
-              <Select value={uType} onValueChange={setUType}>
-                <SelectTrigger data-testid="select-unit-type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="STALL">Stall</SelectItem>
-                  <SelectItem value="PADDOCK">Paddock</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Status</Label>
-              <Select value={uStatus} onValueChange={setUStatus}>
-                <SelectTrigger data-testid="select-unit-status"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AVAILABLE">Available</SelectItem>
-                  <SelectItem value="OCCUPIED">Occupied</SelectItem>
-                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setUnitDialog(false)}>Cancel</Button>
-            <Button onClick={() => unitMutation.mutate({ name: uName, stableBlockId: uBlockId, unitType: uType, status: uStatus })} disabled={unitMutation.isPending} data-testid="button-submit-unit">{unitMutation.isPending ? "Saving..." : "Save"}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function ItemsServicesPage() {
-  const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("SERVICE");
-  const [defaultUnit, setDefaultUnit] = useState("");
-  const [unitOptions, setUnitOptions] = useState("");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [isActive, setIsActive] = useState(true);
+function ItemsPage() {
+  const [searchQ, setSearchQ] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterActive, setFilterActive] = useState("");
 
   const { data: items = [], isLoading } = useQuery<SmItemService[]>({ queryKey: ["/api/sm/item-services"] });
 
-  const resetForm = () => { setName(""); setCategory("SERVICE"); setDefaultUnit(""); setUnitOptions(""); setUnitPrice(""); setIsActive(true); setEditingId(null); };
-
-  const createMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      if (editingId) await apiRequest("PATCH", `/api/sm/item-services/${editingId}`, data);
-      else await apiRequest("POST", "/api/sm/item-services", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/item-services"] });
-      toast({ title: editingId ? "Updated" : "Created" });
-      setDialogOpen(false);
-      resetForm();
-    },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/item-services/${id}`); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/item-services"] }); toast({ title: "Deleted" }); },
-  });
-
-  const toggleActive = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      await apiRequest("PATCH", `/api/sm/item-services/${id}`, { isActive: active });
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/item-services"] }); },
-  });
-
-  const openEdit = (i: SmItemService) => {
-    setEditingId(i.id);
-    setName(i.name);
-    setCategory(i.category);
-    setDefaultUnit(i.defaultUnit);
-    setUnitOptions((i.unitOptions || []).join(", "));
-    setUnitPrice((i.unitPrice / 100).toFixed(2));
-    setIsActive(i.isActive);
-    setDialogOpen(true);
-  };
-
-  const handleSubmit = () => {
-    if (!name.trim() || !defaultUnit.trim()) { toast({ title: "Name and default unit required", variant: "destructive" }); return; }
-    const opts = unitOptions.split(",").map((s) => s.trim()).filter(Boolean);
-    createMutation.mutate({
-      name,
-      category,
-      defaultUnit,
-      unitOptions: opts.length ? opts : [defaultUnit],
-      unitPrice: Math.round(parseFloat(unitPrice || "0") * 100),
-      isActive,
+  const filtered = useMemo(() => {
+    return items.filter((i) => {
+      if (filterCategory && filterCategory !== "all" && i.category !== filterCategory) return false;
+      if (filterActive === "active" && !i.isActive) return false;
+      if (filterActive === "inactive" && i.isActive) return false;
+      if (searchQ && !i.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+      return true;
     });
-  };
+  }, [items, filterCategory, filterActive, searchQ]);
 
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
         <h2 className="text-lg font-semibold" data-testid="text-items-title">Items & Services</h2>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }} data-testid="button-add-item"><Plus className="h-4 w-4 mr-1" /> Add Item/Service</Button>
+        <Button disabled className="opacity-50 cursor-not-allowed" data-testid="button-add-item-disabled">
+          <Plus className="h-4 w-4 mr-1" /> Add Item
+        </Button>
+      </div>
+      <div className="flex items-center gap-2 mb-3 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+        <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+        <span className="text-xs text-amber-700 dark:text-amber-400" data-testid="text-netsuite-message">Items are mastered in NetSuite. This is a read-only view.</span>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="relative"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder="Search items..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-7 h-9 w-[180px]" data-testid="input-search-items" /></div>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-[140px] h-9" data-testid="select-filter-category"><SelectValue placeholder="All categories" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All categories</SelectItem><SelectItem value="SERVICE">Service</SelectItem><SelectItem value="ITEM">Item</SelectItem></SelectContent>
+        </Select>
+        <Select value={filterActive} onValueChange={setFilterActive}>
+          <SelectTrigger className="w-[120px] h-9" data-testid="select-filter-active"><SelectValue placeholder="All" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent>
+        </Select>
       </div>
       {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 px-3">Name</th>
-                <th className="py-2 px-3">Category</th>
-                <th className="py-2 px-3">Default Unit</th>
-                <th className="py-2 px-3">Unit Price</th>
-                <th className="py-2 px-3">Active</th>
-                <th className="py-2 px-3"></th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-3">Name</th><th className="py-2 px-3">Category</th><th className="py-2 px-3">Default Unit</th><th className="py-2 px-3">Unit Price</th><th className="py-2 px-3">Active</th>
+            </tr></thead>
             <tbody>
-              {items.map((i) => (
+              {filtered.map((i) => (
                 <tr key={i.id} className="border-b border-border/50" data-testid={`row-item-${i.id}`}>
                   <td className="py-2 px-3 font-medium">{i.name}</td>
-                  <td className="py-2 px-3">
-                    <Badge variant={i.category === "SERVICE" ? "default" : "secondary"} className="no-default-active-elevate" data-testid={`badge-category-${i.id}`}>{i.category}</Badge>
-                  </td>
+                  <td className="py-2 px-3"><Badge variant={i.category === "SERVICE" ? "default" : "secondary"} className="no-default-active-elevate">{i.category}</Badge></td>
                   <td className="py-2 px-3">{i.defaultUnit}</td>
                   <td className="py-2 px-3">{formatAED(i.unitPrice)}</td>
-                  <td className="py-2 px-3">
-                    <Switch checked={i.isActive} onCheckedChange={(v) => toggleActive.mutate({ id: i.id, active: v })} data-testid={`switch-active-${i.id}`} />
-                  </td>
-                  <td className="py-2 px-3">
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(i)} data-testid={`button-edit-item-${i.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(i.id)} data-testid={`button-delete-item-${i.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </td>
+                  <td className="py-2 px-3"><Badge variant={i.isActive ? "default" : "secondary"} className="no-default-active-elevate">{i.isActive ? "Yes" : "No"}</Badge></td>
                 </tr>
               ))}
-              {items.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">No items/services found.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No items found.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingId ? "Edit Item/Service" : "Add Item/Service"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} data-testid="input-item-name" /></div>
-            <div className="space-y-1">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger data-testid="select-item-category"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SERVICE">Service</SelectItem>
-                  <SelectItem value="ITEM">Item</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1"><Label>Default Unit *</Label><Input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} data-testid="input-item-default-unit" /></div>
-            <div className="space-y-1"><Label>Unit Options (comma separated)</Label><Input value={unitOptions} onChange={(e) => setUnitOptions(e.target.value)} placeholder="e.g. kg, bag, session" data-testid="input-item-unit-options" /></div>
-            <div className="space-y-1"><Label>Unit Price (AED)</Label><Input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} data-testid="input-item-unit-price" /></div>
-            <div className="flex items-center gap-2">
-              <Label>Active</Label>
-              <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-item-active" />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-item">{createMutation.isPending ? "Saving..." : "Save"}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function LiveryAgreementsListPage() {
-  const { data: agreements = [], isLoading } = useQuery<SmLiveryAgreement[]>({ queryKey: ["/api/sm/livery-agreements"] });
-  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
-  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
-  const { data: facilities = [] } = useQuery<SmFacility[]>({ queryKey: ["/api/sm/facilities"] });
-  const { data: blocks = [] } = useQuery<SmStableBlock[]>({ queryKey: ["/api/sm/stable-blocks"] });
-  const { data: units = [] } = useQuery<SmStableUnit[]>({ queryKey: ["/api/sm/stable-units"] });
-  const { data: packages = [] } = useQuery<SmLiveryPackage[]>({ queryKey: ["/api/sm/livery-packages"] });
-
-  const horseMap = useMemo(() => Object.fromEntries(horses.map((h) => [h.id, h])), [horses]);
-  const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers]);
-  const facilityMap = useMemo(() => Object.fromEntries(facilities.map((f) => [f.id, f])), [facilities]);
-  const blockMap = useMemo(() => Object.fromEntries(blocks.map((b) => [b.id, b])), [blocks]);
-  const unitMap = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units]);
-  const packageMap = useMemo(() => Object.fromEntries(packages.map((p) => [p.id, p])), [packages]);
-
-  return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4" data-testid="text-livery-agreements-title">Livery Agreements</h2>
-      {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 px-2">Ref #</th>
-                <th className="py-2 px-2">Type</th>
-                <th className="py-2 px-2">Horse</th>
-                <th className="py-2 px-2">Customer</th>
-                <th className="py-2 px-2">Facility</th>
-                <th className="py-2 px-2">Block</th>
-                <th className="py-2 px-2">Unit</th>
-                <th className="py-2 px-2">Package</th>
-                <th className="py-2 px-2">Start</th>
-                <th className="py-2 px-2">End</th>
-              </tr>
-            </thead>
-            <tbody>
-              {agreements.map((a) => (
-                <tr key={a.id} className="border-b border-border/50" data-testid={`row-agreement-${a.id}`}>
-                  <td className="py-2 px-2">{a.refNumber || "-"}</td>
-                  <td className="py-2 px-2">
-                    <Badge variant={a.agreementType?.includes("PERMANENT") ? "default" : "secondary"} className="no-default-active-elevate text-[10px]">
-                      {a.agreementType?.includes("PERMANENT") ? "Permanent" : "Temporary"}
-                    </Badge>
-                  </td>
-                  <td className="py-2 px-2">{horseMap[a.horseId || ""]?.name || "-"}</td>
-                  <td className="py-2 px-2">{customerMap[a.customerId || ""]?.name || "-"}</td>
-                  <td className="py-2 px-2">{facilityMap[a.facilityId || ""]?.name || "-"}</td>
-                  <td className="py-2 px-2">{blockMap[a.stableBlockId || ""]?.name || "-"}</td>
-                  <td className="py-2 px-2">{unitMap[a.stableUnitId || ""]?.name || "-"}</td>
-                  <td className="py-2 px-2">{packageMap[a.liveryPackageId || ""]?.name || "-"}</td>
-                  <td className="py-2 px-2">{a.startDate}</td>
-                  <td className="py-2 px-2">{a.endDate || "-"}</td>
-                </tr>
-              ))}
-              {agreements.length === 0 && <tr><td colSpan={10} className="py-8 text-center text-muted-foreground">No livery agreements found.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NewLiveryAgreementPage() {
-  const { toast } = useToast();
-  const [agrType, setAgrType] = useState("PERMANENT_AUTO_RENEW");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [facilityId, setFacilityId] = useState("");
-  const [blockId, setBlockId] = useState("");
-  const [unitId, setUnitId] = useState("");
-  const [horseId, setHorseId] = useState("");
-  const [customerId, setCustomerId] = useState("");
-  const [customerContact, setCustomerContact] = useState("");
-  const [refNumber, setRefNumber] = useState("");
-  const [packageId, setPackageId] = useState("");
-  const [remarks, setRemarks] = useState("");
-
-  const { data: facilities = [] } = useQuery<SmFacility[]>({ queryKey: ["/api/sm/facilities"] });
-  const { data: blocks = [] } = useQuery<SmStableBlock[]>({ queryKey: ["/api/sm/stable-blocks"] });
-  const { data: units = [] } = useQuery<SmStableUnit[]>({ queryKey: ["/api/sm/stable-units"] });
-  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
-  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
-  const { data: packages = [] } = useQuery<SmLiveryPackage[]>({ queryKey: ["/api/sm/livery-packages"] });
-
-  const filteredBlocks = useMemo(() => blocks.filter((b) => b.facilityId === facilityId), [blocks, facilityId]);
-  const filteredUnits = useMemo(() => units.filter((u) => u.stableBlockId === blockId), [units, blockId]);
-
-  const createMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      await apiRequest("POST", "/api/sm/livery-agreements", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sm/livery-agreements"] });
-      toast({ title: "Livery agreement created" });
-      setAgrType("PERMANENT_AUTO_RENEW"); setStartDate(""); setEndDate(""); setFacilityId(""); setBlockId(""); setUnitId("");
-      setHorseId(""); setCustomerId(""); setCustomerContact(""); setRefNumber(""); setPackageId(""); setRemarks("");
-    },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const handleSubmit = () => {
-    if (!startDate) { toast({ title: "Start date is required", variant: "destructive" }); return; }
-    createMutation.mutate({
-      agreementType: agrType,
-      startDate,
-      endDate: endDate || null,
-      facilityId: facilityId || null,
-      stableBlockId: blockId || null,
-      stableUnitId: unitId || null,
-      horseId: horseId || null,
-      customerId: customerId || null,
-      customerContact: customerContact || null,
-      refNumber: refNumber || null,
-      liveryPackageId: packageId || null,
-      remarks: remarks || null,
-    });
-  };
-
-  const isTemp = agrType === "TEMPORARY";
-
-  return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4" data-testid="text-new-agreement-title">New Livery Agreement</h2>
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label>Agreement Type</Label>
-              <Select value={agrType} onValueChange={setAgrType}>
-                <SelectTrigger data-testid="select-agreement-type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PERMANENT_AUTO_RENEW">Permanent (Auto Renew)</SelectItem>
-                  <SelectItem value="TEMPORARY">Temporary</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Start Date *</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} data-testid="input-agreement-start" />
-            </div>
-            {isTemp && (
-              <div className="space-y-1">
-                <Label>End Date</Label>
-                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} data-testid="input-agreement-end" />
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label>Facility</Label>
-              <Select value={facilityId} onValueChange={(v) => { setFacilityId(v); setBlockId(""); setUnitId(""); }}>
-                <SelectTrigger data-testid="select-agreement-facility"><SelectValue placeholder="Select facility" /></SelectTrigger>
-                <SelectContent>{facilities.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Block</Label>
-              <Select value={blockId} onValueChange={(v) => { setBlockId(v); setUnitId(""); }}>
-                <SelectTrigger data-testid="select-agreement-block"><SelectValue placeholder="Select block" /></SelectTrigger>
-                <SelectContent>{filteredBlocks.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Unit</Label>
-              <Select value={unitId} onValueChange={setUnitId}>
-                <SelectTrigger data-testid="select-agreement-unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                <SelectContent>{filteredUnits.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Horse</Label>
-              <Select value={horseId} onValueChange={setHorseId}>
-                <SelectTrigger data-testid="select-agreement-horse"><SelectValue placeholder="Select horse" /></SelectTrigger>
-                <SelectContent>{horses.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Customer</Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger data-testid="select-agreement-customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Customer Contact</Label>
-              <Input value={customerContact} onChange={(e) => setCustomerContact(e.target.value)} data-testid="input-agreement-contact" />
-            </div>
-            <div className="space-y-1">
-              <Label>Ref Number</Label>
-              <Input value={refNumber} onChange={(e) => setRefNumber(e.target.value)} data-testid="input-agreement-ref" />
-            </div>
-            <div className="space-y-1">
-              <Label>Livery Package</Label>
-              <Select value={packageId} onValueChange={setPackageId}>
-                <SelectTrigger data-testid="select-agreement-package"><SelectValue placeholder="Select package" /></SelectTrigger>
-                <SelectContent>{packages.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-1 md:col-span-2 space-y-1">
-              <Label>Remarks</Label>
-              <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} data-testid="input-agreement-remarks" />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-6">
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-agreement">
-              {createMutation.isPending ? "Creating..." : "Create Agreement"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -1374,7 +764,7 @@ function LiveryPackagesPage() {
 
   const resetForm = () => { setName(""); setMonthlyPrice(""); setEditingId(null); };
 
-  const createMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       if (editingId) await apiRequest("PATCH", `/api/sm/livery-packages/${editingId}`, data);
       else await apiRequest("POST", "/api/sm/livery-packages", data);
@@ -1382,8 +772,7 @@ function LiveryPackagesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sm/livery-packages"] });
       toast({ title: editingId ? "Updated" : "Package created" });
-      setDialogOpen(false);
-      resetForm();
+      setDialogOpen(false); resetForm();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -1397,11 +786,6 @@ function LiveryPackagesPage() {
     setEditingId(p.id); setName(p.name); setMonthlyPrice((p.monthlyPrice / 100).toFixed(2)); setDialogOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
-    createMutation.mutate({ name, monthlyPrice: Math.round(parseFloat(monthlyPrice || "0") * 100) });
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
@@ -1413,13 +797,9 @@ function LiveryPackagesPage() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-2 px-3">Name</th>
-                <th className="py-2 px-3">Monthly Price</th>
-                <th className="py-2 px-3"></th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-3">Name</th><th className="py-2 px-3">Monthly Price</th><th className="py-2 px-3"></th>
+            </tr></thead>
             <tbody>
               {packages.map((p) => (
                 <tr key={p.id} className="border-b border-border/50" data-testid={`row-package-${p.id}`}>
@@ -1448,7 +828,7 @@ function LiveryPackagesPage() {
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-package">{createMutation.isPending ? "Saving..." : "Save"}</Button>
+            <Button onClick={() => { if (!name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; } mutation.mutate({ name, monthlyPrice: Math.round(parseFloat(monthlyPrice || "0") * 100) }); }} disabled={mutation.isPending} data-testid="button-submit-package">{mutation.isPending ? "Saving..." : "Save"}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1456,23 +836,708 @@ function LiveryPackagesPage() {
   );
 }
 
-function ReportsPage() {
+function NewAgreementPage({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedBox, setSelectedBox] = useState<SmBox | null>(null);
+  const [filterStable, setFilterStable] = useState("");
+  const [showAvailOnly, setShowAvailOnly] = useState(true);
+
+  const [agrType, setAgrType] = useState("PERMANENT_AUTO_RENEW");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [horseId, setHorseId] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [customerContact, setCustomerContact] = useState("");
+  const [refNumber, setRefNumber] = useState("");
+  const [packageId, setPackageId] = useState("");
+  const [remarks, setRemarks] = useState("");
+
+  const { data: stables = [] } = useQuery<SmStable[]>({ queryKey: ["/api/sm/stables"] });
+  const { data: boxes = [] } = useQuery<SmBox[]>({ queryKey: ["/api/sm/boxes"] });
+  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
+  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
+  const { data: packages = [] } = useQuery<SmLiveryPackage[]>({ queryKey: ["/api/sm/livery-packages"] });
+  const { data: agreements = [] } = useQuery<SmLiveryAgreement[]>({ queryKey: ["/api/sm/livery-agreements"] });
+
+  const stableMap = useMemo(() => Object.fromEntries(stables.map((s) => [s.id, s])), [stables]);
+  const activeAgreementBoxIds = useMemo(() => new Set(agreements.filter(a => a.status === "ACTIVE" && a.boxId).map(a => a.boxId!)), [agreements]);
+
+  const filteredBoxes = useMemo(() => {
+    return boxes.filter((b) => {
+      if (filterStable && filterStable !== "all" && b.stableId !== filterStable) return false;
+      if (showAvailOnly && (b.status !== "AVAILABLE" || activeAgreementBoxIds.has(b.id))) return false;
+      return true;
+    });
+  }, [boxes, filterStable, showAvailOnly, activeAgreementBoxIds]);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      await apiRequest("POST", "/api/sm/livery-agreements", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/livery-agreements"] });
+      toast({ title: "Livery agreement created" });
+      setDialogOpen(false);
+      setSelectedBox(null);
+      onNavigate("agreements-list");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const handleCreate = (box: SmBox) => {
+    setSelectedBox(box);
+    setAgrType("PERMANENT_AUTO_RENEW"); setStartDate(""); setEndDate("");
+    setHorseId(""); setCustomerId(""); setCustomerContact(""); setRefNumber(""); setPackageId(""); setRemarks("");
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = () => {
+    if (!startDate || !customerId) { toast({ title: "Start date and customer are required", variant: "destructive" }); return; }
+    createMutation.mutate({
+      agreementType: agrType,
+      startDate,
+      endDate: endDate || null,
+      stableId: selectedBox?.stableId || null,
+      boxId: selectedBox?.id || null,
+      horseId: horseId || null,
+      customerId,
+      customerContact: customerContact || null,
+      refNumber: refNumber || null,
+      liveryPackageId: packageId || null,
+      remarks: remarks || null,
+      status: "ACTIVE",
+    });
+  };
+
+  const isBoxOccupied = (boxId: string) => activeAgreementBoxIds.has(boxId);
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-4" data-testid="text-new-agreement-title">New Livery Agreement</h2>
+      <p className="text-sm text-muted-foreground mb-4">Select a box to create a new livery agreement. Only available boxes are shown by default.</p>
+      <div className="flex items-center gap-3 flex-wrap mb-4">
+        <Select value={filterStable} onValueChange={setFilterStable}>
+          <SelectTrigger className="w-[150px] h-9" data-testid="select-newagr-filter-stable"><SelectValue placeholder="All stables" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All stables</SelectItem>{stables.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <div className="flex items-center gap-2">
+          <Switch checked={showAvailOnly} onCheckedChange={setShowAvailOnly} data-testid="switch-available-only" />
+          <span className="text-xs text-muted-foreground">Available only</span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead><tr className="border-b border-border text-left text-muted-foreground">
+            <th className="py-2 px-3">Box</th><th className="py-2 px-3">Stable</th><th className="py-2 px-3">Type</th><th className="py-2 px-3">Status</th><th className="py-2 px-3">Agreement</th><th className="py-2 px-3"></th>
+          </tr></thead>
+          <tbody>
+            {filteredBoxes.map((b) => {
+              const occupied = isBoxOccupied(b.id);
+              return (
+                <tr key={b.id} className="border-b border-border/50" data-testid={`row-newagr-box-${b.id}`}>
+                  <td className="py-2 px-3 font-medium">{b.name}</td>
+                  <td className="py-2 px-3">{stableMap[b.stableId]?.name || "-"}</td>
+                  <td className="py-2 px-3"><Badge variant="outline" className="no-default-active-elevate">{b.boxType}</Badge></td>
+                  <td className="py-2 px-3">
+                    {b.status === "AVAILABLE" ? (
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 no-default-active-elevate">Available</Badge>
+                    ) : (
+                      <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0 no-default-active-elevate">{b.status}</Badge>
+                    )}
+                  </td>
+                  <td className="py-2 px-3">{occupied ? <Badge variant="secondary" className="no-default-active-elevate">Has Agreement</Badge> : <span className="text-xs text-muted-foreground">None</span>}</td>
+                  <td className="py-2 px-3">
+                    {!occupied && b.status === "AVAILABLE" && (
+                      <Button size="sm" onClick={() => handleCreate(b)} data-testid={`button-create-agr-${b.id}`}><Plus className="h-3.5 w-3.5 mr-1" /> Create</Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredBoxes.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">No boxes found.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>New Agreement - {selectedBox?.name} ({stableMap[selectedBox?.stableId || ""]?.name})</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label>Agreement Type</Label>
+              <Select value={agrType} onValueChange={setAgrType}>
+                <SelectTrigger data-testid="select-agreement-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERMANENT_AUTO_RENEW">Permanent (Auto Renew)</SelectItem>
+                  <SelectItem value="TEMPORARY">Temporary</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Start Date *</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} data-testid="input-agreement-start" />
+            </div>
+            {agrType === "TEMPORARY" && (
+              <div className="space-y-1"><Label>End Date</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} data-testid="input-agreement-end" /></div>
+            )}
+            <div className="space-y-1">
+              <Label>Customer *</Label>
+              <Select value={customerId} onValueChange={setCustomerId}>
+                <SelectTrigger data-testid="select-agreement-customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                <SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Horse (optional)</Label>
+              <Select value={horseId} onValueChange={setHorseId}>
+                <SelectTrigger data-testid="select-agreement-horse"><SelectValue placeholder="No horse (unassigned)" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">No horse</SelectItem>{horses.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Livery Package</Label>
+              <Select value={packageId} onValueChange={setPackageId}>
+                <SelectTrigger data-testid="select-agreement-package"><SelectValue placeholder="Select package" /></SelectTrigger>
+                <SelectContent>{packages.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} - {formatAED(p.monthlyPrice)}/mo</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Label>Customer Contact</Label><Input value={customerContact} onChange={(e) => setCustomerContact(e.target.value)} data-testid="input-agreement-contact" /></div>
+            <div className="space-y-1"><Label>Ref Number</Label><Input value={refNumber} onChange={(e) => setRefNumber(e.target.value)} data-testid="input-agreement-ref" /></div>
+            <div className="col-span-1 md:col-span-2 space-y-1"><Label>Remarks</Label><Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} data-testid="input-agreement-remarks" /></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-agreement">{createMutation.isPending ? "Creating..." : "Create Agreement"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function AgreementsListPage() {
+  const { toast } = useToast();
+  const { data: agreements = [], isLoading } = useQuery<SmLiveryAgreement[]>({ queryKey: ["/api/sm/livery-agreements"] });
+  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
+  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
+  const { data: stables = [] } = useQuery<SmStable[]>({ queryKey: ["/api/sm/stables"] });
+  const { data: boxes = [] } = useQuery<SmBox[]>({ queryKey: ["/api/sm/boxes"] });
+  const { data: packages = [] } = useQuery<SmLiveryPackage[]>({ queryKey: ["/api/sm/livery-packages"] });
+
+  const horseMap = useMemo(() => Object.fromEntries(horses.map((h) => [h.id, h])), [horses]);
+  const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers]);
+  const stableMap = useMemo(() => Object.fromEntries(stables.map((s) => [s.id, s])), [stables]);
+  const boxMap = useMemo(() => Object.fromEntries(boxes.map((b) => [b.id, b])), [boxes]);
+  const packageMap = useMemo(() => Object.fromEntries(packages.map((p) => [p.id, p])), [packages]);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/livery-agreements/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/livery-agreements"] }); toast({ title: "Agreement deleted" }); },
+  });
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-4" data-testid="text-agreements-title">Livery Agreements</h2>
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-2">Ref #</th><th className="py-2 px-2">Type</th><th className="py-2 px-2">Status</th><th className="py-2 px-2">Horse</th><th className="py-2 px-2">Customer</th><th className="py-2 px-2">Stable</th><th className="py-2 px-2">Box</th><th className="py-2 px-2">Package</th><th className="py-2 px-2">Start</th><th className="py-2 px-2">End</th><th className="py-2 px-2"></th>
+            </tr></thead>
+            <tbody>
+              {agreements.map((a) => (
+                <tr key={a.id} className="border-b border-border/50" data-testid={`row-agreement-${a.id}`}>
+                  <td className="py-2 px-2">{a.refNumber || "-"}</td>
+                  <td className="py-2 px-2">
+                    <Badge variant={a.agreementType?.includes("PERMANENT") ? "default" : "secondary"} className="no-default-active-elevate text-[10px]">
+                      {a.agreementType?.includes("PERMANENT") ? "Permanent" : "Temporary"}
+                    </Badge>
+                  </td>
+                  <td className="py-2 px-2">
+                    <Badge variant={a.status === "ACTIVE" ? "default" : "secondary"} className="no-default-active-elevate text-[10px]">{a.status}</Badge>
+                  </td>
+                  <td className="py-2 px-2">{horseMap[a.horseId || ""]?.name || <span className="text-muted-foreground italic">Unassigned</span>}</td>
+                  <td className="py-2 px-2">{customerMap[a.customerId || ""]?.name || "-"}</td>
+                  <td className="py-2 px-2">{stableMap[a.stableId || ""]?.name || "-"}</td>
+                  <td className="py-2 px-2">{boxMap[a.boxId || ""]?.name || "-"}</td>
+                  <td className="py-2 px-2">{packageMap[a.liveryPackageId || ""]?.name || "-"}</td>
+                  <td className="py-2 px-2">{a.startDate}</td>
+                  <td className="py-2 px-2">{a.endDate || "-"}</td>
+                  <td className="py-2 px-2">
+                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(a.id)} data-testid={`button-delete-agr-${a.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </td>
+                </tr>
+              ))}
+              {agreements.length === 0 && <tr><td colSpan={11} className="py-8 text-center text-muted-foreground">No livery agreements found.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PostBillingPage() {
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedBox, setSelectedBox] = useState<SmBox | null>(null);
+  const [filterStable, setFilterStable] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+
+  const [formDate, setFormDate] = useState("");
+  const [formRef, setFormRef] = useState("");
+  const [formRemarks, setFormRemarks] = useState("");
+  const [formHorse, setFormHorse] = useState("");
+  const [formCustomer, setFormCustomer] = useState("");
+  const [formItem, setFormItem] = useState("");
+  const [formItemUnit, setFormItemUnit] = useState("");
+  const [formUnitPrice, setFormUnitPrice] = useState("");
+  const [formQty, setFormQty] = useState("1");
+  const [editPrice, setEditPrice] = useState(false);
+
+  const { data: stables = [] } = useQuery<SmStable[]>({ queryKey: ["/api/sm/stables"] });
+  const { data: boxes = [] } = useQuery<SmBox[]>({ queryKey: ["/api/sm/boxes"] });
+  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
+  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
+  const { data: itemServices = [] } = useQuery<SmItemService[]>({ queryKey: ["/api/sm/item-services"] });
+
+  const stableMap = useMemo(() => Object.fromEntries(stables.map((s) => [s.id, s])), [stables]);
+  const activeItems = useMemo(() => itemServices.filter((i) => i.isActive), [itemServices]);
+  const selectedItem = useMemo(() => itemServices.find((i) => i.id === formItem), [itemServices, formItem]);
+
+  useEffect(() => {
+    if (selectedItem) {
+      setFormUnitPrice((selectedItem.unitPrice / 100).toFixed(2));
+      if (selectedItem.unitOptions?.length) setFormItemUnit(selectedItem.defaultUnit || selectedItem.unitOptions[0]);
+      setEditPrice(false);
+    }
+  }, [selectedItem]);
+
+  const filteredBoxes = useMemo(() => {
+    return boxes.filter((b) => {
+      if (filterStable && filterStable !== "all" && b.stableId !== filterStable) return false;
+      if (searchQ && !b.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+      return true;
+    });
+  }, [boxes, filterStable, searchQ]);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      await apiRequest("POST", "/api/sm/billing-elements", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/billing-elements"] });
+      toast({ title: "Billing element created" });
+      setDialogOpen(false); setSelectedBox(null);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const handleOpenCreate = (box: SmBox) => {
+    setSelectedBox(box);
+    setFormDate(""); setFormRef(""); setFormRemarks(""); setFormHorse(""); setFormCustomer("");
+    setFormItem(""); setFormItemUnit(""); setFormUnitPrice(""); setFormQty("1"); setEditPrice(false);
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = () => {
+    if (!formDate || !formCustomer || !formItem) { toast({ title: "Date, customer and item are required", variant: "destructive" }); return; }
+    const qty = parseFloat(formQty);
+    if (!qty || qty <= 0) { toast({ title: "Quantity must be > 0", variant: "destructive" }); return; }
+    createMutation.mutate({
+      stableId: selectedBox?.stableId || null,
+      boxId: selectedBox?.id || null,
+      transactionDate: formDate,
+      refNumber: formRef || null,
+      remarks: formRemarks || null,
+      horseId: formHorse || null,
+      customerId: formCustomer,
+      itemServiceId: formItem,
+      unit: formItemUnit || null,
+      unitPrice: Math.round(parseFloat(formUnitPrice) * 100),
+      quantity: formQty,
+      source: "MANUAL",
+    });
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-2" data-testid="text-post-billing-title">Post Billing Element</h2>
+      <p className="text-sm text-muted-foreground mb-4">Select a box to create a billing element for it.</p>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="relative"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder="Search boxes..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-7 h-9 w-[180px]" data-testid="input-search-pb-boxes" /></div>
+        <Select value={filterStable} onValueChange={setFilterStable}>
+          <SelectTrigger className="w-[150px] h-9" data-testid="select-pb-filter-stable"><SelectValue placeholder="All stables" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All stables</SelectItem>{stables.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead><tr className="border-b border-border text-left text-muted-foreground">
+            <th className="py-2 px-3">Box</th><th className="py-2 px-3">Stable</th><th className="py-2 px-3">Type</th><th className="py-2 px-3">Status</th><th className="py-2 px-3"></th>
+          </tr></thead>
+          <tbody>
+            {filteredBoxes.map((b) => (
+              <tr key={b.id} className="border-b border-border/50" data-testid={`row-pb-box-${b.id}`}>
+                <td className="py-2 px-3 font-medium">{b.name}</td>
+                <td className="py-2 px-3">{stableMap[b.stableId]?.name || "-"}</td>
+                <td className="py-2 px-3"><Badge variant="outline" className="no-default-active-elevate">{b.boxType}</Badge></td>
+                <td className="py-2 px-3">
+                  <Badge className={`border-0 no-default-active-elevate ${b.status === "AVAILABLE" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : b.status === "OCCUPIED" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>{b.status}</Badge>
+                </td>
+                <td className="py-2 px-3">
+                  <Button size="sm" onClick={() => handleOpenCreate(b)} data-testid={`button-create-be-${b.id}`}><Receipt className="h-3.5 w-3.5 mr-1" /> Create</Button>
+                </td>
+              </tr>
+            ))}
+            {filteredBoxes.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No boxes found.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Create Billing Element - {selectedBox?.name} ({stableMap[selectedBox?.stableId || ""]?.name})</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label>Stable</Label>
+              <Input value={stableMap[selectedBox?.stableId || ""]?.name || ""} readOnly className="opacity-70" data-testid="input-pb-stable" />
+            </div>
+            <div className="space-y-1">
+              <Label>Box</Label>
+              <Input value={selectedBox?.name || ""} readOnly className="opacity-70" data-testid="input-pb-box" />
+            </div>
+            <div className="space-y-1">
+              <Label>Transaction Date *</Label>
+              <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} data-testid="input-pb-date" />
+            </div>
+            <div className="space-y-1">
+              <Label>Ref Number</Label>
+              <Input value={formRef} onChange={(e) => setFormRef(e.target.value)} data-testid="input-pb-ref" />
+            </div>
+            <div className="space-y-1">
+              <Label>Horse</Label>
+              <Select value={formHorse} onValueChange={setFormHorse}>
+                <SelectTrigger data-testid="select-pb-horse"><SelectValue placeholder="Select horse" /></SelectTrigger>
+                <SelectContent>{horses.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Customer *</Label>
+              <Select value={formCustomer} onValueChange={setFormCustomer}>
+                <SelectTrigger data-testid="select-pb-customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                <SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Item *</Label>
+              <Select value={formItem} onValueChange={setFormItem}>
+                <SelectTrigger data-testid="select-pb-item"><SelectValue placeholder="Select item" /></SelectTrigger>
+                <SelectContent>{activeItems.map((i) => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Unit</Label>
+              <Select value={formItemUnit} onValueChange={setFormItemUnit}>
+                <SelectTrigger data-testid="select-pb-item-unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
+                <SelectContent>{(selectedItem?.unitOptions || []).map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="flex items-center gap-2">
+                Unit Price
+                <button className="text-[10px] text-primary underline" onClick={() => setEditPrice(!editPrice)} data-testid="button-toggle-edit-price">
+                  {editPrice ? "Lock" : "Edit"}
+                </button>
+              </Label>
+              <Input type="number" step="0.01" value={formUnitPrice} onChange={(e) => setFormUnitPrice(e.target.value)} readOnly={!editPrice} className={!editPrice ? "opacity-70" : ""} data-testid="input-pb-unit-price" />
+            </div>
+            <div className="space-y-1">
+              <Label>Quantity *</Label>
+              <Input type="number" step="0.01" min="0.01" value={formQty} onChange={(e) => setFormQty(e.target.value)} data-testid="input-pb-qty" />
+            </div>
+            <div className="col-span-2 space-y-1"><Label>Remarks</Label><Textarea value={formRemarks} onChange={(e) => setFormRemarks(e.target.value)} data-testid="input-pb-remarks" /></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-pb">{createMutation.isPending ? "Saving..." : "Save"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function BillingPage() {
+  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDialog, setConfirmDialog] = useState(false);
+
+  const { data: billingElements = [], isLoading } = useQuery<SmBillingElement[]>({ queryKey: ["/api/sm/billing-elements", "unbilled"], queryFn: () => fetch("/api/sm/billing-elements?unbilledOnly=true", { credentials: "include" }).then(r => r.json()) });
+  const { data: invoices = [] } = useQuery<SmInvoice[]>({ queryKey: ["/api/sm/invoices"] });
+  const { data: stables = [] } = useQuery<SmStable[]>({ queryKey: ["/api/sm/stables"] });
+  const { data: boxes = [] } = useQuery<SmBox[]>({ queryKey: ["/api/sm/boxes"] });
+  const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
+  const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
+  const { data: itemServices = [] } = useQuery<SmItemService[]>({ queryKey: ["/api/sm/item-services"] });
+  const { data: agreements = [] } = useQuery<SmLiveryAgreement[]>({ queryKey: ["/api/sm/livery-agreements"] });
+  const { data: packages = [] } = useQuery<SmLiveryPackage[]>({ queryKey: ["/api/sm/livery-packages"] });
+
+  const stableMap = useMemo(() => Object.fromEntries(stables.map((s) => [s.id, s])), [stables]);
+  const boxMap = useMemo(() => Object.fromEntries(boxes.map((b) => [b.id, b])), [boxes]);
+  const horseMap = useMemo(() => Object.fromEntries(horses.map((h) => [h.id, h])), [horses]);
+  const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers]);
+  const itemMap = useMemo(() => Object.fromEntries(itemServices.map((i) => [i.id, i])), [itemServices]);
+  const packageMap = useMemo(() => Object.fromEntries(packages.map((p) => [p.id, p])), [packages]);
+
+  const activeAgreements = useMemo(() => agreements.filter(a => a.status === "ACTIVE" && a.customerId && a.liveryPackageId), [agreements]);
+
+  const liveryLines = useMemo(() => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return activeAgreements.map(a => {
+      const pkg = packageMap[a.liveryPackageId!];
+      return {
+        id: `livery-${a.id}-${currentMonth}`,
+        isVirtual: true,
+        agreementId: a.id,
+        stableId: a.stableId,
+        boxId: a.boxId,
+        horseId: a.horseId,
+        customerId: a.customerId!,
+        itemName: `Monthly Livery - ${pkg?.name || "Package"}`,
+        quantity: "1",
+        unit: "month",
+        unitPrice: pkg?.monthlyPrice || 0,
+        transactionDate: `${currentMonth}-01`,
+        source: "LIVERY_AUTO" as const,
+      };
+    });
+  }, [activeAgreements, packageMap]);
+
+  const allLines = useMemo(() => {
+    const manual = billingElements.map(be => ({
+      id: be.id,
+      isVirtual: false,
+      stableId: be.stableId,
+      boxId: be.boxId,
+      horseId: be.horseId,
+      customerId: be.customerId || "",
+      itemName: itemMap[be.itemServiceId || ""]?.name || "Unknown",
+      quantity: be.quantity,
+      unit: be.unit,
+      unitPrice: be.unitPrice,
+      transactionDate: be.transactionDate,
+      source: be.source || "MANUAL",
+    }));
+    return [...manual, ...liveryLines];
+  }, [billingElements, liveryLines, itemMap]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === allLines.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(allLines.map(l => l.id)));
+  };
+
+  const selectedLines = useMemo(() => allLines.filter(l => selectedIds.has(l.id)), [allLines, selectedIds]);
+  const selectedCustomerIds = useMemo(() => new Set(selectedLines.map(l => l.customerId)), [selectedLines]);
+  const canGenerate = selectedLines.length > 0 && selectedCustomerIds.size === 1;
+
+  const invoiceMutation = useMutation({
+    mutationFn: async () => {
+      const customerId = [...selectedCustomerIds][0];
+      const today = new Date().toISOString().split("T")[0];
+      const invNum = `INV-${Date.now()}`;
+      const lines = selectedLines.map(l => ({
+        description: l.itemName,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        totalPrice: l.unitPrice * (parseFloat(l.quantity) || 1),
+        billingElementId: l.isVirtual ? null : l.id,
+      }));
+      const totalAmount = lines.reduce((s, l) => s + l.totalPrice, 0);
+      const realBEIds = selectedLines.filter(l => !l.isVirtual).map(l => l.id);
+      await apiRequest("POST", "/api/sm/invoices", {
+        invoice: { invoiceNumber: invNum, customerId, status: "DRAFT", totalAmount, invoiceDate: today },
+        lines,
+        billingElementIds: realBEIds,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/billing-elements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sm/invoices"] });
+      toast({ title: "Invoice draft created" });
+      setSelectedIds(new Set());
+      setConfirmDialog(false);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/billing-elements/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/billing-elements"] }); toast({ title: "Deleted" }); },
+  });
+
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/sm/invoices/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/sm/invoices"] }); toast({ title: "Invoice deleted" }); },
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+        <h2 className="text-lg font-semibold" data-testid="text-billing-title">Billing</h2>
+        <div className="flex items-center gap-2">
+          {selectedLines.length > 0 && (
+            <span className="text-xs text-muted-foreground">{selectedLines.length} selected</span>
+          )}
+          <Button
+            onClick={() => setConfirmDialog(true)}
+            disabled={!canGenerate}
+            data-testid="button-generate-invoice"
+          >
+            <DollarSign className="h-4 w-4 mr-1" /> Generate Invoice Draft
+          </Button>
+        </div>
+      </div>
+
+      {!canGenerate && selectedLines.length > 0 && selectedCustomerIds.size > 1 && (
+        <div className="flex items-center gap-2 mb-3 p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+          <span className="text-xs text-red-700 dark:text-red-400">Selected lines belong to different customers. Select lines for the same customer only.</span>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+      ) : (
+        <div className="overflow-x-auto mb-8">
+          <table className="w-full text-xs border-collapse">
+            <thead><tr className="border-b border-border text-left text-muted-foreground">
+              <th className="py-2 px-2"><Checkbox checked={selectedIds.size === allLines.length && allLines.length > 0} onCheckedChange={toggleAll} data-testid="checkbox-select-all" /></th>
+              <th className="py-2 px-2">Source</th><th className="py-2 px-2">Date</th><th className="py-2 px-2">Customer</th><th className="py-2 px-2">Horse</th><th className="py-2 px-2">Stable</th><th className="py-2 px-2">Box</th><th className="py-2 px-2">Item</th><th className="py-2 px-2">Qty</th><th className="py-2 px-2">Unit Price</th><th className="py-2 px-2">Total</th><th className="py-2 px-2"></th>
+            </tr></thead>
+            <tbody>
+              {allLines.map((l) => {
+                const qty = parseFloat(l.quantity) || 0;
+                const total = l.unitPrice * qty;
+                return (
+                  <tr key={l.id} className={`border-b border-border/50 ${l.isVirtual ? "bg-blue-50/50 dark:bg-blue-950/10" : ""}`} data-testid={`row-billing-${l.id}`}>
+                    <td className="py-2 px-2"><Checkbox checked={selectedIds.has(l.id)} onCheckedChange={() => toggleSelect(l.id)} data-testid={`checkbox-billing-${l.id}`} /></td>
+                    <td className="py-2 px-2"><Badge variant={l.source === "LIVERY_AUTO" ? "default" : "secondary"} className="no-default-active-elevate text-[10px]">{l.source === "LIVERY_AUTO" ? "Livery" : "Manual"}</Badge></td>
+                    <td className="py-2 px-2">{l.transactionDate}</td>
+                    <td className="py-2 px-2">{customerMap[l.customerId]?.name || "-"}</td>
+                    <td className="py-2 px-2">{horseMap[l.horseId || ""]?.name || "-"}</td>
+                    <td className="py-2 px-2">{stableMap[l.stableId || ""]?.name || "-"}</td>
+                    <td className="py-2 px-2">{boxMap[l.boxId || ""]?.name || "-"}</td>
+                    <td className="py-2 px-2">{l.itemName}</td>
+                    <td className="py-2 px-2">{l.quantity}</td>
+                    <td className="py-2 px-2">{formatAED(l.unitPrice)}</td>
+                    <td className="py-2 px-2 font-medium">{formatAED(total)}</td>
+                    <td className="py-2 px-2">
+                      {!l.isVirtual && (
+                        <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(l.id)} data-testid={`button-delete-be-${l.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {allLines.length === 0 && <tr><td colSpan={12} className="py-8 text-center text-muted-foreground">No unbilled elements.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {invoices.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-3" data-testid="text-invoices-title">Generated Invoices</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead><tr className="border-b border-border text-left text-muted-foreground">
+                <th className="py-2 px-2">Invoice #</th><th className="py-2 px-2">Customer</th><th className="py-2 px-2">Status</th><th className="py-2 px-2">Total</th><th className="py-2 px-2">Date</th><th className="py-2 px-2"></th>
+              </tr></thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="border-b border-border/50" data-testid={`row-invoice-${inv.id}`}>
+                    <td className="py-2 px-2 font-medium">{inv.invoiceNumber}</td>
+                    <td className="py-2 px-2">{customerMap[inv.customerId || ""]?.name || "-"}</td>
+                    <td className="py-2 px-2"><Badge variant={inv.status === "DRAFT" ? "secondary" : "default"} className="no-default-active-elevate text-[10px]">{inv.status}</Badge></td>
+                    <td className="py-2 px-2">{formatAED(inv.totalAmount)}</td>
+                    <td className="py-2 px-2">{inv.invoiceDate}</td>
+                    <td className="py-2 px-2">
+                      <Button variant="ghost" size="icon" onClick={() => deleteInvoiceMutation.mutate(inv.id)} data-testid={`button-delete-invoice-${inv.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={confirmDialog} onOpenChange={setConfirmDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirm Invoice Generation</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm">Generate a draft invoice for <strong>{customerMap[[...selectedCustomerIds][0] || ""]?.name}</strong> with {selectedLines.length} line(s)?</p>
+            <p className="text-sm font-medium">Total: {formatAED(selectedLines.reduce((s, l) => s + l.unitPrice * (parseFloat(l.quantity) || 1), 0))}</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setConfirmDialog(false)}>Cancel</Button>
+            <Button onClick={() => invoiceMutation.mutate()} disabled={invoiceMutation.isPending} data-testid="button-confirm-invoice">{invoiceMutation.isPending ? "Generating..." : "Generate Invoice Draft"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function AdminUsersPage() {
   return (
     <Card>
-      <CardHeader><CardTitle className="text-lg">Livery Report</CardTitle></CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground" data-testid="text-reports-placeholder">Livery reports coming soon.</p>
-      </CardContent>
+      <CardHeader><CardTitle className="text-lg">Users</CardTitle></CardHeader>
+      <CardContent><p className="text-muted-foreground" data-testid="text-users-placeholder">User management will be configured later.</p></CardContent>
     </Card>
   );
 }
 
-function PlaceholderPage({ title }: { title: string }) {
+function AdminSettingsPage() {
+  const { toast } = useToast();
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/sm/reset-demo-data", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast({ title: "Demo data reset successfully" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <Card>
-      <CardHeader><CardTitle className="text-lg">{title}</CardTitle></CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground" data-testid={`text-placeholder-${title.toLowerCase().replace(/\s+/g, "-")}`}>This section is under development.</p>
+      <CardHeader><CardTitle className="text-lg">Settings</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <h3 className="text-sm font-medium mb-2">Demo Data</h3>
+          <p className="text-xs text-muted-foreground mb-3">Reset all StableMaster data to the default demo dataset. This will delete all current data and recreate it from scratch.</p>
+          <Button variant="destructive" onClick={() => resetMutation.mutate()} disabled={resetMutation.isPending} data-testid="button-reset-demo-data">
+            {resetMutation.isPending ? "Resetting..." : "Reset Demo Data"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -1486,7 +1551,7 @@ export default function StableMasterPage() {
 
   const activeFromRoute = useMemo(() => {
     const suffix = location.replace(basePath, "").replace(/^\//, "");
-    return REVERSE_ROUTE_MAP[suffix] || "billing";
+    return REVERSE_ROUTE_MAP[suffix] || "post-billing";
   }, [location]);
 
   const [activeItem, setActiveItem] = useState(activeFromRoute);
@@ -1504,18 +1569,19 @@ export default function StableMasterPage() {
   const renderContent = () => {
     switch (activeItem) {
       case "schedule": return <SchedulePage />;
-      case "billing": return <BillingPage />;
+      case "post-billing": return <PostBillingPage />;
       case "horses": return <HorsesPage />;
       case "customers": return <CustomersPage />;
-      case "facilities": return <FacilitiesPage />;
-      case "items-services": return <ItemsServicesPage />;
-      case "livery-list": return <LiveryAgreementsListPage />;
-      case "livery-new": return <NewLiveryAgreementPage />;
+      case "stables": return <StablesPage />;
+      case "boxes": return <BoxesPage />;
+      case "items": return <ItemsPage />;
+      case "agreements-list": return <AgreementsListPage />;
+      case "agreement-new": return <NewAgreementPage onNavigate={handleSelect} />;
       case "livery-packages": return <LiveryPackagesPage />;
-      case "reports": return <ReportsPage />;
-      case "user-mgmt": return <PlaceholderPage title="User Management" />;
-      case "global-settings": return <PlaceholderPage title="Global Settings" />;
-      default: return <BillingPage />;
+      case "billing": return <BillingPage />;
+      case "admin-users": return <AdminUsersPage />;
+      case "admin-settings": return <AdminSettingsPage />;
+      default: return <PostBillingPage />;
     }
   };
 

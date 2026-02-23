@@ -24,15 +24,16 @@ import {
   iconLibrary, type IconLibraryEntry, type InsertIconLibrary,
   requisitions, type Requisition, type InsertRequisition,
   requisitionAttachments, type RequisitionAttachment, type InsertRequisitionAttachment,
-  smFacilities, type SmFacility, type InsertSmFacility,
-  smStableBlocks, type SmStableBlock, type InsertSmStableBlock,
-  smStableUnits, type SmStableUnit, type InsertSmStableUnit,
+  smStables, type SmStable, type InsertSmStable,
+  smBoxes, type SmBox, type InsertSmBox,
   smHorses, type SmHorse, type InsertSmHorse,
   smCustomers, type SmCustomer, type InsertSmCustomer,
   smItemServices, type SmItemService, type InsertSmItemService,
   smBillingElements, type SmBillingElement, type InsertSmBillingElement,
   smLiveryPackages, type SmLiveryPackage, type InsertSmLiveryPackage,
   smLiveryAgreements, type SmLiveryAgreement, type InsertSmLiveryAgreement,
+  smInvoices, type SmInvoice, type InsertSmInvoice,
+  smInvoiceLines, type SmInvoiceLine, type InsertSmInvoiceLine,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
@@ -213,21 +214,16 @@ export interface IStorage {
   createRequisitionAttachment(a: InsertRequisitionAttachment): Promise<RequisitionAttachment>;
   deleteRequisitionAttachment(id: string): Promise<boolean>;
 
-  // StableMaster - Facilities
-  getSmFacilities(): Promise<SmFacility[]>;
-  createSmFacility(f: InsertSmFacility): Promise<SmFacility>;
-  updateSmFacility(id: string, d: Partial<InsertSmFacility>): Promise<SmFacility | undefined>;
-  deleteSmFacility(id: string): Promise<boolean>;
-  // StableMaster - Stable Blocks
-  getSmStableBlocks(facilityId?: string): Promise<SmStableBlock[]>;
-  createSmStableBlock(b: InsertSmStableBlock): Promise<SmStableBlock>;
-  updateSmStableBlock(id: string, d: Partial<InsertSmStableBlock>): Promise<SmStableBlock | undefined>;
-  deleteSmStableBlock(id: string): Promise<boolean>;
-  // StableMaster - Stable Units
-  getSmStableUnits(blockId?: string): Promise<SmStableUnit[]>;
-  createSmStableUnit(u: InsertSmStableUnit): Promise<SmStableUnit>;
-  updateSmStableUnit(id: string, d: Partial<InsertSmStableUnit>): Promise<SmStableUnit | undefined>;
-  deleteSmStableUnit(id: string): Promise<boolean>;
+  // StableMaster - Stables
+  getSmStables(): Promise<SmStable[]>;
+  createSmStable(s: InsertSmStable): Promise<SmStable>;
+  updateSmStable(id: string, d: Partial<InsertSmStable>): Promise<SmStable | undefined>;
+  deleteSmStable(id: string): Promise<boolean>;
+  // StableMaster - Boxes
+  getSmBoxes(stableId?: string): Promise<SmBox[]>;
+  createSmBox(b: InsertSmBox): Promise<SmBox>;
+  updateSmBox(id: string, d: Partial<InsertSmBox>): Promise<SmBox | undefined>;
+  deleteSmBox(id: string): Promise<boolean>;
   // StableMaster - Horses
   getSmHorses(): Promise<SmHorse[]>;
   getSmHorse(id: string): Promise<SmHorse | undefined>;
@@ -247,8 +243,9 @@ export interface IStorage {
   updateSmItemService(id: string, d: Partial<InsertSmItemService>): Promise<SmItemService | undefined>;
   deleteSmItemService(id: string): Promise<boolean>;
   // StableMaster - Billing Elements
-  getSmBillingElements(limit?: number): Promise<SmBillingElement[]>;
+  getSmBillingElements(opts?: { unbilledOnly?: boolean; limit?: number }): Promise<SmBillingElement[]>;
   createSmBillingElement(b: InsertSmBillingElement): Promise<SmBillingElement>;
+  updateSmBillingElement(id: string, d: Partial<InsertSmBillingElement>): Promise<SmBillingElement | undefined>;
   deleteSmBillingElement(id: string): Promise<boolean>;
   // StableMaster - Livery Packages
   getSmLiveryPackages(): Promise<SmLiveryPackage[]>;
@@ -260,6 +257,13 @@ export interface IStorage {
   createSmLiveryAgreement(a: InsertSmLiveryAgreement): Promise<SmLiveryAgreement>;
   updateSmLiveryAgreement(id: string, d: Partial<InsertSmLiveryAgreement>): Promise<SmLiveryAgreement | undefined>;
   deleteSmLiveryAgreement(id: string): Promise<boolean>;
+  // StableMaster - Invoices
+  getSmInvoices(): Promise<SmInvoice[]>;
+  createSmInvoice(inv: InsertSmInvoice): Promise<SmInvoice>;
+  updateSmInvoice(id: string, d: Partial<InsertSmInvoice>): Promise<SmInvoice | undefined>;
+  deleteSmInvoice(id: string): Promise<boolean>;
+  getSmInvoiceLines(invoiceId: string): Promise<SmInvoiceLine[]>;
+  createSmInvoiceLine(line: InsertSmInvoiceLine): Promise<SmInvoiceLine>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1184,57 +1188,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   // StableMaster implementations
-  async getSmFacilities(): Promise<SmFacility[]> {
-    return await db.select().from(smFacilities).orderBy(smFacilities.name);
+  async getSmStables(): Promise<SmStable[]> {
+    return await db.select().from(smStables).orderBy(smStables.name);
   }
-  async createSmFacility(f: InsertSmFacility): Promise<SmFacility> {
-    const [r] = await db.insert(smFacilities).values(f).returning();
+  async createSmStable(s: InsertSmStable): Promise<SmStable> {
+    const [r] = await db.insert(smStables).values(s).returning();
     return r;
   }
-  async updateSmFacility(id: string, d: Partial<InsertSmFacility>): Promise<SmFacility | undefined> {
-    const [r] = await db.update(smFacilities).set(d).where(eq(smFacilities.id, id)).returning();
+  async updateSmStable(id: string, d: Partial<InsertSmStable>): Promise<SmStable | undefined> {
+    const [r] = await db.update(smStables).set(d).where(eq(smStables.id, id)).returning();
     return r;
   }
-  async deleteSmFacility(id: string): Promise<boolean> {
-    const r = await db.delete(smFacilities).where(eq(smFacilities.id, id)).returning();
+  async deleteSmStable(id: string): Promise<boolean> {
+    const r = await db.delete(smStables).where(eq(smStables.id, id)).returning();
     return r.length > 0;
   }
 
-  async getSmStableBlocks(facilityId?: string): Promise<SmStableBlock[]> {
-    if (facilityId) {
-      return await db.select().from(smStableBlocks).where(eq(smStableBlocks.facilityId, facilityId)).orderBy(smStableBlocks.name);
+  async getSmBoxes(stableId?: string): Promise<SmBox[]> {
+    if (stableId) {
+      return await db.select().from(smBoxes).where(eq(smBoxes.stableId, stableId)).orderBy(smBoxes.name);
     }
-    return await db.select().from(smStableBlocks).orderBy(smStableBlocks.name);
+    return await db.select().from(smBoxes).orderBy(smBoxes.name);
   }
-  async createSmStableBlock(b: InsertSmStableBlock): Promise<SmStableBlock> {
-    const [r] = await db.insert(smStableBlocks).values(b).returning();
+  async createSmBox(b: InsertSmBox): Promise<SmBox> {
+    const [r] = await db.insert(smBoxes).values(b).returning();
     return r;
   }
-  async updateSmStableBlock(id: string, d: Partial<InsertSmStableBlock>): Promise<SmStableBlock | undefined> {
-    const [r] = await db.update(smStableBlocks).set(d).where(eq(smStableBlocks.id, id)).returning();
+  async updateSmBox(id: string, d: Partial<InsertSmBox>): Promise<SmBox | undefined> {
+    const [r] = await db.update(smBoxes).set(d).where(eq(smBoxes.id, id)).returning();
     return r;
   }
-  async deleteSmStableBlock(id: string): Promise<boolean> {
-    const r = await db.delete(smStableBlocks).where(eq(smStableBlocks.id, id)).returning();
-    return r.length > 0;
-  }
-
-  async getSmStableUnits(blockId?: string): Promise<SmStableUnit[]> {
-    if (blockId) {
-      return await db.select().from(smStableUnits).where(eq(smStableUnits.stableBlockId, blockId)).orderBy(smStableUnits.name);
-    }
-    return await db.select().from(smStableUnits).orderBy(smStableUnits.name);
-  }
-  async createSmStableUnit(u: InsertSmStableUnit): Promise<SmStableUnit> {
-    const [r] = await db.insert(smStableUnits).values(u).returning();
-    return r;
-  }
-  async updateSmStableUnit(id: string, d: Partial<InsertSmStableUnit>): Promise<SmStableUnit | undefined> {
-    const [r] = await db.update(smStableUnits).set(d).where(eq(smStableUnits.id, id)).returning();
-    return r;
-  }
-  async deleteSmStableUnit(id: string): Promise<boolean> {
-    const r = await db.delete(smStableUnits).where(eq(smStableUnits.id, id)).returning();
+  async deleteSmBox(id: string): Promise<boolean> {
+    const r = await db.delete(smBoxes).where(eq(smBoxes.id, id)).returning();
     return r.length > 0;
   }
 
@@ -1298,13 +1283,21 @@ export class DatabaseStorage implements IStorage {
     return r.length > 0;
   }
 
-  async getSmBillingElements(limit?: number): Promise<SmBillingElement[]> {
-    const q = db.select().from(smBillingElements).orderBy(desc(smBillingElements.transactionDate), desc(smBillingElements.createdAt));
-    if (limit) return await q.limit(limit);
+  async getSmBillingElements(opts?: { unbilledOnly?: boolean; limit?: number }): Promise<SmBillingElement[]> {
+    const conditions = [];
+    if (opts?.unbilledOnly) conditions.push(eq(smBillingElements.billed, false));
+    const q = conditions.length > 0
+      ? db.select().from(smBillingElements).where(and(...conditions)).orderBy(desc(smBillingElements.transactionDate), desc(smBillingElements.createdAt))
+      : db.select().from(smBillingElements).orderBy(desc(smBillingElements.transactionDate), desc(smBillingElements.createdAt));
+    if (opts?.limit) return await q.limit(opts.limit);
     return await q;
   }
   async createSmBillingElement(b: InsertSmBillingElement): Promise<SmBillingElement> {
     const [r] = await db.insert(smBillingElements).values(b).returning();
+    return r;
+  }
+  async updateSmBillingElement(id: string, d: Partial<InsertSmBillingElement>): Promise<SmBillingElement | undefined> {
+    const [r] = await db.update(smBillingElements).set(d).where(eq(smBillingElements.id, id)).returning();
     return r;
   }
   async deleteSmBillingElement(id: string): Promise<boolean> {
@@ -1342,6 +1335,29 @@ export class DatabaseStorage implements IStorage {
   async deleteSmLiveryAgreement(id: string): Promise<boolean> {
     const r = await db.delete(smLiveryAgreements).where(eq(smLiveryAgreements.id, id)).returning();
     return r.length > 0;
+  }
+
+  async getSmInvoices(): Promise<SmInvoice[]> {
+    return await db.select().from(smInvoices).orderBy(desc(smInvoices.createdAt));
+  }
+  async createSmInvoice(inv: InsertSmInvoice): Promise<SmInvoice> {
+    const [r] = await db.insert(smInvoices).values(inv).returning();
+    return r;
+  }
+  async updateSmInvoice(id: string, d: Partial<InsertSmInvoice>): Promise<SmInvoice | undefined> {
+    const [r] = await db.update(smInvoices).set(d).where(eq(smInvoices.id, id)).returning();
+    return r;
+  }
+  async deleteSmInvoice(id: string): Promise<boolean> {
+    const r = await db.delete(smInvoices).where(eq(smInvoices.id, id)).returning();
+    return r.length > 0;
+  }
+  async getSmInvoiceLines(invoiceId: string): Promise<SmInvoiceLine[]> {
+    return await db.select().from(smInvoiceLines).where(eq(smInvoiceLines.invoiceId, invoiceId)).orderBy(smInvoiceLines.createdAt);
+  }
+  async createSmInvoiceLine(line: InsertSmInvoiceLine): Promise<SmInvoiceLine> {
+    const [r] = await db.insert(smInvoiceLines).values(line).returning();
+    return r;
   }
 }
 

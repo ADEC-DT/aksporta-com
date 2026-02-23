@@ -739,44 +739,34 @@ export const insertRequisitionAttachmentSchema = createInsertSchema(requisitionA
 export type InsertRequisitionAttachment = z.infer<typeof insertRequisitionAttachmentSchema>;
 export type RequisitionAttachment = typeof requisitionAttachments.$inferSelect;
 
-// ========== StableMaster Tables ==========
+// ========== StableMaster Tables (2-level: Stables → Boxes) ==========
 
-export const smFacilities = pgTable("sm_facilities", {
+export const smStables = pgTable("sm_stables", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
-  type: varchar("type").notNull().default("STABLE"),
-  parentFacilityId: varchar("parent_facility_id"),
+  notes: text("notes"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSmFacilitySchema = createInsertSchema(smFacilities).omit({ id: true, createdAt: true });
-export type InsertSmFacility = z.infer<typeof insertSmFacilitySchema>;
-export type SmFacility = typeof smFacilities.$inferSelect;
+export const insertSmStableSchema = createInsertSchema(smStables).omit({ id: true, createdAt: true });
+export type InsertSmStable = z.infer<typeof insertSmStableSchema>;
+export type SmStable = typeof smStables.$inferSelect;
 
-export const smStableBlocks = pgTable("sm_stable_blocks", {
+export const smBoxes = pgTable("sm_boxes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  facilityId: varchar("facility_id").notNull().references(() => smFacilities.id, { onDelete: "cascade" }),
+  stableId: varchar("stable_id").notNull().references(() => smStables.id, { onDelete: "cascade" }),
   name: varchar("name").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const insertSmStableBlockSchema = createInsertSchema(smStableBlocks).omit({ id: true, createdAt: true });
-export type InsertSmStableBlock = z.infer<typeof insertSmStableBlockSchema>;
-export type SmStableBlock = typeof smStableBlocks.$inferSelect;
-
-export const smStableUnits = pgTable("sm_stable_units", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  stableBlockId: varchar("stable_block_id").notNull().references(() => smStableBlocks.id, { onDelete: "cascade" }),
-  name: varchar("name").notNull(),
-  unitType: varchar("unit_type").notNull().default("STALL"),
+  boxType: varchar("box_type").notNull().default("STALL"),
   status: varchar("status").notNull().default("AVAILABLE"),
+  notes: text("notes"),
   currentHorseId: varchar("current_horse_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSmStableUnitSchema = createInsertSchema(smStableUnits).omit({ id: true, createdAt: true });
-export type InsertSmStableUnit = z.infer<typeof insertSmStableUnitSchema>;
-export type SmStableUnit = typeof smStableUnits.$inferSelect;
+export const insertSmBoxSchema = createInsertSchema(smBoxes).omit({ id: true, createdAt: true });
+export type InsertSmBox = z.infer<typeof insertSmBoxSchema>;
+export type SmBox = typeof smBoxes.$inferSelect;
 
 export const smHorses = pgTable("sm_horses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -825,8 +815,8 @@ export type SmItemService = typeof smItemServices.$inferSelect;
 
 export const smBillingElements = pgTable("sm_billing_elements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  stableBlockId: varchar("stable_block_id"),
-  stableUnitId: varchar("stable_unit_id"),
+  stableId: varchar("stable_id"),
+  boxId: varchar("box_id"),
   transactionDate: varchar("transaction_date").notNull(),
   refNumber: varchar("ref_number"),
   remarks: text("remarks"),
@@ -836,6 +826,9 @@ export const smBillingElements = pgTable("sm_billing_elements", {
   unit: varchar("unit"),
   unitPrice: integer("unit_price").notNull().default(0),
   quantity: varchar("quantity").notNull().default("1"),
+  billed: boolean("billed").notNull().default(false),
+  invoiceId: varchar("invoice_id"),
+  source: varchar("source").notNull().default("MANUAL"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -860,18 +853,47 @@ export const smLiveryAgreements = pgTable("sm_livery_agreements", {
   agreementType: varchar("agreement_type").notNull().default("PERMANENT_AUTO_RENEW"),
   startDate: varchar("start_date").notNull(),
   endDate: varchar("end_date"),
-  facilityId: varchar("facility_id"),
-  stableBlockId: varchar("stable_block_id"),
-  stableUnitId: varchar("stable_unit_id"),
+  stableId: varchar("stable_id"),
+  boxId: varchar("box_id"),
   horseId: varchar("horse_id"),
   customerId: varchar("customer_id"),
   customerContact: varchar("customer_contact"),
   refNumber: varchar("ref_number"),
   liveryPackageId: varchar("livery_package_id"),
   remarks: text("remarks"),
+  status: varchar("status").notNull().default("ACTIVE"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertSmLiveryAgreementSchema = createInsertSchema(smLiveryAgreements).omit({ id: true, createdAt: true });
 export type InsertSmLiveryAgreement = z.infer<typeof insertSmLiveryAgreementSchema>;
 export type SmLiveryAgreement = typeof smLiveryAgreements.$inferSelect;
+
+export const smInvoices = pgTable("sm_invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceNumber: varchar("invoice_number").notNull(),
+  customerId: varchar("customer_id"),
+  status: varchar("status").notNull().default("DRAFT"),
+  totalAmount: integer("total_amount").notNull().default(0),
+  invoiceDate: varchar("invoice_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmInvoiceSchema = createInsertSchema(smInvoices).omit({ id: true, createdAt: true });
+export type InsertSmInvoice = z.infer<typeof insertSmInvoiceSchema>;
+export type SmInvoice = typeof smInvoices.$inferSelect;
+
+export const smInvoiceLines = pgTable("sm_invoice_lines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").notNull().references(() => smInvoices.id, { onDelete: "cascade" }),
+  billingElementId: varchar("billing_element_id"),
+  description: varchar("description").notNull(),
+  quantity: varchar("quantity").notNull().default("1"),
+  unitPrice: integer("unit_price").notNull().default(0),
+  totalPrice: integer("total_price").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSmInvoiceLineSchema = createInsertSchema(smInvoiceLines).omit({ id: true, createdAt: true });
+export type InsertSmInvoiceLine = z.infer<typeof insertSmInvoiceLineSchema>;
+export type SmInvoiceLine = typeof smInvoiceLines.$inferSelect;

@@ -2911,66 +2911,45 @@ export async function registerRoutes(
   // ========== StableMaster API Routes ==========
 
   // Facilities
-  app.get("/api/sm/facilities", isAuthenticated, async (_req, res) => {
-    try { res.json(await storage.getSmFacilities()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  // Stables
+  app.get("/api/sm/stables", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmStables()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/facilities", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.createSmFacility(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  app.post("/api/sm/stables", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmStable(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/facilities/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/stables/:id", isAuthenticated, async (req, res) => {
     try {
-      const r = await storage.updateSmFacility(req.params.id, req.body);
+      const r = await storage.updateSmStable(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/facilities/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/stables/:id", isAuthenticated, async (req, res) => {
     try {
-      const ok = await storage.deleteSmFacility(req.params.id);
+      const ok = await storage.deleteSmStable(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  // Stable Blocks
-  app.get("/api/sm/stable-blocks", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getSmStableBlocks(req.query.facilityId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  // Boxes
+  app.get("/api/sm/boxes", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getSmBoxes(req.query.stableId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/stable-blocks", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.createSmStableBlock(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  app.post("/api/sm/boxes", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.createSmBox(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/stable-blocks/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/boxes/:id", isAuthenticated, async (req, res) => {
     try {
-      const r = await storage.updateSmStableBlock(req.params.id, req.body);
+      const r = await storage.updateSmBox(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/stable-blocks/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/boxes/:id", isAuthenticated, async (req, res) => {
     try {
-      const ok = await storage.deleteSmStableBlock(req.params.id);
-      if (!ok) return res.status(404).json({ message: "Not found" });
-      res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  // Stable Units
-  app.get("/api/sm/stable-units", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getSmStableUnits(req.query.blockId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-  app.post("/api/sm/stable-units", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.createSmStableUnit(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-  app.patch("/api/sm/stable-units/:id", isAuthenticated, async (req, res) => {
-    try {
-      const r = await storage.updateSmStableUnit(req.params.id, req.body);
-      if (!r) return res.status(404).json({ message: "Not found" });
-      res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-  app.delete("/api/sm/stable-units/:id", isAuthenticated, async (req, res) => {
-    try {
-      const ok = await storage.deleteSmStableUnit(req.params.id);
+      const ok = await storage.deleteSmBox(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -3046,11 +3025,19 @@ export async function registerRoutes(
   app.get("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-      res.json(await storage.getSmBillingElements(limit));
+      const unbilledOnly = req.query.unbilledOnly === "true";
+      res.json(await storage.getSmBillingElements({ unbilledOnly, limit }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
     try { res.json(await storage.createSmBillingElement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/sm/billing-elements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const r = await storage.updateSmBillingElement(req.params.id, req.body);
+      if (!r) return res.status(404).json({ message: "Not found" });
+      res.json(r);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/sm/billing-elements/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3100,6 +3087,55 @@ export async function registerRoutes(
     try {
       const ok = await storage.deleteSmLiveryAgreement(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Invoices
+  app.get("/api/sm/invoices", isAuthenticated, async (_req, res) => {
+    try { res.json(await storage.getSmInvoices()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/sm/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const { invoice, lines, billingElementIds } = req.body;
+      const created = await storage.createSmInvoice(invoice);
+      for (const line of lines) {
+        await storage.createSmInvoiceLine({ ...line, invoiceId: created.id });
+      }
+      for (const beId of billingElementIds) {
+        await storage.updateSmBillingElement(beId, { billed: true, invoiceId: created.id });
+      }
+      res.json(created);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/sm/invoices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.deleteSmInvoice(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.get("/api/sm/invoices/:id/lines", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getSmInvoiceLines(req.params.id)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Reset StableMaster data
+  app.post("/api/sm/reset-demo-data", isAuthenticated, async (_req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { smBillingElements, smLiveryAgreements, smInvoiceLines, smInvoices, smBoxes, smStables, smHorses, smCustomers, smItemServices, smLiveryPackages } = await import("@shared/schema");
+      await db.delete(smInvoiceLines);
+      await db.delete(smInvoices);
+      await db.delete(smBillingElements);
+      await db.delete(smLiveryAgreements);
+      await db.delete(smBoxes);
+      await db.delete(smStables);
+      await db.delete(smHorses);
+      await db.delete(smCustomers);
+      await db.delete(smLiveryPackages);
+      await db.delete(smItemServices);
+      const { seedStableMasterData } = await import("./seedServices");
+      await seedStableMasterData();
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

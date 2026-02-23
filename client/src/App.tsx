@@ -142,7 +142,8 @@ function ProtectedRoutes() {
                 <Route path="/asset-lease" component={AssetLeasePage} />
                 <Route path="/equestrian/overview" component={EquestrianPage} />
                 <Route path="/equestrian/equinem" component={EquestrianPage} />
-                <Route path="/equestrian/stable-assets" component={EquestrianPage} />
+                <Route path="/equestrian/stable-assets/:rest*" component={StableMasterPage} />
+                <Route path="/equestrian/stable-assets" component={StableMasterPage} />
                 <Route path="/equestrian">
                   <Redirect to="/equestrian/overview" />
                 </Route>
