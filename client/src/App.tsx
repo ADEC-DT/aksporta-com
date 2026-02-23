@@ -10,7 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import FinanceDashboard from "@/pages/erp-dashboard";
+import FinanceDashboard from "@/pages/finance-dashboard";
 import HRDashboard from "@/pages/hr-dashboard";
 import LiveryDashboard from "@/pages/livery-dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";

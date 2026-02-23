@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Calendar,
   Receipt,
@@ -493,6 +494,9 @@ function HorsesPage() {
   const [dob, setDob] = useState("");
   const [remarks, setRemarks] = useState("");
   const [status, setStatus] = useState("ACTIVE");
+  const [searchQ, setSearchQ] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
@@ -505,6 +509,23 @@ function HorsesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: horses = [], isLoading } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
+
+  const filtered = useMemo(() => {
+    if (!searchQ) return horses;
+    const q = searchQ.toLowerCase();
+    return horses.filter((h) =>
+      h.name.toLowerCase().includes(q) ||
+      (h.color && h.color.toLowerCase().includes(q)) ||
+      (h.sex && h.sex.toLowerCase().includes(q)) ||
+      (h.status && h.status.toLowerCase().includes(q))
+    );
+  }, [horses, searchQ]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginatedHorses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   const resetForm = () => { setName(""); setColor(""); setSex(""); setDob(""); setRemarks(""); setStatus("ACTIVE"); setEditingId(null); };
 
@@ -615,6 +636,12 @@ function HorsesPage() {
           <Button onClick={() => { resetForm(); setDialogOpen(true); }} data-testid="button-add-horse"><Plus className="h-4 w-4 mr-1" /> Add Horse</Button>
         </div>
       </div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="relative">
+          <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input placeholder="Search horses..." value={searchQ} onChange={(e) => { setSearchQ(e.target.value); setCurrentPage(1); }} className="pl-7 h-9 w-[200px]" data-testid="input-search-horses" />
+        </div>
+      </div>
       {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
       ) : (
@@ -624,7 +651,7 @@ function HorsesPage() {
               <th className="py-2 px-3">Name</th><th className="py-2 px-3">Color</th><th className="py-2 px-3">Sex</th><th className="py-2 px-3">Status</th><th className="py-2 px-3">Date of Birth</th><th className="py-2 px-3"></th>
             </tr></thead>
             <tbody>
-              {horses.map((h) => (
+              {paginatedHorses.map((h) => (
                 <tr key={h.id} className="border-b border-border/50" data-testid={`row-horse-${h.id}`}>
                   <td className="py-2 px-3 font-medium">{h.name}</td>
                   <td className="py-2 px-3">{h.color || "-"}</td>
@@ -639,9 +666,59 @@ function HorsesPage() {
                   </td>
                 </tr>
               ))}
-              {horses.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">No horses found. Add manually or import from an Excel file.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">{searchQ ? "No horses match your search." : "No horses found. Add manually or import from an Excel file."}</td></tr>}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t pt-4 mt-4">
+              <p className="text-sm text-muted-foreground" data-testid="text-horses-showing">
+                Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  data-testid="button-horses-prev-page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-2 text-sm text-muted-foreground">...</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={currentPage === p ? "default" : "outline"}
+                        size="sm"
+                        className="min-w-[36px]"
+                        onClick={() => setCurrentPage(p as number)}
+                        data-testid={`button-horses-page-${p}`}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  data-testid="button-horses-next-page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
