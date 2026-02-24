@@ -32,6 +32,32 @@ const iconMap: Record<string, any> = {
   Tent, Phone, Home, GraduationCap, Heart, FileText, Users, Database,
 };
 
+function isDateColumnKey(key: string): boolean {
+  const lower = key.toLowerCase().replace(/[_\s]+/g, '');
+  return /\bdate\b|_date$|^date_|\bдата\b/i.test(key.toLowerCase()) ||
+    ['calldate', 'dob', 'birthday', 'dateofbirth', 'createdat', 'updatedat',
+     'expiresat', 'duedate', 'startdate', 'enddate', 'deadline'].includes(lower);
+}
+
+function formatCellValue(value: any, columnKey: string): string {
+  if (value === null || value === undefined || value === "") return "";
+  const str = String(value);
+  if (isDateColumnKey(columnKey)) {
+    const num = Number(str);
+    if (!isNaN(num) && num >= 1 && num < 60000) {
+      const utcDays = Math.floor(num) - 25569;
+      const d = new Date(utcDays * 86400 * 1000);
+      if (!isNaN(d.getTime())) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+    }
+  }
+  return str;
+}
+
 export default function CustomerDBPage() {
   const [activeSource, setActiveSource] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"records" | "cleanup" | "history">("records");
@@ -315,7 +341,7 @@ export default function CustomerDBPage() {
       headers.join(","),
       ...records.map(r => {
         const d = r.data as Record<string, any>;
-        return columns.map(c => `"${String(d[c.key] ?? "").replace(/"/g, '""')}"`).join(",");
+        return columns.map(c => `"${formatCellValue(d[c.key], c.key).replace(/"/g, '""')}"`).join(",");
       }),
     ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -541,7 +567,7 @@ export default function CustomerDBPage() {
                                 <TableRow key={record.id} data-testid={`row-record-${record.id}`}>
                                   {columns.map((col) => (
                                     <TableCell key={col.key} className="text-sm whitespace-nowrap max-w-[200px] truncate">
-                                      {d[col.key] ?? <span className="text-muted-foreground">-</span>}
+                                      {d[col.key] != null ? formatCellValue(d[col.key], col.key) : <span className="text-muted-foreground">-</span>}
                                     </TableCell>
                                   ))}
                                 </TableRow>
@@ -729,7 +755,7 @@ export default function CustomerDBPage() {
                                 </TableCell>
                                 {columns.slice(0, 5).map((col) => (
                                   <TableCell key={col.key} className="text-sm">
-                                    {d[col.key] || <span className="text-muted-foreground italic">empty</span>}
+                                    {d[col.key] ? formatCellValue(d[col.key], col.key) : <span className="text-muted-foreground italic">empty</span>}
                                   </TableCell>
                                 ))}
                               </TableRow>
@@ -860,7 +886,7 @@ export default function CustomerDBPage() {
                         {filePreview.map((row, i) => (
                           <TableRow key={i}>
                             {fileColumns.map((col) => (
-                              <TableCell key={col} className="text-xs py-1 whitespace-nowrap">{row[col]}</TableCell>
+                              <TableCell key={col} className="text-xs py-1 whitespace-nowrap">{formatCellValue(row[col], col)}</TableCell>
                             ))}
                           </TableRow>
                         ))}

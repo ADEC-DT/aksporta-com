@@ -1683,6 +1683,28 @@ export async function registerRoutes(
     return rows;
   }
 
+  function isExcelSerialDate(value: number): boolean {
+    return value >= 1 && value < 60000;
+  }
+
+  function excelSerialToDate(serial: number): string {
+    const utcDays = Math.floor(serial) - 25569;
+    const utcValue = utcDays * 86400 * 1000;
+    const date = new Date(utcValue);
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function isDateColumn(header: string): boolean {
+    const lower = header.toLowerCase().replace(/[_\s]+/g, '');
+    return /\bdate\b|_date$|^date_|\bдата\b/i.test(header.toLowerCase()) ||
+      lower === 'calldate' || lower === 'dob' || lower === 'birthday' || lower === 'dateofbirth' ||
+      lower === 'createdat' || lower === 'updatedat' || lower === 'expiresat' || lower === 'duedate' ||
+      lower === 'startdate' || lower === 'enddate' || lower === 'deadline';
+  }
+
   async function parseExcelFile(buffer: Buffer, filename?: string) {
     const ext = (filename || "").toLowerCase();
     const isCsvByName = ext.endsWith(".csv");
@@ -1691,7 +1713,22 @@ export async function registerRoutes(
     if (isCsvByName || (!isXlsxBySignature && !isCsvByName)) {
       try {
         const rows = parseCsvBuffer(buffer);
-        if (rows.length > 0) return rows;
+        if (rows.length > 0) {
+          return rows.map(row => {
+            const converted: Record<string, string> = {};
+            for (const [key, value] of Object.entries(row)) {
+              if (isDateColumn(key) && value && !isNaN(Number(value))) {
+                const num = Number(value);
+                if (isExcelSerialDate(num)) {
+                  converted[key] = excelSerialToDate(num);
+                  continue;
+                }
+              }
+              converted[key] = value;
+            }
+            return converted;
+          });
+        }
       } catch {
         if (isCsvByName) throw new Error("Failed to parse CSV file");
       }
@@ -1718,7 +1755,12 @@ export async function registerRoutes(
         if (cell.value instanceof Date) {
           val = cell.value.toISOString().split("T")[0];
         } else if (cell.value !== null && cell.value !== undefined) {
-          val = String(cell.value);
+          const raw = cell.value;
+          if (typeof raw === 'number' && isDateColumn(header) && isExcelSerialDate(raw)) {
+            val = excelSerialToDate(raw);
+          } else {
+            val = String(raw);
+          }
         }
         obj[header] = val;
         if (val) hasValue = true;
