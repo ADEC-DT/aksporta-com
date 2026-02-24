@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
 import multer from "multer";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
@@ -1642,12 +1642,89 @@ export async function registerRoutes(
   // Import customers from Excel file - two-step flow
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-  function parseExcelFile(buffer: Buffer) {
-    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) throw new Error("Excel file has no sheets");
-    const sheet = workbook.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false, dateNF: 'yyyy-mm-dd' });
+  function parseCsvBuffer(buffer: Buffer): Record<string, string>[] {
+    const text = buffer.toString("utf-8");
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) throw new Error("CSV file has no data rows");
+
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { current += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ',') { result.push(current.trim()); current = ""; }
+          else { current += ch; }
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const headers = parseCSVLine(lines[0]);
+    const rows: Record<string, string>[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const obj: Record<string, string> = {};
+      let hasValue = false;
+      headers.forEach((header, idx) => {
+        const val = values[idx] ?? "";
+        obj[header] = val;
+        if (val) hasValue = true;
+      });
+      if (hasValue) rows.push(obj);
+    }
+    return rows;
+  }
+
+  async function parseExcelFile(buffer: Buffer, filename?: string) {
+    const ext = (filename || "").toLowerCase();
+    const isCsvByName = ext.endsWith(".csv");
+    const isXlsxBySignature = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4B;
+
+    if (isCsvByName || (!isXlsxBySignature && !isCsvByName)) {
+      try {
+        const rows = parseCsvBuffer(buffer);
+        if (rows.length > 0) return rows;
+      } catch {
+        if (isCsvByName) throw new Error("Failed to parse CSV file");
+      }
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) throw new Error("Excel file has no sheets");
+    const headerRow = sheet.getRow(1);
+    const headers: string[] = [];
+    headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      headers[colNumber] = String(cell.value ?? "");
+    });
+    const rows: Record<string, string>[] = [];
+    for (let i = 2; i <= sheet.rowCount; i++) {
+      const row = sheet.getRow(i);
+      const obj: Record<string, string> = {};
+      let hasValue = false;
+      headers.forEach((header, colNumber) => {
+        if (!header) return;
+        const cell = row.getCell(colNumber);
+        let val = "";
+        if (cell.value instanceof Date) {
+          val = cell.value.toISOString().split("T")[0];
+        } else if (cell.value !== null && cell.value !== undefined) {
+          val = String(cell.value);
+        }
+        obj[header] = val;
+        if (val) hasValue = true;
+      });
+      if (hasValue) rows.push(obj);
+    }
     if (rows.length === 0) throw new Error("Excel file has no data rows");
     return rows;
   }
@@ -1666,7 +1743,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
       }
 
-      const rows = parseExcelFile(req.file.buffer);
+      const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
       const columns = Object.keys(rows[0]);
       const preview = rows.slice(0, 5).map(row => {
         const obj: Record<string, string> = {};
@@ -1697,7 +1774,7 @@ export async function registerRoutes(
       }
 
       const buffer = Buffer.from(fileData, "base64");
-      const rows = parseExcelFile(buffer);
+      const rows = await parseExcelFile(buffer);
 
       let imported = 0;
       let skipped = 0;
@@ -2056,11 +2133,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
       }
 
-      const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-      const sheetName = workbook.SheetNames[0];
-      if (!sheetName) throw new Error("Excel file has no sheets");
-      const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
-      if (rows.length === 0) throw new Error("Excel file has no data rows");
+      const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
 
       const columns = Object.keys(rows[0]);
       const preview = rows.slice(0, 5).map(row => {
@@ -2096,9 +2169,7 @@ export async function registerRoutes(
       }
 
       const buffer = Buffer.from(fileData, "base64");
-      const workbook = XLSX.read(buffer, { type: "buffer" });
-      const sheetName = workbook.SheetNames[0];
-      const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName!], { defval: "" });
+      const rows = await parseExcelFile(buffer);
 
       const mappingEntries = Object.entries(mapping).filter(([_, v]) => v);
       const dedupeKey = ds.deduplicateKey;
@@ -3292,7 +3363,7 @@ export async function registerRoutes(
       if (!validateFileExtension(req.file.originalname)) {
         return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
       }
-      const rows = parseExcelFile(req.file.buffer);
+      const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
       const columns = Object.keys(rows[0]);
       const preview = rows.slice(0, 5).map(row => {
         const obj: Record<string, string> = {};
@@ -3320,7 +3391,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Horse name mapping is required" });
       }
       const buffer = Buffer.from(fileData, "base64");
-      const rows = parseExcelFile(buffer);
+      const rows = await parseExcelFile(buffer);
 
       let imported = 0;
       let skipped = 0;
@@ -3439,7 +3510,7 @@ export async function registerRoutes(
       if (!validateFileExtension(req.file.originalname)) {
         return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
       }
-      const rows = parseExcelFile(req.file.buffer);
+      const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
       const columns = Object.keys(rows[0]);
       const preview = rows.slice(0, 5).map(row => {
         const obj: Record<string, string> = {};
@@ -3467,7 +3538,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Item name mapping is required" });
       }
       const buffer = Buffer.from(fileData, "base64");
-      const rows = parseExcelFile(buffer);
+      const rows = await parseExcelFile(buffer);
 
       let imported = 0;
       let skipped = 0;
