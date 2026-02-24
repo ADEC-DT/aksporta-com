@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections, smStables, smBoxes, smHorses, smCustomers, smItemServices, smLiveryPackages, smLiveryAgreements } from "@shared/schema";
+import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections, smStables, smBoxes, smHorses, smCustomers, smItemServices, smLiveryPackages, smLiveryAgreements, dataSources } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const defaultServices = [
@@ -582,5 +582,29 @@ export async function seedStableMasterData() {
     console.log("StableMaster seed data created");
   } catch (error) {
     console.error("Failed to seed StableMaster data:", error);
+  }
+}
+
+export async function seedDataSources() {
+  try {
+    const existing = await db.select().from(dataSources);
+    if (existing.length > 0) {
+      console.log("Data sources already seeded");
+      return;
+    }
+    console.log("Seeding data sources...");
+
+    await db.insert(dataSources).values([
+      { name: "Pony Camp", slug: "pony-camp", icon: "Tent", color: "#f59e0b" },
+      { name: "Contact Form", slug: "contact-form", icon: "FileText", color: "#3b82f6" },
+      { name: "Calls", slug: "calls", icon: "Phone", color: "#10b981" },
+      { name: "Livery Clients", slug: "livery-clients", icon: "Home", color: "#8b5cf6" },
+      { name: "Riding Schools", slug: "riding-schools", icon: "GraduationCap", color: "#ef4444" },
+      { name: "Therapeutic", slug: "therapeutic", icon: "Heart", color: "#ec4899" },
+    ]);
+
+    console.log("Data sources seeded (6 sources)");
+  } catch (error) {
+    console.error("Failed to seed data sources:", error);
   }
 }

@@ -365,9 +365,44 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
 
+// Data Sources configuration (multi-source Customer DB)
+export const dataSources = pgTable("data_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  slug: varchar("slug").notNull().unique(),
+  icon: varchar("icon").notNull().default("Users"),
+  color: varchar("color").notNull().default("#6366f1"),
+  columns: jsonb("columns").$type<{ key: string; label: string; type: string }[]>().notNull().default([]),
+  importMapping: jsonb("import_mapping").$type<Record<string, string>>(),
+  deduplicateKey: varchar("deduplicate_key"),
+  recordCount: integer("record_count").notNull().default(0),
+  lastImportAt: timestamp("last_import_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDataSourceSchema = createInsertSchema(dataSources).omit({ id: true, createdAt: true });
+export type InsertDataSource = z.infer<typeof insertDataSourceSchema>;
+export type DataSource = typeof dataSources.$inferSelect;
+
+// Data Source Records (all sources store records in one table with JSONB data)
+export const dsRecords = pgTable("ds_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dataSourceId: varchar("data_source_id").notNull().references(() => dataSources.id, { onDelete: "cascade" }),
+  data: jsonb("data").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  dsIdx: index("ds_records_source_idx").on(table.dataSourceId),
+}));
+
+export const insertDsRecordSchema = createInsertSchema(dsRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDsRecord = z.infer<typeof insertDsRecordSchema>;
+export type DsRecord = typeof dsRecords.$inferSelect;
+
 // Import logs table (tracking Customer DB import history)
 export const importLogs = pgTable("import_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dataSourceId: varchar("data_source_id"),
   fileName: varchar("file_name").notNull(),
   totalRows: integer("total_rows").notNull().default(0),
   imported: integer("imported").notNull().default(0),

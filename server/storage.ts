@@ -11,6 +11,8 @@ import {
   customers, type Customer, type InsertCustomer,
   customerProfiles, type CustomerProfile, type InsertCustomerProfile,
   type CustomerWithProfile,
+  dataSources, type DataSource, type InsertDataSource,
+  dsRecords, type DsRecord, type InsertDsRecord,
   collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint,
   sprints, type Sprint, type InsertSprint,
   spaces, type Space, type InsertSpace,
@@ -119,6 +121,20 @@ export interface IStorage {
   // Combined customer with profile
   getCustomerWithProfile(id: string): Promise<CustomerWithProfile | undefined>;
   
+  // Data Sources CRUD
+  getAllDataSources(): Promise<DataSource[]>;
+  getDataSource(id: string): Promise<DataSource | undefined>;
+  getDataSourceBySlug(slug: string): Promise<DataSource | undefined>;
+  updateDataSource(id: string, data: Partial<InsertDataSource>): Promise<DataSource | undefined>;
+
+  // Data Source Records
+  getDsRecords(dataSourceId: string, options?: { search?: string; limit?: number; offset?: number; sortBy?: string; sortOrder?: string }): Promise<{ records: DsRecord[]; total: number }>;
+  getDsRecord(id: string): Promise<DsRecord | undefined>;
+  createDsRecord(record: InsertDsRecord): Promise<DsRecord>;
+  createDsRecordsBulk(records: InsertDsRecord[]): Promise<DsRecord[]>;
+  deleteDsRecord(id: string): Promise<boolean>;
+  deleteDsRecordsBySource(dataSourceId: string): Promise<number>;
+
   // Collaboration blueprints CRUD
   getAllBlueprints(): Promise<CollaborationBlueprint[]>;
   getBlueprint(id: string): Promise<CollaborationBlueprint | undefined>;
@@ -701,6 +717,80 @@ export class DatabaseStorage implements IStorage {
     
     const profile = await this.getCustomerProfile(id);
     return { ...customer, profile: profile || undefined };
+  }
+
+  // Data Sources methods
+  async getAllDataSources(): Promise<DataSource[]> {
+    return await db.select().from(dataSources).orderBy(dataSources.name);
+  }
+
+  async getDataSource(id: string): Promise<DataSource | undefined> {
+    const [ds] = await db.select().from(dataSources).where(eq(dataSources.id, id));
+    return ds;
+  }
+
+  async getDataSourceBySlug(slug: string): Promise<DataSource | undefined> {
+    const [ds] = await db.select().from(dataSources).where(eq(dataSources.slug, slug));
+    return ds;
+  }
+
+  async updateDataSource(id: string, data: Partial<InsertDataSource>): Promise<DataSource | undefined> {
+    const [updated] = await db.update(dataSources).set(data).where(eq(dataSources.id, id)).returning();
+    return updated;
+  }
+
+  async getDsRecords(dataSourceId: string, options?: { search?: string; limit?: number; offset?: number; sortBy?: string; sortOrder?: string }): Promise<{ records: DsRecord[]; total: number }> {
+    const limit = options?.limit || 25;
+    const offset = options?.offset || 0;
+
+    const conditions = [eq(dsRecords.dataSourceId, dataSourceId)];
+
+    if (options?.search) {
+      conditions.push(sql`${dsRecords.data}::text ILIKE ${'%' + options.search + '%'}`);
+    }
+
+    const where = conditions.length > 1 ? and(...conditions) : conditions[0];
+
+    const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(dsRecords).where(where);
+    const total = Number(countResult?.count || 0);
+
+    let orderClause;
+    if (options?.sortBy && options.sortBy !== 'createdAt') {
+      const dir = options.sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+      orderClause = sql`${dsRecords.data}->>${options.sortBy} ${dir}`;
+    } else {
+      orderClause = options?.sortOrder === 'asc' ? asc(dsRecords.createdAt) : desc(dsRecords.createdAt);
+    }
+
+    const records = await db.select().from(dsRecords).where(where).orderBy(orderClause).limit(limit).offset(offset);
+
+    return { records, total };
+  }
+
+  async getDsRecord(id: string): Promise<DsRecord | undefined> {
+    const [record] = await db.select().from(dsRecords).where(eq(dsRecords.id, id));
+    return record;
+  }
+
+  async createDsRecord(record: InsertDsRecord): Promise<DsRecord> {
+    const [created] = await db.insert(dsRecords).values(record).returning();
+    return created;
+  }
+
+  async createDsRecordsBulk(records: InsertDsRecord[]): Promise<DsRecord[]> {
+    if (records.length === 0) return [];
+    const created = await db.insert(dsRecords).values(records).returning();
+    return created;
+  }
+
+  async deleteDsRecord(id: string): Promise<boolean> {
+    const result = await db.delete(dsRecords).where(eq(dsRecords.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async deleteDsRecordsBySource(dataSourceId: string): Promise<number> {
+    const result = await db.delete(dsRecords).where(eq(dsRecords.dataSourceId, dataSourceId)).returning();
+    return result.length;
   }
 
   // Collaboration blueprints methods
