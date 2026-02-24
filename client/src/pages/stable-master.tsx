@@ -14,6 +14,7 @@ import type {
   SmLiveryAgreement,
   SmInvoice,
 } from "@shared/schema";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1599,24 +1600,15 @@ function NewAgreementPage({ onNavigate }: { onNavigate: (id: string) => void }) 
             )}
             <div className="space-y-1">
               <Label>Customer *</Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger data-testid="select-agreement-customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={customers.map(c => ({ value: c.id, label: c.name, sublabel: c.email || undefined }))} value={customerId} onValueChange={setCustomerId} placeholder="Select customer" data-testid="select-agreement-customer" />
             </div>
             <div className="space-y-1">
               <Label>Horse (optional)</Label>
-              <Select value={horseId} onValueChange={setHorseId}>
-                <SelectTrigger data-testid="select-agreement-horse"><SelectValue placeholder="No horse (unassigned)" /></SelectTrigger>
-                <SelectContent><SelectItem value="none">No horse</SelectItem>{horses.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={[{ value: "none", label: "No horse (unassigned)" }, ...horses.map(h => ({ value: h.id, label: h.name }))]} value={horseId} onValueChange={setHorseId} placeholder="Select horse" data-testid="select-agreement-horse" />
             </div>
             <div className="space-y-1">
               <Label>Livery Package</Label>
-              <Select value={packageId} onValueChange={setPackageId}>
-                <SelectTrigger data-testid="select-agreement-package"><SelectValue placeholder="Select package" /></SelectTrigger>
-                <SelectContent>{packages.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} - {formatAED(p.monthlyPrice)}/mo</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={packages.map(p => ({ value: p.id, label: p.name, sublabel: `${formatAED(p.monthlyPrice)}/mo` }))} value={packageId} onValueChange={setPackageId} placeholder="Select package" data-testid="select-agreement-package" />
             </div>
             <div className="space-y-1"><Label>Customer Contact</Label><Input value={customerContact} onChange={(e) => setCustomerContact(e.target.value)} data-testid="input-agreement-contact" /></div>
             <div className="space-y-1"><Label>Ref Number</Label><Input value={refNumber} onChange={(e) => setRefNumber(e.target.value)} data-testid="input-agreement-ref" /></div>
@@ -1701,6 +1693,8 @@ function PostBillingPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedBox, setSelectedBox] = useState<SmBox | null>(null);
   const [filterStable, setFilterStable] = useState("");
+  const [filterHorse, setFilterHorse] = useState("");
+  const [filterCustomer, setFilterCustomer] = useState("");
   const [searchQ, setSearchQ] = useState("");
 
   const [formDate, setFormDate] = useState("");
@@ -1719,10 +1713,20 @@ function PostBillingPage() {
   const { data: horses = [] } = useQuery<SmHorse[]>({ queryKey: ["/api/sm/horses"] });
   const { data: customers = [] } = useQuery<SmCustomer[]>({ queryKey: ["/api/sm/customers"] });
   const { data: itemServices = [] } = useQuery<SmItemService[]>({ queryKey: ["/api/sm/item-services"] });
+  const { data: agreements = [] } = useQuery<SmLiveryAgreement[]>({ queryKey: ["/api/sm/livery-agreements"] });
 
   const stableMap = useMemo(() => Object.fromEntries(stables.map((s) => [s.id, s])), [stables]);
+  const horseMap = useMemo(() => Object.fromEntries(horses.map((h) => [h.id, h])), [horses]);
+  const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers]);
   const activeItems = useMemo(() => itemServices.filter((i) => i.isActive), [itemServices]);
   const selectedItem = useMemo(() => itemServices.find((i) => i.id === formItem), [itemServices, formItem]);
+
+  const activeAgreements = useMemo(() => agreements.filter(a => a.status === "ACTIVE"), [agreements]);
+  const activeAgreementByBoxId = useMemo(() => {
+    const map: Record<string, SmLiveryAgreement> = {};
+    activeAgreements.forEach(a => { if (a.boxId) map[a.boxId] = a; });
+    return map;
+  }, [activeAgreements]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -1732,13 +1736,35 @@ function PostBillingPage() {
     }
   }, [selectedItem]);
 
+  const boxesWithAgreements = useMemo(() => {
+    return boxes.filter((b) => activeAgreementByBoxId[b.id]);
+  }, [boxes, activeAgreementByBoxId]);
+
   const filteredBoxes = useMemo(() => {
-    return boxes.filter((b) => {
+    return boxesWithAgreements.filter((b) => {
+      const agr = activeAgreementByBoxId[b.id];
       if (filterStable && filterStable !== "all" && b.stableId !== filterStable) return false;
-      if (searchQ && !b.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+      if (filterHorse && filterHorse !== "all" && agr?.horseId !== filterHorse) return false;
+      if (filterCustomer && filterCustomer !== "all" && agr?.customerId !== filterCustomer) return false;
+      if (searchQ) {
+        const q = searchQ.toLowerCase();
+        const horseName = horseMap[agr?.horseId || ""]?.name?.toLowerCase() || "";
+        const custName = customerMap[agr?.customerId || ""]?.name?.toLowerCase() || "";
+        if (!b.name.toLowerCase().includes(q) && !horseName.includes(q) && !custName.includes(q)) return false;
+      }
       return true;
     });
-  }, [boxes, filterStable, searchQ]);
+  }, [boxesWithAgreements, filterStable, filterHorse, filterCustomer, searchQ, activeAgreementByBoxId, horseMap, customerMap]);
+
+  const uniqueHorses = useMemo(() => {
+    const ids = new Set(activeAgreements.map(a => a.horseId).filter(Boolean) as string[]);
+    return horses.filter(h => ids.has(h.id));
+  }, [activeAgreements, horses]);
+
+  const uniqueCustomers = useMemo(() => {
+    const ids = new Set(activeAgreements.map(a => a.customerId).filter(Boolean) as string[]);
+    return customers.filter(c => ids.has(c.id));
+  }, [activeAgreements, customers]);
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -1754,7 +1780,11 @@ function PostBillingPage() {
 
   const handleOpenCreate = (box: SmBox) => {
     setSelectedBox(box);
-    setFormDate(""); setFormRef(""); setFormRemarks(""); setFormHorse(""); setFormCustomer("");
+    const agr = activeAgreementByBoxId[box.id];
+    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormRef(""); setFormRemarks("");
+    setFormHorse(agr?.horseId || "");
+    setFormCustomer(agr?.customerId || "");
     setFormItem(""); setFormItemUnit(""); setFormUnitPrice(""); setFormQty("1"); setEditPrice(false);
     setDialogOpen(true);
   };
@@ -1779,38 +1809,49 @@ function PostBillingPage() {
     });
   };
 
+  const horseOptions = useMemo(() => horses.map(h => ({ value: h.id, label: h.name })), [horses]);
+  const customerOptions = useMemo(() => customers.map(c => ({ value: c.id, label: c.name, sublabel: c.email || undefined })), [customers]);
+  const itemOptions = useMemo(() => activeItems.map(i => ({ value: i.id, label: i.name, sublabel: i.category || undefined })), [activeItems]);
+
   return (
     <div>
       <h2 className="text-lg font-semibold mb-2" data-testid="text-post-billing-title">Post Billing Element</h2>
-      <p className="text-sm text-muted-foreground mb-4">Select a box to create a billing element for it.</p>
+      <p className="text-sm text-muted-foreground mb-4">Boxes with active livery agreements. Select one to create a billing element.</p>
       <div className="flex items-center gap-2 flex-wrap mb-4">
-        <div className="relative"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder="Search boxes..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-7 h-9 w-[180px]" data-testid="input-search-pb-boxes" /></div>
-        <Select value={filterStable} onValueChange={setFilterStable}>
-          <SelectTrigger className="w-[150px] h-9" data-testid="select-pb-filter-stable"><SelectValue placeholder="All stables" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All stables</SelectItem>{stables.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-        </Select>
+        <div className="relative"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder="Search..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-7 h-9 w-[180px]" data-testid="input-search-pb-boxes" /></div>
+        <div className="w-[160px]">
+          <SearchableSelect options={[{ value: "all", label: "All stables" }, ...stables.map(s => ({ value: s.id, label: s.name }))]} value={filterStable || "all"} onValueChange={(v) => setFilterStable(v === "all" ? "" : v)} placeholder="All stables" data-testid="select-pb-filter-stable" />
+        </div>
+        <div className="w-[160px]">
+          <SearchableSelect options={[{ value: "all", label: "All horses" }, ...uniqueHorses.map(h => ({ value: h.id, label: h.name }))]} value={filterHorse || "all"} onValueChange={(v) => setFilterHorse(v === "all" ? "" : v)} placeholder="All horses" data-testid="select-pb-filter-horse" />
+        </div>
+        <div className="w-[160px]">
+          <SearchableSelect options={[{ value: "all", label: "All customers" }, ...uniqueCustomers.map(c => ({ value: c.id, label: c.name }))]} value={filterCustomer || "all"} onValueChange={(v) => setFilterCustomer(v === "all" ? "" : v)} placeholder="All customers" data-testid="select-pb-filter-customer" />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead><tr className="border-b border-border text-left text-muted-foreground">
-            <th className="py-2 px-3">Box</th><th className="py-2 px-3">Stable</th><th className="py-2 px-3">Type</th><th className="py-2 px-3">Status</th><th className="py-2 px-3"></th>
+            <th className="py-2 px-3">Box</th><th className="py-2 px-3">Stable</th><th className="py-2 px-3">Horse</th><th className="py-2 px-3">Customer</th><th className="py-2 px-3">Type</th><th className="py-2 px-3"></th>
           </tr></thead>
           <tbody>
-            {filteredBoxes.map((b) => (
-              <tr key={b.id} className="border-b border-border/50" data-testid={`row-pb-box-${b.id}`}>
-                <td className="py-2 px-3 font-medium">{b.name}</td>
-                <td className="py-2 px-3">{stableMap[b.stableId]?.name || "-"}</td>
-                <td className="py-2 px-3"><Badge variant="outline" className="no-default-active-elevate">{b.boxType}</Badge></td>
-                <td className="py-2 px-3">
-                  <Badge className={`border-0 no-default-active-elevate ${b.status === "AVAILABLE" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : b.status === "OCCUPIED" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>{b.status}</Badge>
-                </td>
-                <td className="py-2 px-3">
-                  <Button size="sm" onClick={() => handleOpenCreate(b)} data-testid={`button-create-be-${b.id}`}><Receipt className="h-3.5 w-3.5 mr-1" /> Create</Button>
-                </td>
-              </tr>
-            ))}
-            {filteredBoxes.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No boxes found.</td></tr>}
+            {filteredBoxes.map((b) => {
+              const agr = activeAgreementByBoxId[b.id];
+              return (
+                <tr key={b.id} className="border-b border-border/50" data-testid={`row-pb-box-${b.id}`}>
+                  <td className="py-2 px-3 font-medium">{b.name}</td>
+                  <td className="py-2 px-3">{stableMap[b.stableId]?.name || "-"}</td>
+                  <td className="py-2 px-3">{horseMap[agr?.horseId || ""]?.name || "-"}</td>
+                  <td className="py-2 px-3">{customerMap[agr?.customerId || ""]?.name || "-"}</td>
+                  <td className="py-2 px-3"><Badge variant="outline" className="no-default-active-elevate">{b.boxType}</Badge></td>
+                  <td className="py-2 px-3">
+                    <Button size="sm" onClick={() => handleOpenCreate(b)} data-testid={`button-create-be-${b.id}`}><Receipt className="h-3.5 w-3.5 mr-1" /> Create</Button>
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredBoxes.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">{boxesWithAgreements.length === 0 ? "No boxes with active livery agreements." : "No boxes match the current filters."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -1837,31 +1878,19 @@ function PostBillingPage() {
             </div>
             <div className="space-y-1">
               <Label>Horse</Label>
-              <Select value={formHorse} onValueChange={setFormHorse}>
-                <SelectTrigger data-testid="select-pb-horse"><SelectValue placeholder="Select horse" /></SelectTrigger>
-                <SelectContent>{horses.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={horseOptions} value={formHorse} onValueChange={setFormHorse} placeholder="Select horse" data-testid="select-pb-horse" />
             </div>
             <div className="space-y-1">
               <Label>Customer *</Label>
-              <Select value={formCustomer} onValueChange={setFormCustomer}>
-                <SelectTrigger data-testid="select-pb-customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={customerOptions} value={formCustomer} onValueChange={setFormCustomer} placeholder="Select customer" data-testid="select-pb-customer" />
             </div>
             <div className="space-y-1">
               <Label>Item *</Label>
-              <Select value={formItem} onValueChange={setFormItem}>
-                <SelectTrigger data-testid="select-pb-item"><SelectValue placeholder="Select item" /></SelectTrigger>
-                <SelectContent>{activeItems.map((i) => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={itemOptions} value={formItem} onValueChange={setFormItem} placeholder="Select item" data-testid="select-pb-item" />
             </div>
             <div className="space-y-1">
               <Label>Unit</Label>
-              <Select value={formItemUnit} onValueChange={setFormItemUnit}>
-                <SelectTrigger data-testid="select-pb-item-unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                <SelectContent>{(selectedItem?.unitOptions || []).map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={(selectedItem?.unitOptions || []).map(u => ({ value: u, label: u }))} value={formItemUnit} onValueChange={setFormItemUnit} placeholder="Select unit" data-testid="select-pb-item-unit" />
             </div>
             <div className="space-y-1">
               <Label className="flex items-center gap-2">
@@ -1892,6 +1921,8 @@ function BillingPage() {
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmDialog, setConfirmDialog] = useState(false);
+  const [bFilterHorse, setBFilterHorse] = useState("");
+  const [bFilterCustomer, setBFilterCustomer] = useState("");
 
   const { data: billingElements = [], isLoading } = useQuery<SmBillingElement[]>({ queryKey: ["/api/sm/billing-elements", "unbilled"], queryFn: () => fetch("/api/sm/billing-elements?unbilledOnly=true", { credentials: "include" }).then(r => r.json()) });
   const { data: invoices = [] } = useQuery<SmInvoice[]>({ queryKey: ["/api/sm/invoices"] });
@@ -1953,6 +1984,14 @@ function BillingPage() {
     return [...manual, ...liveryLines];
   }, [billingElements, liveryLines, itemMap]);
 
+  const filteredLines = useMemo(() => {
+    return allLines.filter(l => {
+      if (bFilterHorse && bFilterHorse !== "all" && l.horseId !== bFilterHorse) return false;
+      if (bFilterCustomer && bFilterCustomer !== "all" && l.customerId !== bFilterCustomer) return false;
+      return true;
+    });
+  }, [allLines, bFilterHorse, bFilterCustomer]);
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -1962,11 +2001,11 @@ function BillingPage() {
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === allLines.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(allLines.map(l => l.id)));
+    if (selectedIds.size === filteredLines.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filteredLines.map(l => l.id)));
   };
 
-  const selectedLines = useMemo(() => allLines.filter(l => selectedIds.has(l.id)), [allLines, selectedIds]);
+  const selectedLines = useMemo(() => filteredLines.filter(l => selectedIds.has(l.id)), [filteredLines, selectedIds]);
   const selectedCustomerIds = useMemo(() => new Set(selectedLines.map(l => l.customerId)), [selectedLines]);
   const canGenerate = selectedLines.length > 0 && selectedCustomerIds.size === 1;
 
@@ -2028,6 +2067,15 @@ function BillingPage() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="w-[160px]">
+          <SearchableSelect options={[{ value: "all", label: "All horses" }, ...horses.map(h => ({ value: h.id, label: h.name }))]} value={bFilterHorse || "all"} onValueChange={(v) => setBFilterHorse(v === "all" ? "" : v)} placeholder="All horses" data-testid="select-billing-filter-horse" />
+        </div>
+        <div className="w-[160px]">
+          <SearchableSelect options={[{ value: "all", label: "All customers" }, ...customers.map(c => ({ value: c.id, label: c.name }))]} value={bFilterCustomer || "all"} onValueChange={(v) => setBFilterCustomer(v === "all" ? "" : v)} placeholder="All customers" data-testid="select-billing-filter-customer" />
+        </div>
+      </div>
+
       {!canGenerate && selectedLines.length > 0 && selectedCustomerIds.size > 1 && (
         <div className="flex items-center gap-2 mb-3 p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
           <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
@@ -2041,11 +2089,11 @@ function BillingPage() {
         <div className="overflow-x-auto mb-8">
           <table className="w-full text-xs border-collapse">
             <thead><tr className="border-b border-border text-left text-muted-foreground">
-              <th className="py-2 px-2"><Checkbox checked={selectedIds.size === allLines.length && allLines.length > 0} onCheckedChange={toggleAll} data-testid="checkbox-select-all" /></th>
+              <th className="py-2 px-2"><Checkbox checked={selectedIds.size === filteredLines.length && filteredLines.length > 0} onCheckedChange={toggleAll} data-testid="checkbox-select-all" /></th>
               <th className="py-2 px-2">Source</th><th className="py-2 px-2">Date</th><th className="py-2 px-2">Customer</th><th className="py-2 px-2">Horse</th><th className="py-2 px-2">Stable</th><th className="py-2 px-2">Box</th><th className="py-2 px-2">Item</th><th className="py-2 px-2">Qty</th><th className="py-2 px-2">Unit Price</th><th className="py-2 px-2">Total</th><th className="py-2 px-2"></th>
             </tr></thead>
             <tbody>
-              {allLines.map((l) => {
+              {filteredLines.map((l) => {
                 const qty = parseFloat(l.quantity) || 0;
                 const total = l.unitPrice * qty;
                 return (
@@ -2069,7 +2117,7 @@ function BillingPage() {
                   </tr>
                 );
               })}
-              {allLines.length === 0 && <tr><td colSpan={12} className="py-8 text-center text-muted-foreground">No unbilled elements.</td></tr>}
+              {filteredLines.length === 0 && <tr><td colSpan={12} className="py-8 text-center text-muted-foreground">No unbilled elements.</td></tr>}
             </tbody>
           </table>
         </div>
