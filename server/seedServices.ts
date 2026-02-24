@@ -611,6 +611,16 @@ const DATA_SOURCE_COLUMNS: Record<string, { key: string; label: string; type: st
     { key: "message", label: "Message", type: "text" },
     { key: "form_submission", label: "Form submission", type: "text" },
   ],
+  "calls": [
+    { key: "name", label: "Name", type: "text" },
+    { key: "last_name", label: "Last Name", type: "text" },
+    { key: "company", label: "Company", type: "text" },
+    { key: "email", label: "Email", type: "text" },
+    { key: "phone", label: "Phone", type: "text" },
+    { key: "department", label: "Department", type: "text" },
+    { key: "message", label: "Message", type: "text" },
+    { key: "call_date", label: "Call date", type: "text" },
+  ],
 };
 
 export async function seedDataSources() {
