@@ -585,25 +585,59 @@ export async function seedStableMasterData() {
   }
 }
 
+const DATA_SOURCE_COLUMNS: Record<string, { key: string; label: string; type: string }[]> = {
+  "pony-camp": [
+    { key: "name", label: "Name", type: "text" },
+    { key: "rider_fn", label: "Rider FN", type: "text" },
+    { key: "rider_ln", label: "Rider LN", type: "text" },
+    { key: "form_submitted", label: "Form Submitted", type: "text" },
+    { key: "parent_fn", label: "Parent FN", type: "text" },
+    { key: "parent_ln", label: "Parent LN", type: "text" },
+    { key: "relationship", label: "Relationship", type: "text" },
+    { key: "parent_ph_no", label: "Parent Ph No", type: "text" },
+    { key: "email", label: "Email", type: "text" },
+    { key: "dob", label: "DOB", type: "text" },
+    { key: "gender", label: "Gender", type: "text" },
+    { key: "nationality", label: "Nationality", type: "text" },
+    { key: "source_file", label: "Source File", type: "text" },
+  ],
+  "contact-form": [
+    { key: "name", label: "Name", type: "text" },
+    { key: "contact_in", label: "Contact In", type: "text" },
+    { key: "company", label: "Company", type: "text" },
+    { key: "email", label: "Email", type: "text" },
+    { key: "phone", label: "Phone", type: "text" },
+    { key: "department", label: "Department", type: "text" },
+    { key: "message", label: "Message", type: "text" },
+    { key: "form_submission", label: "Form submission", type: "text" },
+  ],
+};
+
 export async function seedDataSources() {
   try {
     const existing = await db.select().from(dataSources);
-    if (existing.length > 0) {
+    if (existing.length === 0) {
+      console.log("Seeding data sources...");
+      await db.insert(dataSources).values([
+        { name: "Pony Camp", slug: "pony-camp", icon: "Tent", color: "#f59e0b" },
+        { name: "Contact Form", slug: "contact-form", icon: "FileText", color: "#3b82f6" },
+        { name: "Calls", slug: "calls", icon: "Phone", color: "#10b981" },
+        { name: "Livery Clients", slug: "livery-clients", icon: "Home", color: "#8b5cf6" },
+        { name: "Riding Schools", slug: "riding-schools", icon: "GraduationCap", color: "#ef4444" },
+        { name: "Therapeutic", slug: "therapeutic", icon: "Heart", color: "#ec4899" },
+      ]);
+      console.log("Data sources seeded (6 sources)");
+    } else {
       console.log("Data sources already seeded");
-      return;
     }
-    console.log("Seeding data sources...");
 
-    await db.insert(dataSources).values([
-      { name: "Pony Camp", slug: "pony-camp", icon: "Tent", color: "#f59e0b" },
-      { name: "Contact Form", slug: "contact-form", icon: "FileText", color: "#3b82f6" },
-      { name: "Calls", slug: "calls", icon: "Phone", color: "#10b981" },
-      { name: "Livery Clients", slug: "livery-clients", icon: "Home", color: "#8b5cf6" },
-      { name: "Riding Schools", slug: "riding-schools", icon: "GraduationCap", color: "#ef4444" },
-      { name: "Therapeutic", slug: "therapeutic", icon: "Heart", color: "#ec4899" },
-    ]);
-
-    console.log("Data sources seeded (6 sources)");
+    for (const [slug, cols] of Object.entries(DATA_SOURCE_COLUMNS)) {
+      const source = (existing.length > 0 ? existing : await db.select().from(dataSources)).find(s => s.slug === slug);
+      if (source && (!source.columns || (source.columns as any[]).length === 0)) {
+        await db.update(dataSources).set({ columns: cols }).where(eq(dataSources.slug, slug));
+        console.log(`Updated columns for ${slug} (${cols.length} columns)`);
+      }
+    }
   } catch (error) {
     console.error("Failed to seed data sources:", error);
   }
