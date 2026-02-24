@@ -24,7 +24,7 @@ import {
   Tent, Phone, Home, GraduationCap, Heart, Database,
 } from "lucide-react";
 import { format } from "date-fns";
-import { queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { DataSource, DsRecord } from "@shared/schema";
 
