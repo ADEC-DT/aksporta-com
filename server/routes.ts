@@ -1643,11 +1643,11 @@ export async function registerRoutes(
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
   function parseExcelFile(buffer: Buffer) {
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) throw new Error("Excel file has no sheets");
     const sheet = workbook.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false, dateNF: 'yyyy-mm-dd' });
     if (rows.length === 0) throw new Error("Excel file has no data rows");
     return rows;
   }
