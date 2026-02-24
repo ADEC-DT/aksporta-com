@@ -256,8 +256,12 @@ export default function CustomerDBPage() {
 
   const clearAllMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/data-sources/${activeSource}/records/clear-all`);
-      return res.json();
+      const url = `/api/data-sources/${activeSource}/records/clear-all`;
+      console.log("[ClearAll] Sending POST to:", url);
+      const res = await apiRequest("POST", url);
+      const data = await res.json();
+      console.log("[ClearAll] Response:", data);
+      return data;
     },
     onSuccess: (data: { deleted: number }) => {
       toast({ title: `Cleared ${data.deleted} records from ${currentSource?.name}` });
@@ -265,7 +269,10 @@ export default function CustomerDBPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/data-sources"] });
       setConfirmClearAll(false);
     },
-    onError: () => { toast({ title: "Failed to clear records", variant: "destructive" }); },
+    onError: (error) => {
+      console.error("[ClearAll] Error:", error);
+      toast({ title: "Failed to clear records: " + error.message, variant: "destructive" });
+    },
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
