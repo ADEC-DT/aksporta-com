@@ -213,13 +213,7 @@ export default function CustomerDBPage() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await fetch(`/api/data-sources/${activeSource}/records`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      const res = await apiRequest("POST", `/api/data-sources/${activeSource}/records/delete-batch`, { ids });
       return res.json();
     },
     onSuccess: () => {
@@ -262,7 +256,7 @@ export default function CustomerDBPage() {
 
   const clearAllMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("DELETE", `/api/data-sources/${activeSource}/records/all`);
+      const res = await apiRequest("POST", `/api/data-sources/${activeSource}/records/clear-all`);
       return res.json();
     },
     onSuccess: (data: { deleted: number }) => {

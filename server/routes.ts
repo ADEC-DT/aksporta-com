@@ -2350,7 +2350,38 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/data-sources/:slug/records/delete-batch", isAuthenticated, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "At least one ID is required" });
+      }
+
+      let deleted = 0;
+      for (const id of ids) {
+        if (await storage.deleteDsRecord(id)) deleted++;
+      }
+      res.json({ deleted });
+    } catch (error: any) {
+      console.error("Failed to delete records:", error);
+      res.status(500).json({ message: "Failed to delete records" });
+    }
+  });
+
   app.delete("/api/data-sources/:slug/records/all", isAuthenticated, async (req, res) => {
+    try {
+      const ds = await storage.getDataSourceBySlug(req.params.slug);
+      if (!ds) return res.status(404).json({ message: "Data source not found" });
+      const result = await db.delete(dsRecords).where(eq(dsRecords.dataSourceId, ds.id));
+      await db.update(dataSources).set({ recordCount: 0 }).where(eq(dataSources.id, ds.id));
+      res.json({ deleted: result.rowCount ?? 0 });
+    } catch (error: any) {
+      console.error("Failed to clear records:", error);
+      res.status(500).json({ message: "Failed to clear records" });
+    }
+  });
+
+  app.post("/api/data-sources/:slug/records/clear-all", isAuthenticated, async (req, res) => {
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
       if (!ds) return res.status(404).json({ message: "Data source not found" });
