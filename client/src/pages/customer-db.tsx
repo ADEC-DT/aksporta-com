@@ -57,6 +57,7 @@ export default function CustomerDBPage() {
   const [duplicateGroups, setDuplicateGroups] = useState<{ matchField: string; matchValue: string; records: DsRecord[] }[]>([]);
   const [selectedPrimary, setSelectedPrimary] = useState<Record<number, string>>({});
   const [scanDone, setScanDone] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const { data: sources = [], isLoading: sourcesLoading } = useQuery<DataSource[]>({
     queryKey: ["/api/data-sources"],
@@ -259,6 +260,20 @@ export default function CustomerDBPage() {
     });
   };
 
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/data-sources/${activeSource}/records/all`);
+      return res.json();
+    },
+    onSuccess: (data: { deleted: number }) => {
+      toast({ title: `Cleared ${data.deleted} records from ${currentSource?.name}` });
+      queryClient.invalidateQueries({ queryKey: ["/api/data-sources", activeSource, "records"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/data-sources"] });
+      setConfirmClearAll(false);
+    },
+    onError: () => { toast({ title: "Failed to clear records", variant: "destructive" }); },
+  });
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -320,6 +335,7 @@ export default function CustomerDBPage() {
     setActiveTab("records");
     setScanDone(false);
     setDuplicateGroups([]);
+    setConfirmClearAll(false);
     setScanFields([]);
   };
 
@@ -608,6 +624,31 @@ export default function CustomerDBPage() {
                           <><ScanSearch className="mr-2 h-4 w-4" />Scan</>
                         )}
                       </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Clear All Records</CardTitle>
+                  <p className="text-sm text-muted-foreground">Remove all records from {currentSource?.name}. This cannot be undone.</p>
+                </CardHeader>
+                <CardContent>
+                  {!confirmClearAll ? (
+                    <Button variant="destructive" onClick={() => setConfirmClearAll(true)} disabled={totalRecords === 0} data-testid="button-clear-all-start">
+                      <Trash2 className="mr-2 h-4 w-4" />Clear All Records ({totalRecords})
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 rounded-md bg-destructive/10 border border-destructive/30">
+                      <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                      <p className="text-sm">Are you sure? This will permanently delete all {totalRecords} records from {currentSource?.name}.</p>
+                      <div className="flex gap-2 ml-auto flex-shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => setConfirmClearAll(false)} data-testid="button-clear-all-cancel">Cancel</Button>
+                        <Button size="sm" variant="destructive" onClick={() => clearAllMutation.mutate()} disabled={clearAllMutation.isPending} data-testid="button-clear-all-confirm">
+                          {clearAllMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Yes, Clear All
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>

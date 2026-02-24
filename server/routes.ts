@@ -2279,6 +2279,18 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/data-sources/:slug/records/all", isAuthenticated, async (req, res) => {
+    try {
+      const ds = await storage.getDataSourceBySlug(req.params.slug);
+      if (!ds) return res.status(404).json({ message: "Data source not found" });
+      const deleted = await db.delete(dsRecords).where(eq(dsRecords.dataSourceId, ds.id)).returning();
+      await db.update(dataSources).set({ recordCount: 0 }).where(eq(dataSources.id, ds.id));
+      res.json({ deleted: deleted.length });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to clear records" });
+    }
+  });
+
   app.patch("/api/data-sources/:slug/settings", isAuthenticated, async (req, res) => {
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
