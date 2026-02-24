@@ -2354,10 +2354,11 @@ export async function registerRoutes(
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
       if (!ds) return res.status(404).json({ message: "Data source not found" });
-      const deleted = await db.delete(dsRecords).where(eq(dsRecords.dataSourceId, ds.id)).returning();
+      const result = await db.delete(dsRecords).where(eq(dsRecords.dataSourceId, ds.id));
       await db.update(dataSources).set({ recordCount: 0 }).where(eq(dataSources.id, ds.id));
-      res.json({ deleted: deleted.length });
+      res.json({ deleted: result.rowCount ?? 0 });
     } catch (error: any) {
+      console.error("Failed to clear records:", error);
       res.status(500).json({ message: "Failed to clear records" });
     }
   });
