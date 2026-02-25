@@ -68,7 +68,7 @@ export default function RequisitionsListPage() {
             <p className="text-muted-foreground">Manage approval request forms</p>
           </div>
         </div>
-        <Button onClick={() => navigate("/finance/procurement/requisitions/new")} data-testid="button-new-requisition">
+        <Button onClick={() => navigate("/finance/procurement/requisitions/new?from=/finance")} data-testid="button-new-requisition">
           <Plus className="h-4 w-4 mr-2" />
           New Request
         </Button>

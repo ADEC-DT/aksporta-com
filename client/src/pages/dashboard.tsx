@@ -114,7 +114,7 @@ const intranetUpdates: IntranetItem[] = [
 
 const quickLinks = [
   { title: "IT Support Request", icon: Laptop, url: "/intranet" },
-  { title: "Request ARF", icon: FileText, url: "/finance/procurement/requisitions/new" },
+  { title: "Request ARF", icon: FileText, url: "/finance/procurement/requisitions/new?from=/dashboard" },
   { title: "Expense Claims", icon: FileText, url: "/finance" },
   { title: "Meeting Room Booking", icon: Calendar, url: "/events" },
 ];

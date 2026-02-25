@@ -104,7 +104,7 @@ const procurementModules = [
     subtitle: "Approval Request Form",
     icon: FileCheck,
     action: "New",
-    url: "/finance/procurement/requisitions/new",
+    url: "/finance/procurement/requisitions/new?from=/finance",
   },
 ];
 
