@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -9,6 +10,33 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error("App error:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", gap: "16px", fontFamily: "Inter, sans-serif" }}>
+          <h2 style={{ fontSize: "20px", fontWeight: 600 }}>Something went wrong</h2>
+          <p style={{ color: "#666" }}>An unexpected error occurred. Please try refreshing the page.</p>
+          <button onClick={() => { this.setState({ hasError: false }); window.location.href = "/dashboard"; }} style={{ padding: "8px 20px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}>
+            Go to Dashboard
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import Dashboard from "@/pages/dashboard";
 import FinanceDashboard from "@/pages/finance-dashboard";
 import HRDashboard from "@/pages/hr-dashboard";
@@ -177,20 +205,22 @@ function ProtectedRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="unified-portal-theme">
-        <TooltipProvider>
-          <Switch>
-            <Route path="/login" component={LoginPage} />
-            <Route>
-              <ProtectedRoutes />
-            </Route>
-          </Switch>
-          <NotificationReminder />
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="light" storageKey="unified-portal-theme">
+          <TooltipProvider>
+            <Switch>
+              <Route path="/login" component={LoginPage} />
+              <Route>
+                <ProtectedRoutes />
+              </Route>
+            </Switch>
+            <NotificationReminder />
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
