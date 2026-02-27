@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   Package,
   CreditCard,
+  Layers,
 } from "lucide-react";
 import {
   Sidebar,
@@ -171,6 +172,14 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/equestrian/other-modules"} data-testid="nav-sub-equestrian-other-modules">
+                                <Link href="/equestrian/other-modules">
+                                  <Layers className="h-3.5 w-3.5" />
+                                  <span>Other Modules</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>
@@ -225,6 +234,14 @@ export function AppSidebar() {
                                 <Link href="/erp/payments">
                                   <CreditCard className="h-3.5 w-3.5" />
                                   <span>Payments</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/erp/other-modules"} data-testid="nav-sub-erp-other-modules">
+                                <Link href="/erp/other-modules">
+                                  <Layers className="h-3.5 w-3.5" />
+                                  <span>Other Modules</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>

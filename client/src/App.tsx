@@ -63,6 +63,7 @@ import PerformanceKPIPage from "@/pages/performance-kpi";
 import OpsFMPage from "@/pages/ops-fm";
 import ITDTPage from "@/pages/it-dt";
 import SprintManagementPage from "@/pages/sprint-management";
+import OtherModulesPage from "@/pages/other-modules-page";
 import ProjectGroupPage from "@/pages/project-group";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
@@ -156,6 +157,9 @@ function ProtectedRoutes() {
                 <Route path="/erp/procurement" component={FinanceDashboard} />
                 <Route path="/erp/inventory" component={FinanceDashboard} />
                 <Route path="/erp/payments" component={FinanceDashboard} />
+                <Route path="/erp/other-modules">
+                  {() => <OtherModulesPage section="erp" />}
+                </Route>
                 <Route path="/erp">
                   <Redirect to="/erp/finance" />
                 </Route>
@@ -178,6 +182,9 @@ function ProtectedRoutes() {
                 <Route path="/equestrian/overview" component={EquestrianPage} />
                 <Route path="/equestrian/stable-assets/:rest*" component={StableMasterPage} />
                 <Route path="/equestrian/stable-assets" component={StableMasterPage} />
+                <Route path="/equestrian/other-modules">
+                  {() => <OtherModulesPage section="equestrian" />}
+                </Route>
                 <Route path="/equestrian">
                   <Redirect to="/equestrian/stable-assets" />
                 </Route>
