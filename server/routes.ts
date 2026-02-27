@@ -2709,7 +2709,8 @@ export async function registerRoutes(
 
   app.get("/api/spaces/hierarchy", isAuthenticated, async (req, res) => {
     try {
-      const hierarchy = await storage.getSpacesWithHierarchy();
+      const viewType = req.query.viewType as string | undefined;
+      const hierarchy = await storage.getSpacesWithHierarchy(viewType);
       res.json(hierarchy);
     } catch (error) {
       console.error("Error fetching hierarchy:", error);

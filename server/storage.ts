@@ -149,7 +149,7 @@ export interface IStorage {
   createSpace(space: InsertSpace): Promise<Space>;
   updateSpace(id: string, data: Partial<InsertSpace>): Promise<Space | undefined>;
   deleteSpace(id: string): Promise<boolean>;
-  getSpacesWithHierarchy(): Promise<SpaceWithHierarchy[]>;
+  getSpacesWithHierarchy(viewType?: string): Promise<SpaceWithHierarchy[]>;
 
   // Project Groups CRUD
   getAllProjectGroups(spaceId?: string): Promise<ProjectGroup[]>;
@@ -852,8 +852,11 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async getSpacesWithHierarchy(): Promise<SpaceWithHierarchy[]> {
-    const allSpaces = await this.getAllSpaces();
+  async getSpacesWithHierarchy(viewType?: string): Promise<SpaceWithHierarchy[]> {
+    let allSpaces = await this.getAllSpaces();
+    if (viewType) {
+      allSpaces = allSpaces.filter(s => s.viewType === viewType);
+    }
     const allGroups = await db.select().from(projectGroups).orderBy(asc(projectGroups.name));
     const allProjects = await db.select().from(projects).orderBy(desc(projects.createdAt));
 

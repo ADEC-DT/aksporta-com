@@ -527,7 +527,12 @@ export default function ProjectsPage() {
   });
 
   const { data: spacesHierarchy = [], isLoading: hierarchyLoading } = useQuery<SpaceWithHierarchy[]>({
-    queryKey: ["/api/spaces/hierarchy"],
+    queryKey: ["/api/spaces/hierarchy", activeView],
+    queryFn: async () => {
+      const res = await fetch(`/api/spaces/hierarchy?viewType=${activeView}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch hierarchy");
+      return res.json();
+    },
   });
 
   // Get active sprint from sprints data
@@ -765,6 +770,7 @@ export default function ProjectsPage() {
         name: spaceName.trim(),
         description: spaceDescription.trim() || undefined,
         color: spaceColor,
+        viewType: activeView,
       });
     }
   };

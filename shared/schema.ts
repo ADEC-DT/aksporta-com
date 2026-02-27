@@ -531,6 +531,7 @@ export const spaces = pgTable("spaces", {
   description: text("description"),
   color: varchar("color").notNull().default("#6366f1"),
   ownerId: varchar("owner_id"),
+  viewType: varchar("view_type").notNull().default("monday"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
