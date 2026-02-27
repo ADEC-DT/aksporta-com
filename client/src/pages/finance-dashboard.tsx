@@ -61,6 +61,7 @@ const otherFinanceModules = [
     icon: CreditCard,
     iconBg: "bg-violet-500",
     status: "Active",
+    url: "https://www.qashio.com/",
   },
   {
     id: "tagway",
@@ -69,6 +70,7 @@ const otherFinanceModules = [
     icon: Tag,
     iconBg: "bg-amber-500",
     status: "Active",
+    url: "https://www.tagwayrfid.com/",
   },
 ];
 
@@ -212,7 +214,7 @@ export default function FinanceDashboard() {
             <h3 className="text-lg font-semibold font-outfit mb-4">Other Finance Modules</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {otherFinanceModules.map((module) => (
-                <Card key={module.id} className="hover-elevate cursor-pointer" data-testid={`other-module-${module.id}`}>
+                <Card key={module.id} className="hover-elevate cursor-pointer" onClick={() => window.open(module.url, '_blank')} data-testid={`other-module-${module.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
                       <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${module.iconBg}`}>
