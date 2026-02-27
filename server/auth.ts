@@ -134,23 +134,44 @@ export async function seedAdminUser() {
   try {
     const existingAdmin = await storage.getManagedUserByUsername("admin");
     if (existingAdmin) {
-      console.log("Admin user already exists");
-      return;
+      if (existingAdmin.role !== "superadmin") {
+        await storage.updateManagedUser(existingAdmin.id, { role: "superadmin" });
+        console.log("Admin user upgraded to superadmin");
+      } else {
+        console.log("Admin user already exists");
+      }
+    } else {
+      const hashedPassword = await bcrypt.hash("admin", 10);
+      await storage.createManagedUser({
+        email: "admin@example.com",
+        username: "admin",
+        password: hashedPassword,
+        firstName: "System",
+        lastName: "Admin",
+        role: "superadmin",
+        isActive: true,
+        lastActiveAt: null,
+      });
+      console.log("Default admin user created (username: admin, password: admin)");
     }
 
-    const hashedPassword = await bcrypt.hash("admin", 10);
-    await storage.createManagedUser({
-      email: "admin@example.com",
-      username: "admin",
-      password: hashedPassword,
-      firstName: "System",
-      lastName: "Admin",
-      role: "superadmin",
-      isActive: true,
-      lastActiveAt: null,
-    });
-
-    console.log("Default admin user created (username: admin, password: admin)");
+    const existingSystemAdmin = await storage.getManagedUserByUsername("systemadmin");
+    if (!existingSystemAdmin) {
+      const hashedPassword = await bcrypt.hash("systemadmin", 10);
+      await storage.createManagedUser({
+        email: "systemadmin@example.com",
+        username: "systemadmin",
+        password: hashedPassword,
+        firstName: "System",
+        lastName: "Admin",
+        role: "superadmin",
+        isActive: true,
+        lastActiveAt: null,
+      });
+      console.log("Systemadmin user created (username: systemadmin, password: systemadmin)");
+    } else {
+      console.log("Systemadmin user already exists");
+    }
   } catch (error) {
     console.error("Failed to seed admin user:", error);
   }
