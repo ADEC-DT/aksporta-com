@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 import { 
@@ -97,7 +95,7 @@ const procurementModules = [
     subtitle: "5 Awaiting Approval",
     icon: Receipt,
     action: "View Requisitions",
-    url: "/finance/procurement/requisitions",
+    url: "/erp/procurement/requisitions",
   },
   {
     id: "requisition-arf",
@@ -105,7 +103,7 @@ const procurementModules = [
     subtitle: "Approval Request Form",
     icon: FileCheck,
     action: "New",
-    url: "/finance/procurement/requisitions/new?from=/finance",
+    url: "/erp/procurement/requisitions/new?from=/erp/procurement",
   },
 ];
 
@@ -152,15 +150,19 @@ const recentPayments = [
 ];
 
 export default function FinanceDashboard() {
-  const [activeTab, setActiveTab] = useState("finance");
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  const activeTab = location.includes("/erp/procurement") ? "procurement"
+    : location.includes("/erp/inventory") ? "inventory"
+    : location.includes("/erp/payments") ? "payments"
+    : "finance";
 
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-outfit">Finance</h1>
+          <h1 className="text-2xl font-bold font-outfit">ERP</h1>
           <p className="text-muted-foreground">Finance, Procurement, and Inventory Management.</p>
         </div>
         <Button className="w-fit" data-testid="button-launch-netsuite">
@@ -169,29 +171,8 @@ export default function FinanceDashboard() {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-4">
-          <TabsTrigger value="finance" className="flex items-center gap-2" data-testid="tab-finance">
-            <DollarSign className="h-4 w-4" />
-            Finance
-          </TabsTrigger>
-          <TabsTrigger value="procurement" className="flex items-center gap-2" data-testid="tab-procurement">
-            <ShoppingCart className="h-4 w-4" />
-            Procurement
-          </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-2" data-testid="tab-inventory">
-            <Package className="h-4 w-4" />
-            Inventory
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center gap-2" data-testid="tab-payments">
-            <CreditCard className="h-4 w-4" />
-            Payments
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Finance Tab */}
-        <TabsContent value="finance" className="mt-6">
+      {activeTab === "finance" && (
+        <div className="mt-2">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {financeModules.map((module) => (
               <Card key={module.id} data-testid={`finance-module-${module.id}`}>
@@ -251,10 +232,11 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* Procurement Tab */}
-        <TabsContent value="procurement" className="mt-6">
+      {activeTab === "procurement" && (
+        <div className="mt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {procurementModules.map((module) => (
               <Card key={module.id} data-testid={`procurement-module-${module.id}`}>
@@ -276,10 +258,11 @@ export default function FinanceDashboard() {
               </Card>
             ))}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* Inventory Tab */}
-        <TabsContent value="inventory" className="mt-6">
+      {activeTab === "inventory" && (
+        <div className="mt-2">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {inventoryModules.map((module) => (
               <Card key={module.id} data-testid={`inventory-module-${module.id}`}>
@@ -296,10 +279,11 @@ export default function FinanceDashboard() {
               </Card>
             ))}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* Payments Tab */}
-        <TabsContent value="payments" className="mt-6">
+      {activeTab === "payments" && (
+        <div className="mt-2">
           {/* Payment Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {paymentMetrics.map((metric) => (
@@ -406,8 +390,8 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }

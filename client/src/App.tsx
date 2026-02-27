@@ -81,8 +81,8 @@ import { Input } from "@/components/ui/input";
 const ALLOWED_ROUTES_FOR_NON_ADMIN = [
   "/dashboard",
   "/applications/customer-db",
+  "/erp",
   "/finance",
-  "/netsuite",
   "/events",
   "/intranet",
   "/projects",
@@ -149,12 +149,19 @@ function ProtectedRoutes() {
                   <Redirect to="/dashboard" />
                 </Route>
                 <Route path="/dashboard" component={Dashboard} />
-                <Route path="/finance/procurement/requisitions/new" component={RequisitionNewPage} />
-                <Route path="/finance/procurement/requisitions/:id" component={RequisitionDetailPage} />
-                <Route path="/finance/procurement/requisitions" component={RequisitionsListPage} />
-                <Route path="/finance" component={FinanceDashboard} />
-                <Route path="/erp" component={FinanceDashboard} />
-                <Route path="/netsuite" component={FinanceDashboard} />
+                <Route path="/erp/procurement/requisitions/new" component={RequisitionNewPage} />
+                <Route path="/erp/procurement/requisitions/:id" component={RequisitionDetailPage} />
+                <Route path="/erp/procurement/requisitions" component={RequisitionsListPage} />
+                <Route path="/erp/finance" component={FinanceDashboard} />
+                <Route path="/erp/procurement" component={FinanceDashboard} />
+                <Route path="/erp/inventory" component={FinanceDashboard} />
+                <Route path="/erp/payments" component={FinanceDashboard} />
+                <Route path="/erp">
+                  <Redirect to="/erp/finance" />
+                </Route>
+                <Route path="/finance">
+                  <Redirect to="/erp/finance" />
+                </Route>
                 <Route path="/hr" component={HRMSPage} />
                 <Route path="/livery" component={LiveryDashboard} />
                 <Route path="/admin" component={AdminDashboard} />

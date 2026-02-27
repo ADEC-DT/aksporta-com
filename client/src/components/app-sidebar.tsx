@@ -18,6 +18,10 @@ import {
   CircleDot,
   Home,
   Warehouse,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -164,6 +168,63 @@ export function AppSidebar() {
                                 <Link href="/equestrian/stable-assets">
                                   <Warehouse className="h-3.5 w-3.5" />
                                   <span>Stable Assets Manager</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                }
+
+                if (service.url === "/erp") {
+                  return (
+                    <Collapsible key={service.id} defaultOpen={location.startsWith("/erp")} className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={location.startsWith("/erp")}
+                            className="h-9 px-3 rounded-md"
+                            data-testid="nav-item-erp"
+                            tooltip="ERP"
+                          >
+                            <IconComponent className="h-4 w-4" />
+                            <span className="text-sm">{service.name}</span>
+                            <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/erp/finance"} data-testid="nav-sub-erp-finance">
+                                <Link href="/erp/finance">
+                                  <DollarSign className="h-3.5 w-3.5" />
+                                  <span>Finance</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.startsWith("/erp/procurement")} data-testid="nav-sub-erp-procurement">
+                                <Link href="/erp/procurement">
+                                  <ShoppingCart className="h-3.5 w-3.5" />
+                                  <span>Procurement</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/erp/inventory"} data-testid="nav-sub-erp-inventory">
+                                <Link href="/erp/inventory">
+                                  <Package className="h-3.5 w-3.5" />
+                                  <span>Inventory</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location === "/erp/payments"} data-testid="nav-sub-erp-payments">
+                                <Link href="/erp/payments">
+                                  <CreditCard className="h-3.5 w-3.5" />
+                                  <span>Payments</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>

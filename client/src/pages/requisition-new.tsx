@@ -37,7 +37,7 @@ export default function RequisitionNewPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const returnTo = new URLSearchParams(window.location.search).get("from") || "/finance";
+  const returnTo = new URLSearchParams(window.location.search).get("from") || "/erp/procurement";
 
   const [form, setForm] = useState({
     date: todayStr,

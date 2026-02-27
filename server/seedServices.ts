@@ -44,9 +44,9 @@ const defaultServices = [
     sortOrder: "4",
   },
   {
-    name: "Finance",
+    name: "ERP",
     description: null,
-    url: "/finance",
+    url: "/erp",
     icon: "DollarSign",
     category: "finance",
     isEnabled: true,
@@ -333,7 +333,7 @@ const defaultServiceSections: ServiceSectionDef[] = [
     ],
   },
   {
-    serviceUrl: "/finance",
+    serviceUrl: "/erp",
     sections: [
       { title: "Hero Banner", icon: "DollarSign", sortOrder: 0, isEnabled: true, isExpandable: false, templateType: "hero_banner" },
       { title: "Finance Modules", icon: "DollarSign", sortOrder: 1, isEnabled: true, isExpandable: true, templateType: "tabs" },

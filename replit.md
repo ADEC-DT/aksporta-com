@@ -52,10 +52,10 @@ shared/           # Shared code between client/server
 
 ### Key Pages & Routes
 1. **Dashboard** (`/dashboard`) - Main landing page with hero section, metrics cards, business applications grid, intranet updates
-2. **Finance** (`/finance`) - Finance module with Finance/Procurement/Inventory tabs, includes Qashio and Tagway modules. Procurement tab has Requisition ARF tile linking to new form.
-   - **Requisitions List** (`/finance/procurement/requisitions`) - Table view with search, status filter, inline status editing (Submitted/Awaiting Approval/Approved/Rejected), click-through to detail
-   - **Requisition ARF** (`/finance/procurement/requisitions/new`) - Approval Request Form with 6 sections: request info, description, justification, budget details (AED cost, budgeted yes/no, vendor), file uploads (JPG/PNG/PDF), timeline
-   - **Requisition Detail** (`/finance/procurement/requisitions/:id`) - Full detail view with status change, summary cards, all sections, attachment download
+2. **ERP** (`/erp`) - ERP module with collapsible sidebar sub-pages: Finance, Procurement, Inventory, Payments. Includes Qashio and Tagway external links. Routes: `/erp/finance`, `/erp/procurement`, `/erp/inventory`, `/erp/payments`.
+   - **Requisitions List** (`/erp/procurement/requisitions`) - Table view with search, status filter, inline status editing (Submitted/Awaiting Approval/Approved/Rejected), click-through to detail
+   - **Requisition ARF** (`/erp/procurement/requisitions/new`) - Approval Request Form with 6 sections: request info, description, justification, budget details (AED cost, budgeted yes/no, vendor), file uploads (JPG/PNG/PDF), timeline
+   - **Requisition Detail** (`/erp/procurement/requisitions/:id`) - Full detail view with status change, summary cards, all sections, attachment download
 3. **HR** (`/hr`) - Kayan HRMS for employee directory, payroll, leaves
 4. **Customer DB** (`/applications/customer-db`) - Multi-source Customer Database with 6 data sources (Pony Camp, Contact Form, Calls, Livery Clients, Riding Schools, Therapeutic). Each source has its own JSONB-based records table with dynamic columns. Features: source selector cards with record counts, dynamic table rendering, column sorting, search, pagination (25/page), Excel import with auto-mapping save, import history per source, Data Cleanup with duplicate scan/merge/delete per source
 5. **Projects** (`/projects`) - Full project management system with create/edit, team assignments, deadline management, commenting, Collaboration Stamps, deadline alert badges (Overdue/Due Soon), Team Workload report tab. Monday and Tuesday views are independent — each space has a `viewType` ("monday" or "tuesday") and only appears in its respective view.

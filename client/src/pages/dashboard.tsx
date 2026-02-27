@@ -26,7 +26,7 @@ const businessApplications = [
     statusColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     iconBg: "bg-blue-600",
     iconText: "N",
-    url: "/finance",
+    url: "/erp",
   },
   {
     id: "kayan",
@@ -48,7 +48,7 @@ const businessApplications = [
     statusColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     iconBg: "bg-yellow-500",
     iconText: "P",
-    url: "/finance",
+    url: "/erp",
   },
   {
     id: "lease",
@@ -114,8 +114,8 @@ const intranetUpdates: IntranetItem[] = [
 
 const quickLinks = [
   { title: "IT Support Request", icon: Laptop, url: "/intranet" },
-  { title: "Request ARF", icon: FileText, url: "/finance/procurement/requisitions/new?from=/dashboard" },
-  { title: "Expense Claims", icon: FileText, url: "/finance" },
+  { title: "Request ARF", icon: FileText, url: "/erp/procurement/requisitions/new?from=/dashboard" },
+  { title: "Expense Claims", icon: FileText, url: "/erp/finance" },
   { title: "Meeting Room Booking", icon: Calendar, url: "/events" },
 ];
 
