@@ -7,7 +7,7 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // User roles enum
-export const userRoles = ["admin", "editor", "viewer"] as const;
+export const userRoles = ["superadmin", "admin", "finance", "procurement", "others"] as const;
 export type UserRole = typeof userRoles[number];
 
 // Extended user with roles (managed users for admin panel)
@@ -22,7 +22,7 @@ export const managedUsers = pgTable("managed_users", {
   jobTitle: varchar("job_title"),
   phoneNumber: varchar("phone_number"),
   profilePicture: varchar("profile_picture"),
-  role: varchar("role").notNull().default("viewer"),
+  role: varchar("role").notNull().default("others"),
   isActive: boolean("is_active").notNull().default(true),
   mfaEnabled: boolean("mfa_enabled").notNull().default(false),
   mfaSecret: varchar("mfa_secret"),

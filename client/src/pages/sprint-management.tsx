@@ -63,7 +63,7 @@ export default function SprintManagementPage() {
     queryKey: ["/api/sprints"],
   });
 
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "superadmin";
 
   const createSprintMutation = useMutation({
     mutationFn: async (data: typeof formData) => {

@@ -143,4 +143,4 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **connect-pg-simple**: PostgreSQL session store
 - **express-session**: Session middleware
 - **bcryptjs**: Password hashing
-- **Custom auth**: Username/password authentication with role-based access control (Admin, Editor, Viewer)
+- **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.

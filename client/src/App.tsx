@@ -107,7 +107,7 @@ function ProtectedRoutes() {
     return <Redirect to="/login" />;
   }
 
-  const isAdmin = user.role === "admin";
+  const isAdmin = user.role === "admin" || user.role === "superadmin";
   const isAllowedRoute = location === "/" || ALLOWED_ROUTES_FOR_NON_ADMIN.some(
     (route) => location === route || location.startsWith(route + "/")
   );

@@ -112,12 +112,12 @@ export default function SystemSettingsPage() {
 
   const { data: settings, isLoading: settingsLoading } = useQuery<SystemSetting[]>({
     queryKey: ["/api/admin/settings"],
-    enabled: !!authUser && currentUser?.role === "admin",
+    enabled: !!authUser && (currentUser?.role === "admin" || currentUser?.role === "superadmin"),
   });
 
   const { data: integrationHealth, isLoading: healthLoading, refetch: refetchHealth } = useQuery<IntegrationHealth[]>({
     queryKey: ["/api/admin/integrations/health"],
-    enabled: !!authUser && currentUser?.role === "admin",
+    enabled: !!authUser && (currentUser?.role === "admin" || currentUser?.role === "superadmin"),
     refetchInterval: 30000,
   });
 
@@ -135,22 +135,22 @@ export default function SystemSettingsPage() {
       if (!response.ok) throw new Error("Failed to fetch audit logs");
       return response.json();
     },
-    enabled: !!authUser && currentUser?.role === "admin",
+    enabled: !!authUser && (currentUser?.role === "admin" || currentUser?.role === "superadmin"),
   });
 
   const { data: services, isLoading: servicesLoading } = useQuery<ExternalService[]>({
     queryKey: ["/api/admin/services"],
-    enabled: !!authUser && currentUser?.role === "admin",
+    enabled: !!authUser && (currentUser?.role === "admin" || currentUser?.role === "superadmin"),
   });
 
   const { data: sectionTemplates, isLoading: templatesLoading } = useQuery<SectionTemplate[]>({
     queryKey: ["/api/admin/section-templates"],
-    enabled: !!authUser && currentUser?.role === "admin",
+    enabled: !!authUser && (currentUser?.role === "admin" || currentUser?.role === "superadmin"),
   });
 
   const { data: serviceSections, isLoading: serviceSectionsLoading } = useQuery<PageSectionWithTemplate[]>({
     queryKey: [`/api/services/${selectedServiceId}/sections`],
-    enabled: !!authUser && currentUser?.role === "admin" && !!selectedServiceId,
+    enabled: !!authUser && (currentUser?.role === "admin" || currentUser?.role === "superadmin") && !!selectedServiceId,
   });
 
   const updateTemplateMutation = useMutation({
@@ -462,7 +462,7 @@ export default function SystemSettingsPage() {
     );
   }
 
-  if (currentUser && currentUser.role !== "admin") {
+  if (currentUser && currentUser.role !== "admin" && currentUser.role !== "superadmin") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
         <Shield className="h-16 w-16 text-destructive" />

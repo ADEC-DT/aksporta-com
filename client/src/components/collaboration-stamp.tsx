@@ -201,7 +201,7 @@ interface PageCollaborationStampProps {
 export function PageCollaborationStamp({ sectionName }: PageCollaborationStampProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { user } = useAuth();
-  const canEdit = user?.role === "admin" || user?.role === "editor";
+  const canEdit = user?.role === "admin" || user?.role === "superadmin";
 
   const { data: blueprints } = useQuery<CollaborationBlueprint[]>({
     queryKey: ["/api/blueprints"],

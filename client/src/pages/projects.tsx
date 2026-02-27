@@ -1399,7 +1399,7 @@ export default function ProjectsPage() {
                                   <Pencil className="h-3.5 w-3.5" />
                                   Rename
                                 </div>
-                                {currentUser?.role === "admin" && (
+                                {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
                                   <div
                                     className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm text-destructive hover-elevate"
                                     data-testid={`button-delete-space-${space.id}`}
@@ -2156,7 +2156,7 @@ export default function ProjectsPage() {
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
-                    {currentUser?.role === "admin" && (
+                    {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
                       <Button
                         variant="destructive"
                         size="sm"

@@ -395,7 +395,7 @@ export default function ProjectGroupPage() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      {currentUser?.role === "admin" && (
+                      {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
                         <Button
                           size="icon"
                           variant="ghost"

@@ -60,7 +60,7 @@ interface UserFormData {
   password: string;
   firstName: string;
   lastName: string;
-  role: "admin" | "editor" | "viewer";
+  role: "superadmin" | "admin" | "finance" | "procurement" | "others";
 }
 
 function UserServicesCell({ userId, enabledServices }: { userId: string; enabledServices: ExternalService[] }) {
@@ -148,7 +148,7 @@ function AdminDashboard() {
     password: "",
     firstName: "",
     lastName: "",
-    role: "viewer",
+    role: "others",
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
@@ -158,19 +158,21 @@ function AdminDashboard() {
     enabled: !!authUser,
   });
 
+  const isAdminRole = currentUser?.role === "admin" || currentUser?.role === "superadmin";
+
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
-    enabled: currentUser?.role === "admin",
+    enabled: isAdminRole,
   });
 
   const { data: users, isLoading: usersLoading, error: usersError } = useQuery<ManagedUser[]>({
     queryKey: ["/api/admin/users"],
-    enabled: currentUser?.role === "admin",
+    enabled: isAdminRole,
   });
 
   const { data: enabledServices = [] } = useQuery<ExternalService[]>({
     queryKey: ["/api/services/enabled"],
-    enabled: currentUser?.role === "admin",
+    enabled: isAdminRole,
   });
 
   const createUserMutation = useMutation({
@@ -222,7 +224,7 @@ function AdminDashboard() {
   });
 
   function resetForm() {
-    setFormData({ email: "", username: "", password: "", firstName: "", lastName: "", role: "viewer" });
+    setFormData({ email: "", username: "", password: "", firstName: "", lastName: "", role: "others" });
     setEditingUser(null);
     setFormMode("create");
   }
@@ -241,7 +243,7 @@ function AdminDashboard() {
       password: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
-      role: (user.role as "admin" | "editor" | "viewer") || "viewer",
+      role: (user.role as "superadmin" | "admin" | "finance" | "procurement" | "others") || "others",
     });
     setFormMode("edit");
     setDialogOpen(true);
@@ -299,9 +301,12 @@ function AdminDashboard() {
 
   function getRoleBadgeVariant(role: string) {
     switch (role) {
+      case "superadmin":
+        return "destructive";
       case "admin":
         return "default";
-      case "editor":
+      case "finance":
+      case "procurement":
         return "secondary";
       default:
         return "outline";
@@ -329,7 +334,7 @@ function AdminDashboard() {
     );
   }
 
-  if (currentUser && currentUser.role !== "admin") {
+  if (currentUser && currentUser.role !== "admin" && currentUser.role !== "superadmin") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
         <Shield className="h-16 w-16 text-destructive" />
@@ -435,8 +440,8 @@ function AdminDashboard() {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role || "viewer")}>
-                        {user.role || "viewer"}
+                      <Badge variant={getRoleBadgeVariant(user.role || "others")}>
+                        {user.role || "others"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -560,16 +565,18 @@ function AdminDashboard() {
               <Select
                 value={formData.role}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, role: value as "admin" | "editor" | "viewer" })
+                  setFormData({ ...formData, role: value as "superadmin" | "admin" | "finance" | "procurement" | "others" })
                 }
               >
                 <SelectTrigger data-testid="select-user-role">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="superadmin">Superadmin</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="procurement">Procurement</SelectItem>
+                  <SelectItem value="others">Others</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -26,6 +26,7 @@ import {
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import type { DataSource, DsRecord } from "@shared/schema";
 
 const iconMap: Record<string, any> = {
@@ -59,6 +60,8 @@ function formatCellValue(value: any, columnKey: string): string {
 }
 
 export default function CustomerDBPage() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "superadmin";
   const [activeSource, setActiveSource] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"records" | "cleanup" | "history">("records");
   const [searchQuery, setSearchQuery] = useState("");
@@ -407,19 +410,21 @@ export default function CustomerDBPage() {
               onChange={handleFileUpload}
               data-testid="input-import-file"
             />
-            <Button
-              variant="outline"
-              onClick={() => { resetImportDialog(); setImportDialogOpen(true); }}
-              disabled={previewMutation.isPending}
-              data-testid="button-import-file"
-            >
-              {previewMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              Import Excel
-            </Button>
+            {isSuperAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => { resetImportDialog(); setImportDialogOpen(true); }}
+                disabled={previewMutation.isPending}
+                data-testid="button-import-file"
+              >
+                {previewMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Import Excel
+              </Button>
+            )}
           </div>
         )}
       </div>

@@ -145,7 +145,7 @@ export async function seedAdminUser() {
       password: hashedPassword,
       firstName: "System",
       lastName: "Admin",
-      role: "admin",
+      role: "superadmin",
       isActive: true,
       lastActiveAt: null,
     });

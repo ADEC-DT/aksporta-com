@@ -18,7 +18,7 @@ const passwordSchema = z.string()
   .regex(/[0-9]/, "Password must contain at least one number")
   .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character (!@#$%^&*-_)");
 
-// Middleware to check if user is admin
+// Middleware to check if user is admin or superadmin
 const isAdmin: RequestHandler = async (req, res, next) => {
   const managedUser = (req as any).managedUser as ManagedUser;
   
@@ -26,8 +26,23 @@ const isAdmin: RequestHandler = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  if (managedUser.role !== "admin") {
+  if (managedUser.role !== "admin" && managedUser.role !== "superadmin") {
     return res.status(403).json({ message: "Forbidden: Admin access required" });
+  }
+
+  next();
+};
+
+// Middleware to check if user is superadmin
+const isSuperAdmin: RequestHandler = async (req, res, next) => {
+  const managedUser = (req as any).managedUser as ManagedUser;
+  
+  if (!managedUser) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (managedUser.role !== "superadmin") {
+    return res.status(403).json({ message: "Forbidden: Superadmin access required" });
   }
 
   next();
@@ -211,7 +226,7 @@ export async function registerRoutes(
     password: passwordSchema,
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
-    role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
+    role: z.enum(["superadmin", "admin", "finance", "procurement", "others"]).default("others"),
   });
 
   app.post("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
@@ -257,7 +272,7 @@ export async function registerRoutes(
     password: passwordSchema.optional(),
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
-    role: z.enum(["admin", "editor", "viewer"]).optional(),
+    role: z.enum(["superadmin", "admin", "finance", "procurement", "others"]).optional(),
     isActive: z.boolean().optional(),
   });
 
@@ -1778,7 +1793,7 @@ export async function registerRoutes(
   }
 
   // Step 1: Upload file and get column headers + preview rows
-  app.post("/api/customers/import/preview", isAuthenticated, upload.single("file"), async (req, res) => {
+  app.post("/api/customers/import/preview", isAuthenticated, isSuperAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
@@ -1802,7 +1817,7 @@ export async function registerRoutes(
   });
 
   // Step 2: Import with user-defined column mapping
-  app.post("/api/customers/import", isAuthenticated, async (req, res) => {
+  app.post("/api/customers/import", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
       const { fileData, mapping } = req.body;
@@ -2164,7 +2179,7 @@ export async function registerRoutes(
 
   const dsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-  app.post("/api/data-sources/:slug/import/preview", isAuthenticated, dsUpload.single("file"), async (req, res) => {
+  app.post("/api/data-sources/:slug/import/preview", isAuthenticated, isSuperAdmin, dsUpload.single("file"), async (req, res) => {
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
       if (!ds) return res.status(404).json({ message: "Data source not found" });
@@ -2198,7 +2213,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/data-sources/:slug/import", isAuthenticated, async (req, res) => {
+  app.post("/api/data-sources/:slug/import", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
       if (!ds) return res.status(404).json({ message: "Data source not found" });
@@ -2897,9 +2912,9 @@ export async function registerRoutes(
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
       
-      // Viewers cannot edit projects
-      if (managedUser.role === "viewer") {
-        return res.status(403).json({ message: "Viewers cannot edit projects" });
+      // Others role cannot edit projects
+      if (managedUser.role === "others") {
+        return res.status(403).json({ message: "Insufficient permissions to edit projects" });
       }
       
       const existing = await storage.getProject(req.params.id);
@@ -2907,14 +2922,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Project not found" });
       }
       
-      // Check if user is owner, admin, or editor assigned to project
+      // Check if user is owner, admin/superadmin, or assigned to project
       const assignments = await storage.getProjectAssignments(req.params.id);
       const isOwner = assignments.some(a => a.userId === managedUser.id && a.role === "owner");
-      const isAdmin = managedUser.role === "admin";
-      const isEditor = managedUser.role === "editor";
+      const isAdminRole = managedUser.role === "admin" || managedUser.role === "superadmin";
       const isAssigned = assignments.some(a => a.userId === managedUser.id);
       
-      if (!isOwner && !isAdmin && !(isEditor && isAssigned)) {
+      if (!isOwner && !isAdminRole && !isAssigned) {
         return res.status(403).json({ message: "You don't have permission to update this project" });
       }
       
@@ -3014,9 +3028,9 @@ export async function registerRoutes(
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
       
-      // Viewers cannot comment
-      if (managedUser.role === "viewer") {
-        return res.status(403).json({ message: "Viewers cannot add comments" });
+      // Others role cannot comment
+      if (managedUser.role === "others") {
+        return res.status(403).json({ message: "Insufficient permissions to add comments" });
       }
       
       // Check if user is assigned to the project
@@ -3432,7 +3446,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.post("/api/sm/horses/import/preview", isAuthenticated, upload.single("file"), async (req, res) => {
+  app.post("/api/sm/horses/import/preview", isAuthenticated, isSuperAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
@@ -3453,7 +3467,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sm/horses/import", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/horses/import", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const { fileData, mapping } = req.body;
       if (!fileData || typeof fileData !== "string") {
@@ -3579,7 +3593,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.post("/api/sm/item-services/import/preview", isAuthenticated, upload.single("file"), async (req, res) => {
+  app.post("/api/sm/item-services/import/preview", isAuthenticated, isSuperAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
@@ -3600,7 +3614,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sm/item-services/import", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/item-services/import", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const { fileData, mapping } = req.body;
       if (!fileData || typeof fileData !== "string") {

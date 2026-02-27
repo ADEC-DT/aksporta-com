@@ -71,7 +71,7 @@ export function AppSidebar() {
     enabled: !!user,
   });
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   const getInitials = () => {
     if (user?.firstName && user?.lastName) {
@@ -94,7 +94,14 @@ export function AppSidebar() {
     if (user?.jobTitle) {
       return user.jobTitle;
     }
-    return user?.role === "admin" ? "Administrator" : user?.role || "User";
+    const roleLabels: Record<string, string> = {
+      superadmin: "Super Administrator",
+      admin: "Administrator",
+      finance: "Finance",
+      procurement: "Procurement",
+      others: "User",
+    };
+    return roleLabels[user?.role || ""] || user?.role || "User";
   };
 
   return (
