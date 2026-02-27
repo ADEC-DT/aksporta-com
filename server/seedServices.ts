@@ -94,7 +94,7 @@ const defaultServices = [
     sortOrder: "9",
   },
   {
-    name: "DT Support",
+    name: "AKS Request Center",
     description: null,
     url: "/intranet",
     icon: "Headphones",

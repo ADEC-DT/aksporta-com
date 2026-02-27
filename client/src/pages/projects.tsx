@@ -117,7 +117,7 @@ const portalSections = [
   { name: "asset_lease", title: "Asset & Lease" },
   { name: "events", title: "Events & Entertainment" },
   { name: "media_marketing", title: "Media & Marketing" },
-  { name: "intranet", title: "DT Support" },
+  { name: "intranet", title: "AKS Request Center" },
   { name: "projects", title: "Projects" },
   { name: "legal", title: "Legal & Compliance" },
   { name: "performance_kpi", title: "Performance & KPIs" },

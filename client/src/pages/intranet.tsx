@@ -515,7 +515,7 @@ export default function IntranetPage() {
             <div className="flex items-center gap-3">
               <Headphones className="h-7 w-7" />
               <div>
-                <h1 className="text-xl font-bold font-outfit">DT Support Center</h1>
+                <h1 className="text-xl font-bold font-outfit">AKS Request Center</h1>
                 <p className="text-blue-100 text-sm">
                   IT Support & Digital Transformation requests
                 </p>

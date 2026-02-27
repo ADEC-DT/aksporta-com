@@ -186,7 +186,7 @@ const sectionTitleMap: Record<string, string> = {
   asset_lease: "Asset & Lease",
   events: "Events & Entertainment",
   media_marketing: "Media & Marketing",
-  intranet: "DT Support",
+  intranet: "AKS Request Center",
   projects: "Projects",
   legal: "Legal & Compliance",
   performance_kpi: "Performance & KPIs",
