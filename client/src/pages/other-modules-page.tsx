@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Layers, Construction, CreditCard, Tag, ExternalLink } from "lucide-react";
 
 interface OtherModulesPageProps {
-  section: "erp" | "equestrian";
+  section: string;
 }
 
 const erpModules = [
@@ -28,7 +28,24 @@ const erpModules = [
 ];
 
 export default function OtherModulesPage({ section }: OtherModulesPageProps) {
-  const title = section === "erp" ? "ERP — Other Modules" : "Equestrian — Other Modules";
+  const sectionLabels: Record<string, string> = {
+    erp: "ERP",
+    equestrian: "Equestrian",
+    hr: "HR",
+    livery: "Livery",
+    intranet: "AKS Request Center",
+    veterinary: "Veterinary",
+    "business-units": "Business Units",
+    "asset-lease": "Asset & Lease",
+    events: "Events",
+    "media-marketing": "Media & Marketing",
+    legal: "Legal",
+    "performance-kpi": "Performance & KPIs",
+    "ops-fm": "OPS & FM",
+    "other-systems": "Other Systems",
+    "it-dt": "IT & DT",
+  };
+  const title = `${sectionLabels[section] || section} — Other Modules`;
   const modules = section === "erp" ? erpModules : [];
 
   return (
