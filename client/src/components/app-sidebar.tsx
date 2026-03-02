@@ -309,34 +309,20 @@ export function AppSidebar() {
                 }
 
                 return (
-                  <Collapsible key={service.id} defaultOpen={location.startsWith(serviceUrl)} className="group/collapsible">
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton
-                          isActive={location.startsWith(serviceUrl)}
-                          className="h-9 px-3 rounded-md"
-                          data-testid={`nav-item-${serviceSlug}`}
-                          tooltip={service.name}
-                        >
-                          <IconComponent className="h-4 w-4" />
-                          <span className="text-sm">{service.name}</span>
-                          <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={location === serviceUrl} data-testid={`nav-sub-${serviceSlug}-overview`}>
-                              <Link href={serviceUrl}>
-                                <IconComponent className="h-3.5 w-3.5" />
-                                <span>Overview</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
+                  <SidebarMenuItem key={service.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="h-9 px-3 rounded-md"
+                      data-testid={`nav-item-${serviceSlug}`}
+                      tooltip={service.name}
+                    >
+                      <Link href={serviceUrl}>
+                        <IconComponent className="h-4 w-4" />
+                        <span className="text-sm">{service.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 );
               })}
             </SidebarMenu>
