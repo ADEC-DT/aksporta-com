@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -286,6 +287,7 @@ export default function Dashboard() {
           </div>
         )}
       </DetailPanel>
+      <OtherModulesSection />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { 
   Search, 
   FileText,
@@ -225,6 +226,8 @@ export default function LegalPage() {
       subtitle="Contracts, compliance monitoring, and legal document management"
       collaborationSection="legal"
       renderSection={renderSection}
-    />
+    >
+      <OtherModulesSection />
+    </ServicePageLayout>
   );
 }

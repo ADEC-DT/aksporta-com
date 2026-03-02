@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { 
   Users, 
   DollarSign, 
@@ -229,6 +230,8 @@ export default function HRMSPage() {
         { label: "Launch HR System", url: "https://hrms.example.com", icon: ExternalLink },
       ]}
       renderSection={renderSection}
-    />
+    >
+      <OtherModulesSection />
+    </ServicePageLayout>
   );
 }

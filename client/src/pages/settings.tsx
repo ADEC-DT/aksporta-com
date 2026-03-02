@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -851,6 +852,7 @@ export default function SettingsPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <OtherModulesSection />
     </div>
   );
 }

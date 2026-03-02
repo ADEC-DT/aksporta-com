@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { 
   Video, 
   Camera, 
@@ -253,6 +254,8 @@ export default function MediaMarketingPage() {
         { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },
       ]}
       renderSection={renderSection}
-    />
+    >
+      <OtherModulesSection />
+    </ServicePageLayout>
   );
 }

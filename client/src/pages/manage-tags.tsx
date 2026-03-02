@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -215,6 +216,7 @@ export default function ManageTagsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OtherModulesSection />
     </div>
   );
 }

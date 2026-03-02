@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -319,6 +320,7 @@ export default function RequisitionNewPage() {
           </Button>
         </div>
       </form>
+      <OtherModulesSection />
     </div>
   );
 }

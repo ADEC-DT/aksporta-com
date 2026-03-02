@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { MetricCard } from "@/components/metric-card";
@@ -161,6 +162,7 @@ export default function NetSuiteDashboard() {
           />
         </CardContent>
       </Card>
+      <OtherModulesSection />
     </div>
   );
 }

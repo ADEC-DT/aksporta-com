@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -245,6 +246,7 @@ export default function RequisitionDetailPage() {
           </CardContent>
         </Card>
       )}
+      <OtherModulesSection />
     </div>
   );
 }

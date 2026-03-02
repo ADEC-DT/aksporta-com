@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { 
   CircleDot, 
   Home, 
@@ -729,6 +730,8 @@ export default function EquestrianPage() {
       collaborationSection="equestrian"
       renderSection={renderSection}
       sectionFilter={filterSection}
-    />
+    >
+      <OtherModulesSection />
+    </ServicePageLayout>
   );
 }

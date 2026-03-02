@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { Store, CircleDot, Building2, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
 import type { PageSectionWithTemplate } from "@shared/schema";
@@ -134,6 +135,8 @@ export default function BusinessUnitsPage() {
         { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },
       ]}
       renderSection={renderSection}
-    />
+    >
+      <OtherModulesSection />
+    </ServicePageLayout>
   );
 }

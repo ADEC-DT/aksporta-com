@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { WhatsAppDialog } from "@/components/whatsapp-dialog";
 import { 
   Calendar, 
@@ -508,7 +509,9 @@ export default function EventsPage() {
           { label: "Launch PlatinumList", url: "https://platinumlist.net" },
         ]}
         renderSection={renderSection}
-      />
+      >
+        <OtherModulesSection />
+      </ServicePageLayout>
       <WhatsAppDialog 
         open={whatsappDialogOpen} 
         onOpenChange={setWhatsappDialogOpen} 

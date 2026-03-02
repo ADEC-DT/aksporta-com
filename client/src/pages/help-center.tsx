@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -327,6 +328,7 @@ export default function HelpCenterPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <OtherModulesSection />
     </div>
   );
 }

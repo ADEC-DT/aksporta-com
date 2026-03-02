@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -533,6 +534,7 @@ export default function ProjectGroupPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OtherModulesSection />
     </div>
   );
 }

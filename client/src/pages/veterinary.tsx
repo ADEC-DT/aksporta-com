@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -415,6 +416,7 @@ export default function VeterinaryPage() {
           )}
         </Card>
       </div>
+      <OtherModulesSection />
     </div>
   );
 }

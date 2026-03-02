@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { ServicePageLayout } from "@/components/service-page-layout";
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle } from "lucide-react";
 import { resolveIconOrNull } from "@/lib/icon-resolver";
@@ -125,6 +126,8 @@ export default function DynamicServicePage() {
       title={service.name}
       subtitle={service.description || undefined}
       renderSection={renderSection}
-    />
+    >
+      <OtherModulesSection />
+    </ServicePageLayout>
   );
 }

@@ -1,3 +1,4 @@
+import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -507,6 +508,7 @@ export default function AdminTicketsPage() {
           )}
         </CardContent>
       </Card>
+      <OtherModulesSection />
     </div>
   );
 }
