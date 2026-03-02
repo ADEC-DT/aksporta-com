@@ -176,17 +176,17 @@ export async function registerRoutes(
 ): Promise<Server> {
   
   // Dashboard data endpoints (public for now, can be protected)
-  app.get("/api/netsuite", (_req, res) => {
+  app.get("/api/netsuite", isAuthenticated, (_req, res) => {
     const data = generateNetSuiteData();
     res.json(data);
   });
 
-  app.get("/api/hr", (_req, res) => {
+  app.get("/api/hr", isAuthenticated, (_req, res) => {
     const data = generateHRData();
     res.json(data);
   });
 
-  app.get("/api/livery", (_req, res) => {
+  app.get("/api/livery", isAuthenticated, (_req, res) => {
     const data = generateLiveryData();
     res.json(data);
   });
@@ -196,6 +196,17 @@ export async function registerRoutes(
     const managedUser = (req as any).managedUser as ManagedUser;
     const { password: _, ...userWithoutPassword } = managedUser;
     res.json(userWithoutPassword);
+  });
+
+  app.get("/api/my-services", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const serviceIds = await storage.getUserServices(managedUser.id);
+      res.json(serviceIds);
+    } catch (error) {
+      console.error("Error fetching user services:", error);
+      res.status(500).json({ message: "Failed to fetch user services" });
+    }
   });
 
   // Admin routes
@@ -246,6 +257,11 @@ export async function registerRoutes(
       const parsed = createUserSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
+      }
+
+      const currentUser = (req as any).managedUser as ManagedUser;
+      if (currentUser.role !== "superadmin" && parsed.data.role === "superadmin") {
+        return res.status(403).json({ message: "Only superadmins can create superadmin accounts" });
       }
 
       // Check if email or username already exists
@@ -302,6 +318,15 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
+      if (currentUser.role !== "superadmin") {
+        if (targetUser.role === "superadmin") {
+          return res.status(403).json({ message: "Only superadmins can modify superadmin accounts" });
+        }
+        if (parsed.data.role === "superadmin") {
+          return res.status(403).json({ message: "Only superadmins can assign the superadmin role" });
+        }
+      }
+
       // Prevent demoting an admin if they're the only admin
       if (targetUser.role === "admin" && parsed.data.role && parsed.data.role !== "admin") {
         const stats = await storage.getUserStats();
@@ -344,6 +369,10 @@ export async function registerRoutes(
       const targetUser = await storage.getManagedUser(req.params.id);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      if (currentUser.role !== "superadmin" && targetUser.role === "superadmin") {
+        return res.status(403).json({ message: "Only superadmins can delete superadmin accounts" });
       }
 
       // Prevent deleting the only admin

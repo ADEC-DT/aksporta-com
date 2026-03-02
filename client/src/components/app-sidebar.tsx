@@ -56,7 +56,7 @@ const secondaryNavItems = [
     title: "Settings",
     url: "/system-settings",
     icon: Settings,
-    adminOnly: false,
+    adminOnly: true,
   },
 ];
 
@@ -71,6 +71,15 @@ export function AppSidebar() {
   });
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+
+  const { data: myServiceIds } = useQuery<string[]>({
+    queryKey: ["/api/my-services"],
+    enabled: !!user && !isAdmin,
+  });
+
+  const filteredServices = isAdmin
+    ? enabledServices
+    : enabledServices?.filter((s) => myServiceIds?.includes(s.id));
   const isSuperAdmin = user?.role === "superadmin";
 
   const canAccessSubmodule = (serviceKey: string, submoduleKey: string): boolean => {
@@ -155,7 +164,7 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {enabledServices?.map((service) => {
+              {filteredServices?.map((service) => {
                 const IconComponent = resolveIcon(service.icon || "");
                 const isActive = location === service.url || 
                   (!!service.url && location.startsWith(service.url));

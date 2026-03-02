@@ -145,10 +145,11 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **bcryptjs**: Password hashing
 - **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.
 
-### Submodule Access Control
-- **Registry**: `submoduleRegistry` in `shared/schema.ts` defines submodules for ERP (finance, procurement, inventory, payments), Equestrian (stable-assets), and Projects (monday, tuesday)
-- **Database**: `allowed_submodules` JSONB column on `managed_users` table. When null or key absent, all submodules accessible (backward compatible)
-- **Admin UI**: `UserServicesCell` in admin dashboard shows nested submodule checkboxes under each assigned service. All checked by default = full access
-- **Backend Middleware**: `checkSubmoduleAccess(serviceKey, submoduleKey)` applied to SM routes (equestrian/stable-assets) and requisition routes (erp/procurement). Superadmins bypass all restrictions
-- **Frontend**: `canAccessSubmodule()` helper in `app-sidebar.tsx` filters sidebar navigation items based on user's `allowedSubmodules`
-- **API Endpoints**: `GET/PUT /api/admin/users/:id/submodules` for reading/updating submodule permissions
+### Access Control System
+- **Roles**: `superadmin`, `admin`, `finance`, `procurement`, `others`
+- **Middleware**: `isAuthenticated`, `isAdmin` (admin+superadmin), `isSuperAdmin`, `checkSubmoduleAccess(service, submodule)`
+- **Superadmin Protection**: Only superadmins can create/modify/delete superadmin accounts or assign the superadmin role. Enforced in POST/PATCH/DELETE `/api/admin/users` routes
+- **Service-Level Access**: `userServices` table maps users to enabled services. Sidebar filters services via `GET /api/my-services` (admins/superadmins see all). All data endpoints require authentication
+- **Submodule Access**: `submoduleRegistry` in `shared/schema.ts` defines submodules for ERP (finance, procurement, inventory, payments), Equestrian (stable-assets), Projects (monday, tuesday). `allowed_submodules` JSONB column on `managed_users`. `checkSubmoduleAccess` middleware on SM and requisition routes. Superadmins bypass all restrictions
+- **Admin UI**: `UserServicesCell` in admin dashboard shows nested submodule checkboxes. `GET/PUT /api/admin/users/:id/submodules` endpoints
+- **Frontend Guards**: `canAccessSubmodule()` in sidebar, `ProtectedRoutes` in App.tsx with `ALLOWED_ROUTES_FOR_NON_ADMIN` whitelist, component-level guards on admin-dashboard, it-dt, livery-dashboard, sprint-management, system-settings pages
