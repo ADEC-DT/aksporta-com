@@ -10,6 +10,24 @@ export * from "./models/auth";
 export const userRoles = ["superadmin", "admin", "finance", "procurement", "others"] as const;
 export type UserRole = typeof userRoles[number];
 
+// Submodule registry — defines all submodules for services that have them
+export const submoduleRegistry: Record<string, { key: string; label: string; path: string }[]> = {
+  erp: [
+    { key: "finance", label: "Finance", path: "/erp/finance" },
+    { key: "procurement", label: "Procurement", path: "/erp/procurement" },
+    { key: "inventory", label: "Inventory", path: "/erp/inventory" },
+    { key: "payments", label: "Payments", path: "/erp/payments" },
+  ],
+  equestrian: [
+    { key: "stable-assets", label: "Stable Assets Manager", path: "/equestrian/stable-assets" },
+  ],
+  projects: [
+    { key: "monday", label: "Monday", path: "/projects/monday" },
+    { key: "tuesday", label: "Tuesday", path: "/projects/tuesday" },
+  ],
+};
+
+export type AllowedSubmodules = Record<string, string[]>;
 
 // Extended user with roles (managed users for admin panel)
 export const managedUsers = pgTable("managed_users", {
@@ -31,6 +49,7 @@ export const managedUsers = pgTable("managed_users", {
   theme: varchar("theme").notNull().default("system"),
   emailNotifications: boolean("email_notifications").notNull().default(true),
   notificationPreferences: jsonb("notification_preferences"),
+  allowedSubmodules: jsonb("allowed_submodules").$type<AllowedSubmodules>(),
   lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

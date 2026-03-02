@@ -53,7 +53,7 @@ shared/           # Shared code between client/server
 ### Key Pages & Routes
 1. **Dashboard** (`/dashboard`) - Main landing page with hero section, metrics cards, business applications grid, intranet updates
 2. **ERP** (`/erp`) - ERP module with collapsible sidebar sub-pages: Finance, Procurement, Inventory, Payments. Includes Qashio and Tagway external links. Routes: `/erp/finance`, `/erp/procurement`, `/erp/inventory`, `/erp/payments`.
-   - **Requisitions List** (`/erp/procurement/requisitions`) - Table view with search, status filter, inline status editing (Submitted/Awaiting Approval/Approved/Rejected), click-through to detail
+   - **Requisitions List** (`/erp/procurement/requisitions`) - Table view with search, status filter, inline status editing (Submitted/Awaiting Approval/PO Created/Rejected), click-through to detail, per-row PDF download
    - **Requisition ARF** (`/erp/procurement/requisitions/new`) - Approval Request Form with 6 sections: request info, description, justification, budget details (AED cost, budgeted yes/no, vendor), file uploads (JPG/PNG/PDF), timeline
    - **Requisition Detail** (`/erp/procurement/requisitions/:id`) - Full detail view with status change, summary cards, all sections, attachment download
 3. **HR** (`/hr`) - Kayan HRMS for employee directory, payroll, leaves
@@ -144,3 +144,11 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **express-session**: Session middleware
 - **bcryptjs**: Password hashing
 - **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.
+
+### Submodule Access Control
+- **Registry**: `submoduleRegistry` in `shared/schema.ts` defines submodules for ERP (finance, procurement, inventory, payments), Equestrian (stable-assets), and Projects (monday, tuesday)
+- **Database**: `allowed_submodules` JSONB column on `managed_users` table. When null or key absent, all submodules accessible (backward compatible)
+- **Admin UI**: `UserServicesCell` in admin dashboard shows nested submodule checkboxes under each assigned service. All checked by default = full access
+- **Backend Middleware**: `checkSubmoduleAccess(serviceKey, submoduleKey)` applied to SM routes (equestrian/stable-assets) and requisition routes (erp/procurement). Superadmins bypass all restrictions
+- **Frontend**: `canAccessSubmodule()` helper in `app-sidebar.tsx` filters sidebar navigation items based on user's `allowedSubmodules`
+- **API Endpoints**: `GET/PUT /api/admin/users/:id/submodules` for reading/updating submodule permissions

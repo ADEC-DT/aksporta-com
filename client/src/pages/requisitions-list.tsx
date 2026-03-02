@@ -8,16 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Plus, Search, Filter } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, FileDown } from "lucide-react";
 import type { Requisition } from "@shared/schema";
+import { jsPDF } from "jspdf";
 
-const statusOptions = ["Submitted", "Awaiting Approval", "Approved", "Rejected"];
+const statusOptions = ["Submitted", "Awaiting Approval", "PO Created", "Rejected"];
 
 function getStatusBadgeClass(status: string) {
   switch (status) {
     case "Submitted": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0";
     case "Awaiting Approval": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
-    case "Approved": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
+    case "PO Created": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
     case "Rejected": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0";
     default: return "";
   }
@@ -54,6 +55,79 @@ export default function RequisitionsListPage() {
 
   const formatCost = (cost: number) => {
     return new Intl.NumberFormat("en-AE", { style: "decimal", minimumFractionDigits: 2 }).format(cost / 100);
+  };
+
+  const generatePdf = (req: Requisition) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Approval Request Form (ARF)", pageWidth / 2, y, { align: "center" });
+    y += 10;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Request ID: ${req.id.slice(0, 8).toUpperCase()}`, pageWidth / 2, y, { align: "center" });
+    y += 6;
+    doc.text(`Status: ${req.status}`, pageWidth / 2, y, { align: "center" });
+    y += 12;
+
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    const addSection = (title: string, fields: [string, string][]) => {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(title, margin, y);
+      y += 7;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      fields.forEach(([label, value]) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold");
+        doc.text(`${label}:`, margin, y);
+        doc.setFont("helvetica", "normal");
+        const lines = doc.splitTextToSize(value || "—", contentWidth - 50);
+        doc.text(lines, margin + 50, y);
+        y += lines.length * 5 + 3;
+      });
+      y += 5;
+    };
+
+    addSection("1. Request Information", [
+      ["Title", req.requestTitle],
+      ["Department", req.department],
+      ["Requested By", req.requestedBy],
+      ["Position", req.position || "—"],
+      ["Date", req.date],
+      ["Date of Request", req.dateOfRequest],
+    ]);
+
+    addSection("2. Description of Request", [
+      ["Description", req.description],
+    ]);
+
+    addSection("3. Justification / Business Need", [
+      ["Justification", req.justification],
+    ]);
+
+    addSection("4. Budget Details", [
+      ["Estimated Cost (AED)", formatCost(req.estimatedCostAed)],
+      ["Budget Line / Account Code", req.budgetLineAccountCode || "—"],
+      ["Is this Budgeted?", req.isBudgeted ? "Yes" : "No"],
+      ["Vendor Name", req.vendorName || "—"],
+    ]);
+
+    addSection("5. Timeline", [
+      ["Required By Date", req.requiredByDate],
+      ["Project Start Date", req.projectStartDate || "—"],
+    ]);
+
+    doc.save(`ARF-${req.id.slice(0, 8).toUpperCase()}.pdf`);
   };
 
   return (
@@ -113,16 +187,17 @@ export default function RequisitionsListPage() {
                   <th className="p-3 text-left font-medium text-muted-foreground">Date of Request</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Required By</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Status</th>
+                  <th className="p-3 text-center font-medium text-muted-foreground">PDF</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">Loading...</td>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground">Loading...</td>
                   </tr>
                 ) : requisitions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">No requisitions found</td>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground">No requisitions found</td>
                   </tr>
                 ) : (
                   requisitions.map((req) => (
@@ -158,6 +233,18 @@ export default function RequisitionsListPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                      </td>
+                      <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => generatePdf(req)}
+                          data-testid={`button-pdf-${req.id}`}
+                          title="Download PDF"
+                        >
+                          <FileDown className="h-4 w-4 text-red-500" />
+                        </Button>
                       </td>
                     </tr>
                   ))

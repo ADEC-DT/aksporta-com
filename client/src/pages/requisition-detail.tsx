@@ -10,13 +10,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign } from "lucide-react";
 import type { Requisition, RequisitionAttachment } from "@shared/schema";
 
-const statusOptions = ["Submitted", "Awaiting Approval", "Approved", "Rejected"];
+const statusOptions = ["Submitted", "Awaiting Approval", "PO Created", "Rejected"];
 
 function getStatusBadgeClass(status: string) {
   switch (status) {
     case "Submitted": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0";
     case "Awaiting Approval": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
-    case "Approved": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
+    case "PO Created": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
     case "Rejected": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0";
     default: return "";
   }

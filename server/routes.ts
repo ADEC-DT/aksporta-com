@@ -48,6 +48,18 @@ const isSuperAdmin: RequestHandler = async (req, res, next) => {
   next();
 };
 
+const checkSubmoduleAccess = (serviceKey: string, submoduleKey: string): RequestHandler => {
+  return (req, res, next) => {
+    const managedUser = (req as any).managedUser as ManagedUser;
+    if (!managedUser) return res.status(401).json({ message: "Unauthorized" });
+    if (managedUser.role === "superadmin") return next();
+    const allowed = managedUser.allowedSubmodules as Record<string, string[]> | null;
+    if (!allowed || !allowed[serviceKey]) return next();
+    if (allowed[serviceKey].includes(submoduleKey)) return next();
+    return res.status(403).json({ message: "Access denied: submodule restricted" });
+  };
+};
+
 function generateNetSuiteData(): NetSuiteData {
   const now = new Date();
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
@@ -388,6 +400,32 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error setting user services:", error);
       res.status(500).json({ message: "Failed to set user services" });
+    }
+  });
+
+  // Get user submodule permissions
+  app.get("/api/admin/users/:id/submodules", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getManagedUser(req.params.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user.allowedSubmodules || {});
+    } catch (error) {
+      console.error("Error getting user submodules:", error);
+      res.status(500).json({ message: "Failed to get user submodules" });
+    }
+  });
+
+  // Update user submodule permissions
+  app.put("/api/admin/users/:id/submodules", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({ allowedSubmodules: z.record(z.array(z.string())) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid input" });
+      await storage.updateManagedUser(req.params.id, { allowedSubmodules: parsed.data.allowedSubmodules } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting user submodules:", error);
+      res.status(500).json({ message: "Failed to set user submodules" });
     }
   });
 
@@ -3285,7 +3323,7 @@ export async function registerRoutes(
 
   // ========== Requisitions API Routes ==========
 
-  app.get("/api/requisitions", isAuthenticated, async (req, res) => {
+  app.get("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const search = req.query.search as string | undefined;
       const status = req.query.status as string | undefined;
@@ -3293,7 +3331,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.get("/api/requisitions/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const r = await storage.getRequisition(req.params.id);
       if (!r) return res.status(404).json({ message: "Not found" });
@@ -3301,7 +3339,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.post("/api/requisitions", isAuthenticated, async (req, res) => {
+  app.post("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const { attachments, ...data } = req.body;
       const parsed = insertRequisitionSchema.safeParse(data);
@@ -3333,14 +3371,14 @@ export async function registerRoutes(
   });
 
   const updateRequisitionSchema = z.object({
-    status: z.enum(["Submitted", "Awaiting Approval", "Approved", "Rejected"]).optional(),
+    status: z.enum(["Submitted", "Awaiting Approval", "PO Created", "Rejected"]).optional(),
     requestTitle: z.string().optional(),
     department: z.string().optional(),
     description: z.string().optional(),
     justification: z.string().optional(),
   });
 
-  app.patch("/api/requisitions/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const parsed = updateRequisitionSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid update data", errors: parsed.error.flatten() });
@@ -3350,7 +3388,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.delete("/api/requisitions/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const ok = await storage.deleteRequisition(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3358,7 +3396,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.get("/api/requisitions/:id/attachments", isAuthenticated, async (req, res) => {
+  app.get("/api/requisitions/:id/attachments", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       res.json(await storage.getRequisitionAttachments(req.params.id));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -3381,20 +3419,20 @@ export async function registerRoutes(
 
   // Facilities
   // Stables
-  app.get("/api/sm/stables", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/stables", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmStables()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/stables", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/stables", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmStable(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/stables/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/stables/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmStable(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/stables/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/stables/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmStable(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3403,20 +3441,20 @@ export async function registerRoutes(
   });
 
   // Boxes
-  app.get("/api/sm/boxes", isAuthenticated, async (req, res) => {
+  app.get("/api/sm/boxes", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.getSmBoxes(req.query.stableId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/boxes", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/boxes", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmBox(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/boxes/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/boxes/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmBox(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/boxes/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/boxes/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmBox(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3425,20 +3463,20 @@ export async function registerRoutes(
   });
 
   // Horses
-  app.get("/api/sm/horses", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/horses", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmHorses()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/horses", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/horses", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmHorse(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/horses/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/horses/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmHorse(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/horses/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/horses/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmHorse(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3446,7 +3484,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.post("/api/sm/horses/import/preview", isAuthenticated, isSuperAdmin, upload.single("file"), async (req, res) => {
+  app.post("/api/sm/horses/import/preview", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), isSuperAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
@@ -3467,7 +3505,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sm/horses/import", isAuthenticated, isSuperAdmin, async (req, res) => {
+  app.post("/api/sm/horses/import", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), isSuperAdmin, async (req, res) => {
     try {
       const { fileData, mapping } = req.body;
       if (!fileData || typeof fileData !== "string") {
@@ -3550,20 +3588,20 @@ export async function registerRoutes(
   });
 
   // SM Customers
-  app.get("/api/sm/customers", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/customers", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmCustomers()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/customers", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/customers", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmCustomer(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/customers/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/customers/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmCustomer(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/customers/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/customers/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmCustomer(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3572,20 +3610,20 @@ export async function registerRoutes(
   });
 
   // Items & Services
-  app.get("/api/sm/item-services", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/item-services", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmItemServices()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/item-services", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/item-services", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmItemService(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/item-services/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/item-services/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmItemService(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/item-services/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/item-services/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmItemService(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3593,7 +3631,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.post("/api/sm/item-services/import/preview", isAuthenticated, isSuperAdmin, upload.single("file"), async (req, res) => {
+  app.post("/api/sm/item-services/import/preview", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), isSuperAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
@@ -3614,7 +3652,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sm/item-services/import", isAuthenticated, isSuperAdmin, async (req, res) => {
+  app.post("/api/sm/item-services/import", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), isSuperAdmin, async (req, res) => {
     try {
       const { fileData, mapping } = req.body;
       if (!fileData || typeof fileData !== "string") {
@@ -3690,24 +3728,24 @@ export async function registerRoutes(
   });
 
   // Billing Elements
-  app.get("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
+  app.get("/api/sm/billing-elements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       const unbilledOnly = req.query.unbilledOnly === "true";
       res.json(await storage.getSmBillingElements({ unbilledOnly, limit }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/billing-elements", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/billing-elements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmBillingElement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/billing-elements/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/billing-elements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmBillingElement(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/billing-elements/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/billing-elements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmBillingElement(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3716,20 +3754,20 @@ export async function registerRoutes(
   });
 
   // Livery Packages
-  app.get("/api/sm/livery-packages", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/livery-packages", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmLiveryPackages()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/livery-packages", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/livery-packages", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmLiveryPackage(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/livery-packages/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/livery-packages/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmLiveryPackage(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/livery-packages/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/livery-packages/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmLiveryPackage(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3738,20 +3776,20 @@ export async function registerRoutes(
   });
 
   // Livery Agreements
-  app.get("/api/sm/livery-agreements", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/livery-agreements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmLiveryAgreements()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/livery-agreements", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/livery-agreements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.createSmLiveryAgreement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/sm/livery-agreements/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/sm/livery-agreements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const r = await storage.updateSmLiveryAgreement(req.params.id, req.body);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/livery-agreements/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/livery-agreements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmLiveryAgreement(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
@@ -3760,10 +3798,10 @@ export async function registerRoutes(
   });
 
   // Invoices
-  app.get("/api/sm/invoices", isAuthenticated, async (_req, res) => {
+  app.get("/api/sm/invoices", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmInvoices()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.post("/api/sm/invoices", isAuthenticated, async (req, res) => {
+  app.post("/api/sm/invoices", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const { invoice, lines, billingElementIds } = req.body;
       const created = await storage.createSmInvoice(invoice);
@@ -3776,19 +3814,19 @@ export async function registerRoutes(
       res.json(created);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/sm/invoices/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/sm/invoices/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const ok = await storage.deleteSmInvoice(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.get("/api/sm/invoices/:id/lines", isAuthenticated, async (req, res) => {
+  app.get("/api/sm/invoices/:id/lines", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try { res.json(await storage.getSmInvoiceLines(req.params.id)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // Reset StableMaster data
-  app.post("/api/sm/reset-demo-data", isAuthenticated, async (_req, res) => {
+  app.post("/api/sm/reset-demo-data", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try {
       const { db } = await import("./db");
       const { smBillingElements, smLiveryAgreements, smInvoiceLines, smInvoices, smBoxes, smStables, smHorses, smCustomers, smItemServices, smLiveryPackages } = await import("@shared/schema");

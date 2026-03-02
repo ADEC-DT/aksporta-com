@@ -43,7 +43,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ExternalService } from "@shared/schema";
+import type { ExternalService, AllowedSubmodules } from "@shared/schema";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
 
 const secondaryNavItems = [
@@ -71,6 +71,14 @@ export function AppSidebar() {
   });
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const isSuperAdmin = user?.role === "superadmin";
+
+  const canAccessSubmodule = (serviceKey: string, submoduleKey: string): boolean => {
+    if (isSuperAdmin) return true;
+    const allowed = (user as any)?.allowedSubmodules as AllowedSubmodules | null | undefined;
+    if (!allowed || !allowed[serviceKey]) return true;
+    return allowed[serviceKey].includes(submoduleKey);
+  };
 
   const getInitials = () => {
     if (user?.firstName && user?.lastName) {
@@ -170,6 +178,7 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <SidebarMenuSub>
+                            {canAccessSubmodule("equestrian", "stable-assets") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/equestrian/stable-assets"} data-testid="nav-sub-equestrian-stable-assets">
                                 <Link href="/equestrian/stable-assets">
@@ -178,6 +187,7 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>
@@ -203,6 +213,7 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <SidebarMenuSub>
+                            {canAccessSubmodule("erp", "finance") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/erp/finance"} data-testid="nav-sub-erp-finance">
                                 <Link href="/erp/finance">
@@ -211,6 +222,8 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
+                            {canAccessSubmodule("erp", "procurement") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location.startsWith("/erp/procurement")} data-testid="nav-sub-erp-procurement">
                                 <Link href="/erp/procurement">
@@ -219,6 +232,8 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
+                            {canAccessSubmodule("erp", "inventory") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/erp/inventory"} data-testid="nav-sub-erp-inventory">
                                 <Link href="/erp/inventory">
@@ -227,6 +242,8 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
+                            {isAdmin && canAccessSubmodule("erp", "payments") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/erp/payments"} data-testid="nav-sub-erp-payments">
                                 <Link href="/erp/payments">
@@ -235,6 +252,7 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>
@@ -263,6 +281,7 @@ export function AppSidebar() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <SidebarMenuSub>
+                            {canAccessSubmodule("projects", "monday") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/projects/monday"} data-testid="nav-sub-projects-monday">
                                 <Link href="/projects/monday">
@@ -271,6 +290,8 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
+                            {canAccessSubmodule("projects", "tuesday") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location === "/projects/tuesday"} data-testid="nav-sub-projects-tuesday">
                                 <Link href="/projects/tuesday">
@@ -279,6 +300,7 @@ export function AppSidebar() {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>
