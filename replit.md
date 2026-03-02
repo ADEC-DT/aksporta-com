@@ -144,3 +144,4 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **express-session**: Session middleware
 - **bcryptjs**: Password hashing
 - **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.
+- **Submodule Access Control**: Per-user restriction of submodule access within services. Uses `allowedSubmodules` JSONB column on `managed_users` and a `submoduleRegistry` constant in `shared/schema.ts`. Admin dashboard shows nested checkboxes under each service. Sidebar filters hidden submodules. Backend middleware `checkSubmoduleAccess` protects relevant API routes. Null = full access (backward compatible). Superadmins bypass all restrictions.

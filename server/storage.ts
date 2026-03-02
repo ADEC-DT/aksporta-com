@@ -1,5 +1,5 @@
 import { 
-  managedUsers, type ManagedUser, type InsertManagedUser,
+  managedUsers, type ManagedUser, type InsertManagedUser, type AllowedSubmodules,
   systemSettings, type SystemSetting, type InsertSystemSetting,
   externalServices, type ExternalService, type InsertExternalService,
   userServices,
@@ -195,6 +195,10 @@ export interface IStorage {
   // User services (access control)
   getUserServices(userId: string): Promise<string[]>;
   setUserServices(userId: string, serviceIds: string[]): Promise<void>;
+
+  // User submodule permissions
+  getUserSubmodules(userId: string): Promise<AllowedSubmodules>;
+  updateUserSubmodules(userId: string, allowedSubmodules: AllowedSubmodules): Promise<ManagedUser | undefined>;
 
   // Section templates CRUD
   getAllSectionTemplates(): Promise<SectionTemplate[]>;
@@ -1117,6 +1121,21 @@ export class DatabaseStorage implements IStorage {
         serviceIds.map(serviceId => ({ userId, serviceId }))
       );
     }
+  }
+
+  // User submodule permissions
+  async getUserSubmodules(userId: string): Promise<AllowedSubmodules> {
+    const user = await this.getManagedUser(userId);
+    return user?.allowedSubmodules ?? null;
+  }
+
+  async updateUserSubmodules(userId: string, allowedSubmodules: AllowedSubmodules): Promise<ManagedUser | undefined> {
+    const [user] = await db
+      .update(managedUsers)
+      .set({ allowedSubmodules, updatedAt: new Date() })
+      .where(eq(managedUsers.id, userId))
+      .returning();
+    return user;
   }
 
   // Section templates methods
