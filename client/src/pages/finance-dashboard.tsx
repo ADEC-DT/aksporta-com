@@ -235,8 +235,6 @@ export default function FinanceDashboard() {
             ))}
           </div>
 
-          <OtherFinanceModulesSection />
-
           <div className="mt-8">
             <h3 className="text-lg font-semibold font-outfit mb-4">Power BI Dashboard</h3>
             <Card className="overflow-hidden">
@@ -252,6 +250,8 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </div>
+
+          <OtherFinanceModulesSection />
         </div>
       )}
 
@@ -278,6 +278,23 @@ export default function FinanceDashboard() {
               </Card>
             ))}
           </div>
+
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold font-outfit mb-4">Vendors BI Dashboard</h3>
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                <iframe
+                  title="Vendors BI"
+                  src="https://app.powerbi.com/reportEmbed?reportId=b0352db6-6036-4026-9f2f-4c5648bedaa7&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3"
+                  className="w-full border-0"
+                  style={{ height: "600px" }}
+                  allowFullScreen
+                  data-testid="powerbi-vendors-embed"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
           <OtherFinanceModulesSection />
         </div>
       )}
