@@ -10,33 +10,6 @@ export * from "./models/auth";
 export const userRoles = ["superadmin", "admin", "finance", "procurement", "others"] as const;
 export type UserRole = typeof userRoles[number];
 
-// Submodule registry: maps service URL keys to their submodule definitions
-export type SubmoduleDefinition = {
-  key: string;
-  label: string;
-  path: string;
-};
-
-export const submoduleRegistry: Record<string, SubmoduleDefinition[]> = {
-  "/equestrian": [
-    { key: "stable-assets", label: "Stable Assets Manager", path: "/equestrian/stable-assets" },
-    { key: "other-modules", label: "Other Modules", path: "/equestrian/other-modules" },
-  ],
-  "/erp": [
-    { key: "finance", label: "Finance", path: "/erp/finance" },
-    { key: "procurement", label: "Procurement", path: "/erp/procurement" },
-    { key: "inventory", label: "Inventory", path: "/erp/inventory" },
-    { key: "payments", label: "Payments", path: "/erp/payments" },
-    { key: "other-modules", label: "Other Modules", path: "/erp/other-modules" },
-  ],
-  "/projects": [
-    { key: "monday", label: "Monday", path: "/projects/monday" },
-    { key: "tuesday", label: "Tuesday", path: "/projects/tuesday" },
-  ],
-};
-
-// Type for allowedSubmodules JSONB: { "/erp": ["finance", "procurement"], ... }
-export type AllowedSubmodules = Record<string, string[]> | null;
 
 // Extended user with roles (managed users for admin panel)
 export const managedUsers = pgTable("managed_users", {
@@ -58,7 +31,6 @@ export const managedUsers = pgTable("managed_users", {
   theme: varchar("theme").notNull().default("system"),
   emailNotifications: boolean("email_notifications").notNull().default(true),
   notificationPreferences: jsonb("notification_preferences"),
-  allowedSubmodules: jsonb("allowed_submodules").$type<AllowedSubmodules>(),
   lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

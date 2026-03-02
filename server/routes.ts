@@ -48,31 +48,6 @@ const isSuperAdmin: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const checkSubmoduleAccess = (serviceKey: string, submoduleKey: string): RequestHandler => {
-  return async (req, res, next) => {
-    const managedUser = (req as any).managedUser as ManagedUser;
-
-    if (!managedUser) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    if (managedUser.role === "superadmin") {
-      return next();
-    }
-
-    const allowed = managedUser.allowedSubmodules;
-    if (!allowed || !allowed[serviceKey]) {
-      return next();
-    }
-
-    if (!allowed[serviceKey].includes(submoduleKey)) {
-      return res.status(403).json({ message: "Forbidden: You do not have access to this submodule" });
-    }
-
-    next();
-  };
-};
-
 function generateNetSuiteData(): NetSuiteData {
   const now = new Date();
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
@@ -413,49 +388,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error setting user services:", error);
       res.status(500).json({ message: "Failed to set user services" });
-    }
-  });
-
-  // Get user submodule permissions
-  app.get("/api/admin/users/:id/submodules", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const user = await storage.getManagedUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      res.json(user.allowedSubmodules ?? null);
-    } catch (error) {
-      console.error("Error getting user submodules:", error);
-      res.status(500).json({ message: "Failed to get user submodules" });
-    }
-  });
-
-  // Update user submodule permissions
-  app.put("/api/admin/users/:id/submodules", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const user = await storage.getManagedUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const submodulesSchema = z.object({
-        allowedSubmodules: z.record(z.string(), z.array(z.string())).nullable(),
-      });
-      const parsed = submodulesSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
-      }
-
-      const updated = await storage.updateUserSubmodules(req.params.id, parsed.data.allowedSubmodules);
-      if (updated) {
-        const { password: _, ...userWithoutPassword } = updated;
-        res.json(userWithoutPassword);
-      } else {
-        res.status(404).json({ message: "User not found" });
-      }
-    } catch (error) {
-      console.error("Error updating user submodules:", error);
-      res.status(500).json({ message: "Failed to update user submodules" });
     }
   });
 
@@ -3352,8 +3284,6 @@ export async function registerRoutes(
   });
 
   // ========== Requisitions API Routes ==========
-  app.use("/api/requisitions", isAuthenticated, checkSubmoduleAccess("/erp", "procurement"));
-  app.use("/api/requisition-attachments", isAuthenticated, checkSubmoduleAccess("/erp", "procurement"));
 
   app.get("/api/requisitions", isAuthenticated, async (req, res) => {
     try {
@@ -3448,7 +3378,6 @@ export async function registerRoutes(
   });
 
   // ========== StableMaster API Routes ==========
-  app.use("/api/sm", isAuthenticated, checkSubmoduleAccess("/equestrian", "stable-assets"));
 
   // Facilities
   // Stables

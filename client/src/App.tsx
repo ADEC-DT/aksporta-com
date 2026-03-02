@@ -63,7 +63,7 @@ import PerformanceKPIPage from "@/pages/performance-kpi";
 import OpsFMPage from "@/pages/ops-fm";
 import ITDTPage from "@/pages/it-dt";
 import SprintManagementPage from "@/pages/sprint-management";
-import OtherModulesPage from "@/pages/other-modules-page";
+
 import ProjectGroupPage from "@/pages/project-group";
 import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
@@ -157,22 +157,13 @@ function ProtectedRoutes() {
                 <Route path="/erp/procurement" component={FinanceDashboard} />
                 <Route path="/erp/inventory" component={FinanceDashboard} />
                 <Route path="/erp/payments" component={FinanceDashboard} />
-                <Route path="/erp/other-modules">
-                  {() => <OtherModulesPage section="erp" />}
-                </Route>
                 <Route path="/erp">
                   <Redirect to="/erp/finance" />
                 </Route>
                 <Route path="/finance">
                   <Redirect to="/erp/finance" />
                 </Route>
-                <Route path="/hr/other-modules">
-                  {() => <OtherModulesPage section="hr" />}
-                </Route>
                 <Route path="/hr" component={HRMSPage} />
-                <Route path="/livery/other-modules">
-                  {() => <OtherModulesPage section="livery" />}
-                </Route>
                 <Route path="/livery" component={LiveryDashboard} />
                 <Route path="/admin" component={AdminDashboard} />
                 <Route path="/admin/tickets" component={AdminTicketsPage} />
@@ -182,54 +173,21 @@ function ProtectedRoutes() {
                 <Route path="/tickets" component={MyTicketsPage} />
                 <Route path="/tickets/new" component={MyTicketsPage} />
                 <Route path="/my-tickets" component={MyTicketsPage} />
-                <Route path="/other-systems/other-modules">
-                  {() => <OtherModulesPage section="other-systems" />}
-                </Route>
                 <Route path="/other-systems" component={OtherSystemsPage} />
-                <Route path="/business-units/other-modules">
-                  {() => <OtherModulesPage section="business-units" />}
-                </Route>
                 <Route path="/business-units" component={BusinessUnitsPage} />
-                <Route path="/asset-lease/other-modules">
-                  {() => <OtherModulesPage section="asset-lease" />}
-                </Route>
                 <Route path="/asset-lease" component={AssetLeasePage} />
                 <Route path="/equestrian/overview" component={EquestrianPage} />
                 <Route path="/equestrian/stable-assets/:rest*" component={StableMasterPage} />
                 <Route path="/equestrian/stable-assets" component={StableMasterPage} />
-                <Route path="/equestrian/other-modules">
-                  {() => <OtherModulesPage section="equestrian" />}
-                </Route>
                 <Route path="/equestrian">
                   <Redirect to="/equestrian/stable-assets" />
                 </Route>
-                <Route path="/events/other-modules">
-                  {() => <OtherModulesPage section="events" />}
-                </Route>
                 <Route path="/events" component={EventsPage} />
-                <Route path="/media-marketing/other-modules">
-                  {() => <OtherModulesPage section="media-marketing" />}
-                </Route>
                 <Route path="/media-marketing" component={MediaMarketingPage} />
-                <Route path="/intranet/other-modules">
-                  {() => <OtherModulesPage section="intranet" />}
-                </Route>
                 <Route path="/intranet" component={IntranetPage} />
-                <Route path="/legal/other-modules">
-                  {() => <OtherModulesPage section="legal" />}
-                </Route>
                 <Route path="/legal" component={LegalPage} />
-                <Route path="/performance-kpi/other-modules">
-                  {() => <OtherModulesPage section="performance-kpi" />}
-                </Route>
                 <Route path="/performance-kpi" component={PerformanceKPIPage} />
-                <Route path="/ops-fm/other-modules">
-                  {() => <OtherModulesPage section="ops-fm" />}
-                </Route>
                 <Route path="/ops-fm" component={OpsFMPage} />
-                <Route path="/it-dt/other-modules">
-                  {() => <OtherModulesPage section="it-dt" />}
-                </Route>
                 <Route path="/it-dt" component={ITDTPage} />
                 <Route path="/sprint-management" component={SprintManagementPage} />
                 <Route path="/projects/group/:groupId" component={ProjectGroupPage} />

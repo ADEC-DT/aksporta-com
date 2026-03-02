@@ -1,8 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import type { ManagedUser, AdminStats, ExternalService, AllowedSubmodules } from "@shared/schema";
-import { submoduleRegistry } from "@shared/schema";
+import type { ManagedUser, AdminStats, ExternalService } from "@shared/schema";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -72,10 +71,6 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
     queryKey: ["/api/admin/users", userId, "services"],
   });
 
-  const { data: allowedSubmodules } = useQuery<AllowedSubmodules>({
-    queryKey: ["/api/admin/users", userId, "submodules"],
-  });
-
   const updateServicesMutation = useMutation({
     mutationFn: async (serviceIds: string[]) => {
       return apiRequest("PUT", `/api/admin/users/${userId}/services`, { serviceIds });
@@ -89,57 +84,11 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
     },
   });
 
-  const updateSubmodulesMutation = useMutation({
-    mutationFn: async (submodules: AllowedSubmodules) => {
-      return apiRequest("PUT", `/api/admin/users/${userId}/submodules`, { allowedSubmodules: submodules });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "submodules"] });
-      toast({ title: "Submodule access updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to update submodule access", description: error.message, variant: "destructive" });
-    },
-  });
-
   const handleToggleService = (serviceId: string, checked: boolean) => {
     const newServiceIds = checked
       ? [...userServiceIds, serviceId]
       : userServiceIds.filter(id => id !== serviceId);
     updateServicesMutation.mutate(newServiceIds);
-  };
-
-  const handleToggleSubmodule = (serviceUrl: string, submoduleKey: string, checked: boolean) => {
-    const registryEntry = submoduleRegistry[serviceUrl];
-    if (!registryEntry) return;
-
-    const allKeys = registryEntry.map(s => s.key);
-    const current = allowedSubmodules ?? {};
-    const currentForService = current[serviceUrl] ?? allKeys;
-
-    let newForService: string[];
-    if (checked) {
-      newForService = currentForService.includes(submoduleKey) ? currentForService : [...currentForService, submoduleKey];
-    } else {
-      newForService = currentForService.filter(k => k !== submoduleKey);
-    }
-
-    const allSelected = allKeys.length === newForService.length && allKeys.every(k => newForService.includes(k));
-
-    const newAllowed = { ...current };
-    if (allSelected) {
-      delete newAllowed[serviceUrl];
-    } else {
-      newAllowed[serviceUrl] = newForService;
-    }
-
-    const hasAnyRestriction = Object.keys(newAllowed).length > 0;
-    updateSubmodulesMutation.mutate(hasAnyRestriction ? newAllowed : null);
-  };
-
-  const isSubmoduleChecked = (serviceUrl: string, submoduleKey: string): boolean => {
-    if (!allowedSubmodules || !allowedSubmodules[serviceUrl]) return true;
-    return allowedSubmodules[serviceUrl].includes(submoduleKey);
   };
 
   const assignedCount = userServiceIds.length;
@@ -152,7 +101,7 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
           <Badge variant="secondary" className="text-xs">{isLoading ? "-" : assignedCount}</Badge>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72" align="start">
+      <PopoverContent className="w-64" align="start">
         <div className="space-y-3">
           <div className="font-medium text-sm">Assigned Services</div>
           {isLoading ? (
@@ -162,49 +111,21 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
           ) : enabledServices.length === 0 ? (
             <p className="text-sm text-muted-foreground">No services enabled in system settings</p>
           ) : (
-            <div className="space-y-1 max-h-64 overflow-y-auto">
-              {enabledServices.map(service => {
-                const isAssigned = userServiceIds.includes(service.id);
-                const serviceUrl = service.url || "";
-                const submodules = submoduleRegistry[serviceUrl];
-                return (
-                  <div key={service.id}>
-                    <div className="flex items-center gap-2 py-1">
-                      <Checkbox
-                        id={`service-${userId}-${service.id}`}
-                        checked={isAssigned}
-                        onCheckedChange={(checked) => handleToggleService(service.id, checked as boolean)}
-                        disabled={updateServicesMutation.isPending}
-                        data-testid={`checkbox-service-${userId}-${service.id}`}
-                      />
-                      <Label htmlFor={`service-${userId}-${service.id}`} className="text-sm cursor-pointer">
-                        {service.name}
-                      </Label>
-                    </div>
-                    {isAssigned && submodules && submodules.length > 0 && (
-                      <div className="ml-6 space-y-1 pb-1">
-                        {submodules.map(sub => (
-                          <div key={sub.key} className="flex items-center gap-2 py-0.5">
-                            <Checkbox
-                              id={`submodule-${userId}-${serviceUrl}-${sub.key}`}
-                              checked={isSubmoduleChecked(serviceUrl, sub.key)}
-                              onCheckedChange={(checked) => handleToggleSubmodule(serviceUrl, sub.key, checked as boolean)}
-                              disabled={updateSubmodulesMutation.isPending}
-                              data-testid={`checkbox-submodule-${userId}-${sub.key}`}
-                            />
-                            <Label
-                              htmlFor={`submodule-${userId}-${serviceUrl}-${sub.key}`}
-                              className="text-xs cursor-pointer text-muted-foreground"
-                            >
-                              {sub.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {enabledServices.map(service => (
+                <div key={service.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`service-${userId}-${service.id}`}
+                    checked={userServiceIds.includes(service.id)}
+                    onCheckedChange={(checked) => handleToggleService(service.id, checked as boolean)}
+                    disabled={updateServicesMutation.isPending}
+                    data-testid={`checkbox-service-${userId}-${service.id}`}
+                  />
+                  <Label htmlFor={`service-${userId}-${service.id}`} className="text-sm cursor-pointer">
+                    {service.name}
+                  </Label>
+                </div>
+              ))}
             </div>
           )}
         </div>
