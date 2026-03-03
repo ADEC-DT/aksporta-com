@@ -372,6 +372,10 @@ export default function SettingsPage() {
             <Bell className="mr-2 h-4 w-4" />
             Notifications
           </TabsTrigger>
+          <TabsTrigger value="security" data-testid="tab-security">
+            <Lock className="mr-2 h-4 w-4" />
+            Security
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -505,7 +509,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* COMMENTED OUT: Security TabsContent - can be restored later
         <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
@@ -568,7 +571,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        */}
 
         <TabsContent value="preferences" className="space-y-6">
           <Card>
