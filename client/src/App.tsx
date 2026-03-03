@@ -89,6 +89,18 @@ const ALLOWED_ROUTES_FOR_NON_ADMIN = [
   "/projects",
   "/settings",
   "/my-tickets",
+  "/hr",
+  "/equestrian",
+  "/asset-lease",
+  "/business-units",
+  "/legal",
+  "/performance-kpi",
+  "/ops-fm",
+  "/media-marketing",
+  "/help",
+  "/other-systems",
+  "/veterinary",
+  "/livery",
 ];
 
 function ProtectedRoutes() {

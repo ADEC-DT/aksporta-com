@@ -756,8 +756,12 @@ export class DatabaseStorage implements IStorage {
 
     let orderClause;
     if (options?.sortBy && options.sortBy !== 'createdAt') {
-      const dir = options.sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
-      orderClause = sql`${dsRecords.data}->>${options.sortBy} ${dir}`;
+      const sanitizedKey = options.sortBy.replace(/[^a-zA-Z0-9_]/g, '');
+      if (options.sortOrder === 'asc') {
+        orderClause = sql`${dsRecords.data}->>${sql.raw(`'${sanitizedKey}'`)} ASC`;
+      } else {
+        orderClause = sql`${dsRecords.data}->>${sql.raw(`'${sanitizedKey}'`)} DESC`;
+      }
     } else {
       orderClause = options?.sortOrder === 'asc' ? asc(dsRecords.createdAt) : desc(dsRecords.createdAt);
     }
@@ -1111,12 +1115,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setUserServices(userId: string, serviceIds: string[]): Promise<void> {
-    await db.delete(userServices).where(eq(userServices.userId, userId));
-    if (serviceIds.length > 0) {
-      await db.insert(userServices).values(
-        serviceIds.map(serviceId => ({ userId, serviceId }))
-      );
-    }
+    await db.transaction(async (tx) => {
+      await tx.delete(userServices).where(eq(userServices.userId, userId));
+      if (serviceIds.length > 0) {
+        await tx.insert(userServices).values(
+          serviceIds.map(serviceId => ({ userId, serviceId }))
+        );
+      }
+    });
   }
 
   // Section templates methods
@@ -1196,12 +1202,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async reorderPageSections(serviceId: string, sectionIds: string[]): Promise<boolean> {
-    for (let i = 0; i < sectionIds.length; i++) {
-      await db
-        .update(pageSections)
-        .set({ sortOrder: i, updatedAt: new Date() })
-        .where(and(eq(pageSections.id, sectionIds[i]), eq(pageSections.serviceId, serviceId)));
-    }
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < sectionIds.length; i++) {
+        await tx
+          .update(pageSections)
+          .set({ sortOrder: i, updatedAt: new Date() })
+          .where(and(eq(pageSections.id, sectionIds[i]), eq(pageSections.serviceId, serviceId)));
+      }
+    });
     return true;
   }
 

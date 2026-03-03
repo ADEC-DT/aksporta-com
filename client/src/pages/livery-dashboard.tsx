@@ -1,5 +1,4 @@
 import { OtherModulesSection } from "@/components/other-modules-section";
-import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { MetricCard } from "@/components/metric-card";
@@ -14,24 +13,6 @@ import type { LiveryData } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function LiveryDashboard() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
-
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-full p-6">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle className="text-center text-destructive" data-testid="text-access-denied">Access Denied</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground" data-testid="text-access-denied-message">You do not have permission to access this page.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data, isLoading, isFetching, refetch } = useQuery<LiveryData>({

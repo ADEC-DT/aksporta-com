@@ -2011,7 +2011,7 @@ function BillingPage() {
 
   const invoiceMutation = useMutation({
     mutationFn: async () => {
-      const customerId = [...selectedCustomerIds][0];
+      const customerId = Array.from(selectedCustomerIds)[0];
       const today = new Date().toISOString().split("T")[0];
       const invNum = `INV-${Date.now()}`;
       const lines = selectedLines.map(l => ({
@@ -2154,7 +2154,7 @@ function BillingPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Confirm Invoice Generation</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm">Generate a draft invoice for <strong>{customerMap[[...selectedCustomerIds][0] || ""]?.name}</strong> with {selectedLines.length} line(s)?</p>
+            <p className="text-sm">Generate a draft invoice for <strong>{customerMap[Array.from(selectedCustomerIds)[0] || ""]?.name}</strong> with {selectedLines.length} line(s)?</p>
             <p className="text-sm font-medium">Total: {formatAED(selectedLines.reduce((s, l) => s + l.unitPrice * (parseFloat(l.quantity) || 1), 0))}</p>
           </div>
           <div className="flex justify-end gap-2 pt-4">

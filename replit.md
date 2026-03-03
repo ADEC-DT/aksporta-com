@@ -152,4 +152,8 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **Service-Level Access**: `userServices` table maps users to enabled services. Sidebar filters services via `GET /api/my-services` (admins/superadmins see all). All data endpoints require authentication
 - **Submodule Access**: `submoduleRegistry` in `shared/schema.ts` defines submodules for ERP (finance, procurement, inventory, payments), Equestrian (stable-assets), Projects (monday, tuesday). `allowed_submodules` JSONB column on `managed_users`. `checkSubmoduleAccess` middleware on SM and requisition routes. Superadmins bypass all restrictions
 - **Admin UI**: `UserServicesCell` in admin dashboard shows nested submodule checkboxes. `GET/PUT /api/admin/users/:id/submodules` endpoints
-- **Frontend Guards**: `canAccessSubmodule()` in sidebar, `ProtectedRoutes` in App.tsx with `ALLOWED_ROUTES_FOR_NON_ADMIN` whitelist, component-level guards on admin-dashboard, it-dt, livery-dashboard, sprint-management, system-settings pages
+- **Frontend Guards**: `canAccessSubmodule()` in sidebar, `ProtectedRoutes` in App.tsx with `ALLOWED_ROUTES_FOR_NON_ADMIN` whitelist (includes all service routes), component-level guards on admin-dashboard, it-dt, sprint-management, system-settings pages
+- **Data Sanitization**: All user-facing endpoints strip `password`, `mfaSecret`, `mfaBackupCodes` before responding (login, auth/user, /api/me, admin user CRUD)
+- **Session Security**: Session regeneration on login (prevents session fixation), sameSite=lax cookie, httpOnly, secure in production
+- **Route Protection**: System management routes (blueprints, spaces, project-groups, project-tags, data-source settings) require `isAdmin`; DB operations (setUserServices, reorderPageSections) wrapped in transactions
+- **SQL Safety**: getDsRecords sortBy parameter sanitized (alphanumeric + underscore only)

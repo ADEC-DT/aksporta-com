@@ -30,6 +30,7 @@ export function setupAuth(app: Express) {
       cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
         maxAge: sessionTtl,
       },
     })
@@ -63,15 +64,22 @@ export function registerAuthRoutes(app: Express) {
         return res.status(403).json({ message: "Account is disabled" });
       }
 
-      // Set session
+      // Regenerate session to prevent session fixation
+      const oldSession = req.session;
+      await new Promise<void>((resolve, reject) => {
+        oldSession.regenerate((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
       req.session.userId = user.id;
 
       // Update last active
       await storage.updateManagedUser(user.id, { lastActiveAt: new Date() });
 
-      // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      // Return user without sensitive fields
+      const { password: _p, mfaSecret: _m, mfaBackupCodes: _b, ...userWithoutSensitive } = user;
+      res.json(userWithoutSensitive);
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
@@ -102,9 +110,9 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({ message: "User not found" });
       }
 
-      // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      // Return user without sensitive fields
+      const { password: _, mfaSecret, mfaBackupCodes, ...userWithoutSensitive } = user;
+      res.json(userWithoutSensitive);
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
