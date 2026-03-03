@@ -332,7 +332,27 @@ export function AppSidebar() {
                 const serviceSlug = service.name.toLowerCase().replace(/[()&]/g, '').replace(/\s+/g, '-');
                 const serviceUrl = service.url || "#";
 
-                if (serviceUrl === "/applications/customer-db" || service.isExternal) {
+                if (serviceUrl === "/applications/customer-db") {
+                  if (!isAdmin) return null;
+                  return (
+                    <SidebarMenuItem key={service.id}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className="h-9 px-3 rounded-md"
+                        data-testid={`nav-item-${serviceSlug}`}
+                        tooltip={service.name}
+                      >
+                        <Link href={serviceUrl}>
+                          <IconComponent className="h-4 w-4" />
+                          <span className="text-sm">{service.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                if (service.isExternal) {
                   return (
                     <SidebarMenuItem key={service.id}>
                       <SidebarMenuButton

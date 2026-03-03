@@ -99,6 +99,11 @@ function ProtectedRoutes() {
   const allowedPages = (user as any).allowedPages as string[] | null | undefined;
   const hasPageRestrictions = !isAdmin && Array.isArray(allowedPages) && allowedPages.length > 0;
 
+  const adminOnlyRoutes = ["/applications/customer-db"];
+  if (!isAdmin && adminOnlyRoutes.some(r => location === r || location.startsWith(r + "/"))) {
+    return <Redirect to="/dashboard" />;
+  }
+
   if (hasPageRestrictions) {
     const isAllowedRoute = location === "/" || allowedPages!.some(
       (route) => location === route || location.startsWith(route + "/")

@@ -31,7 +31,6 @@ export type AllowedSubmodules = Record<string, string[]>;
 
 export const pageRegistry: { key: string; label: string; path: string }[] = [
   { key: "dashboard", label: "Dashboard", path: "/dashboard" },
-  { key: "customer-db", label: "Customer DB", path: "/applications/customer-db" },
   { key: "erp", label: "ERP", path: "/erp" },
   { key: "equestrian", label: "Equestrian", path: "/equestrian" },
   { key: "projects", label: "Projects", path: "/projects" },
