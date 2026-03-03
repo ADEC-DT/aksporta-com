@@ -758,9 +758,9 @@ export class DatabaseStorage implements IStorage {
     if (options?.sortBy && options.sortBy !== 'createdAt') {
       const sanitizedKey = options.sortBy.replace(/[^a-zA-Z0-9_]/g, '');
       if (options.sortOrder === 'asc') {
-        orderClause = sql`${dsRecords.data}->>${sql.raw(`'${sanitizedKey}'`)} ASC`;
+        orderClause = sql`${dsRecords.data}->>${sanitizedKey} ASC`;
       } else {
-        orderClause = sql`${dsRecords.data}->>${sql.raw(`'${sanitizedKey}'`)} DESC`;
+        orderClause = sql`${dsRecords.data}->>${sanitizedKey} DESC`;
       }
     } else {
       orderClause = options?.sortOrder === 'asc' ? asc(dsRecords.createdAt) : desc(dsRecords.createdAt);
