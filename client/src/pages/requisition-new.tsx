@@ -35,10 +35,12 @@ function toBase64(file: File): Promise<string> {
 const todayStr = new Date().toISOString().slice(0, 10);
 
 export default function RequisitionNewPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const returnTo = new URLSearchParams(window.location.search).get("from") || "/erp/procurement";
+  const isIntranet = location.startsWith("/intranet");
+  const defaultBack = isIntranet ? "/intranet/requisitions" : "/erp/procurement";
+  const returnTo = new URLSearchParams(window.location.search).get("from") || defaultBack;
 
   const [form, setForm] = useState({
     date: todayStr,

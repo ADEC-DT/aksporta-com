@@ -59,7 +59,7 @@ shared/           # Shared code between client/server
 3. **HR** (`/hr`) - Kayan HRMS for employee directory, payroll, leaves
 4. **Customer DB** (`/applications/customer-db`) - Multi-source Customer Database with 6 data sources (Pony Camp, Contact Form, Calls, Livery Clients, Riding Schools, Therapeutic). Each source has its own JSONB-based records table with dynamic columns. Features: source selector cards with record counts, dynamic table rendering, column sorting, search, pagination (25/page), Excel import with auto-mapping save, import history per source, Data Cleanup with duplicate scan/merge/delete per source
 5. **Projects** (`/projects`) - Full project management system with create/edit, team assignments, deadline management, commenting, Collaboration Stamps, deadline alert badges (Overdue/Due Soon), Team Workload report tab. Monday and Tuesday views are independent — each space has a `viewType` ("monday" or "tuesday") and only appears in its respective view.
-6. **DT Support** (`/intranet`) - Dual-department ticket management system (IT Support + Digital Transformation) with metrics dashboard, Analytics tab (avg resolution time, SLA breaches, department load), SLA overdue badges on tickets, category/subcategory filtering, assignee management, comments, status tracking (New → In Progress → Under Review → Resolved → Closed)
+6. **DT Support / AKS Request Center** (`/intranet`) - Dual-department ticket management system (IT Support + Digital Transformation) with metrics dashboard, Analytics tab (avg resolution time, SLA breaches, department load), SLA overdue badges on tickets, category/subcategory filtering, assignee management, comments, status tracking (New → In Progress → Under Review → Resolved → Closed). Also includes Requisition ARF section (`/intranet/requisitions`) — same functionality as under Procurement, with context-aware navigation
 7. **My Tickets** (`/my-tickets`) - User's submitted tickets with status filter, priority color-coded borders, status summary bar, create dialog supporting department/subcategory selection
 8. **Admin Tickets** (`/admin-tickets`) - Admin ticket management with category/status filters, assignee management
 9. **Veterinary** (`/veterinary`) - Veterinary management system
@@ -144,6 +144,8 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **express-session**: Session middleware
 - **bcryptjs**: Password hashing
 - **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.
+- **Password Reset**: `password_reset_tokens` table stores tokens with expiry. Endpoints: `POST /api/auth/forgot-password` (generates token, sends email via SendGrid if configured), `POST /api/auth/reset-password` (validates token, sets new password), `POST /api/admin/users/:id/reset-password-link` (admin generates reset link for a user). Frontend pages: `/forgot-password`, `/reset-password/:token`. When SendGrid is not configured, the token is returned directly in the API response for manual sharing.
+- **SendGrid**: NOT configured. User dismissed the Replit SendGrid integration. To enable email-based password resets, set `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` environment variables. Install `@sendgrid/mail` package.
 
 ### Access Control System
 - **Roles**: `superadmin`, `admin`, `finance`, `procurement`, `others`

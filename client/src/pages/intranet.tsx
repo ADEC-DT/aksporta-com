@@ -589,7 +589,7 @@ export default function IntranetPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card
           className="bg-gradient-to-br from-blue-600 to-cyan-600 text-white border-0 cursor-pointer hover-elevate"
           onClick={() => {
@@ -639,6 +639,28 @@ export default function IntranetPage() {
             </p>
           </CardContent>
         </Card>
+
+        <Link href="/intranet/requisitions">
+          <Card
+            className="bg-gradient-to-br from-amber-600 to-orange-600 text-white border-0 cursor-pointer hover-elevate h-full"
+            data-testid="card-requisition-arf"
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base">Requisition ARF</h3>
+                  <p className="text-amber-100 text-xs">Approval Request Forms</p>
+                </div>
+              </div>
+              <p className="text-amber-100 text-xs">
+                Submit & track procurement requisitions, approvals, and purchase orders
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card>

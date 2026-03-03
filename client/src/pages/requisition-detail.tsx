@@ -34,10 +34,14 @@ function formatFileSize(bytes: number) {
 }
 
 export default function RequisitionDetailPage() {
-  const [, navigate] = useLocation();
-  const [matched, params] = useRoute("/erp/procurement/requisitions/:id");
+  const [location, navigate] = useLocation();
+  const [, erpParams] = useRoute("/erp/procurement/requisitions/:id");
+  const [, intranetParams] = useRoute("/intranet/requisitions/:id");
   const { toast } = useToast();
+  const params = erpParams || intranetParams;
   const id = params?.id;
+  const isIntranet = location.startsWith("/intranet");
+  const listPath = isIntranet ? "/intranet/requisitions" : "/erp/procurement/requisitions";
 
   const { data: requisition, isLoading } = useQuery<Requisition>({
     queryKey: ["/api/requisitions", id],
@@ -75,7 +79,7 @@ export default function RequisitionDetailPage() {
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">Requisition not found</p>
-        <Button variant="outline" onClick={() => navigate("/erp/procurement/requisitions")} className="mt-4">Back to List</Button>
+        <Button variant="outline" onClick={() => navigate(listPath)} className="mt-4">Back to List</Button>
       </div>
     );
   }
@@ -84,7 +88,7 @@ export default function RequisitionDetailPage() {
     <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/erp/procurement/requisitions")} data-testid="button-back-list">
+          <Button variant="ghost" size="icon" onClick={() => navigate(listPath)} data-testid="button-back-list">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>

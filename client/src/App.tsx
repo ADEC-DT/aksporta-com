@@ -152,6 +152,9 @@ function ProtectedRoutes() {
                 <Route path="/erp/procurement/requisitions/new" component={RequisitionNewPage} />
                 <Route path="/erp/procurement/requisitions/:id" component={RequisitionDetailPage} />
                 <Route path="/erp/procurement/requisitions" component={RequisitionsListPage} />
+                <Route path="/intranet/requisitions/new" component={RequisitionNewPage} />
+                <Route path="/intranet/requisitions/:id" component={RequisitionDetailPage} />
+                <Route path="/intranet/requisitions" component={RequisitionsListPage} />
                 <Route path="/erp/finance" component={FinanceDashboard} />
                 <Route path="/erp/procurement" component={FinanceDashboard} />
                 <Route path="/erp/inventory" component={FinanceDashboard} />
