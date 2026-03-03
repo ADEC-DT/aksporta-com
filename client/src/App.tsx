@@ -73,6 +73,8 @@ import RequisitionsListPage from "@/pages/requisitions-list";
 import RequisitionNewPage from "@/pages/requisition-new";
 import RequisitionDetailPage from "@/pages/requisition-detail";
 import LoginPage from "@/pages/login";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 import { NotificationDropdown } from "@/components/notification-dropdown";
 import { NotificationReminder } from "@/components/notification-reminder";
 import { MinimizedSectionsProvider, MinimizedTaskbar } from "@/components/expandable-section";
@@ -216,6 +218,8 @@ function App() {
           <TooltipProvider>
             <Switch>
               <Route path="/login" component={LoginPage} />
+              <Route path="/forgot-password" component={ForgotPasswordPage} />
+              <Route path="/reset-password/:token" component={ResetPasswordPage} />
               <Route>
                 <ProtectedRoutes />
               </Route>

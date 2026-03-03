@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LayoutDashboard, Loader2 } from "lucide-react";
+import { Link } from "wouter";
 
 function LoginPage() {
   const [, setLocation] = useLocation();
@@ -92,6 +93,13 @@ function LoginPage() {
               ) : null}
               Sign in
             </Button>
+            <div className="text-center">
+              <Link href="/forgot-password">
+                <span className="text-sm text-primary hover:underline cursor-pointer" data-testid="link-forgot-password">
+                  Forgot password?
+                </span>
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

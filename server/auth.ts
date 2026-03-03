@@ -2,6 +2,8 @@ import { Express, RequestHandler } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { z } from "zod";
 import { storage } from "./storage";
 
 declare module "express-session" {
@@ -116,6 +118,112 @@ export function registerAuthRoutes(app: Express) {
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Please provide a valid email" });
+
+      const user = await storage.getManagedUserByEmail(parsed.data.email);
+      if (!user) {
+        return res.json({ message: "If an account with that email exists, a reset link has been generated" });
+      }
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+
+      const sendgridKey = process.env.SENDGRID_API_KEY;
+      if (sendgridKey) {
+        try {
+          const sgMail = (await import("@sendgrid/mail")).default;
+          sgMail.setApiKey(sendgridKey);
+          const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
+          const fromEmail = process.env.SENDGRID_FROM_EMAIL || "noreply@example.com";
+          await sgMail.send({
+            to: user.email,
+            from: fromEmail,
+            subject: "Password Reset — Unified Portal",
+            html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to reset your password</a></p><p>This link expires in 1 hour.</p><p>If you didn't request this, you can ignore this email.</p>`,
+          });
+        } catch (emailErr) {
+          console.error("Failed to send reset email:", emailErr);
+        }
+      }
+
+      res.json({ message: "If an account with that email exists, a reset link has been generated", token: !sendgridKey ? token : undefined });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const passwordSchema = z.string()
+        .min(8, "Password must be at least 8 characters")
+        .regex(/[A-Z]/, "Must contain an uppercase letter")
+        .regex(/[0-9]/, "Must contain a number")
+        .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Must contain a special character");
+
+      const parsed = z.object({ token: z.string(), newPassword: passwordSchema }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+
+      const resetToken = await storage.getPasswordResetToken(parsed.data.token);
+      if (!resetToken) return res.status(400).json({ message: "Invalid or expired reset link" });
+      if (resetToken.usedAt) return res.status(400).json({ message: "This reset link has already been used" });
+      if (resetToken.expiresAt < new Date()) return res.status(400).json({ message: "This reset link has expired" });
+
+      const hashedPassword = await bcrypt.hash(parsed.data.newPassword, 10);
+      await storage.updateManagedUser(resetToken.userId, { password: hashedPassword } as any);
+      await storage.markPasswordResetTokenUsed(parsed.data.token);
+
+      res.json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/reset-password-link", isAuthenticated, async (req, res) => {
+    try {
+      const adminUser = (req as any).managedUser;
+      if (adminUser.role !== "admin" && adminUser.role !== "superadmin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const user = await storage.getManagedUser(req.params.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+
+      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
+
+      const sendgridKey = process.env.SENDGRID_API_KEY;
+      if (sendgridKey) {
+        try {
+          const sgMail = (await import("@sendgrid/mail")).default;
+          sgMail.setApiKey(sendgridKey);
+          const fromEmail = process.env.SENDGRID_FROM_EMAIL || "noreply@example.com";
+          await sgMail.send({
+            to: user.email,
+            from: fromEmail,
+            subject: "Password Reset — Unified Portal",
+            html: `<p>An administrator has initiated a password reset for your account.</p><p><a href="${resetUrl}">Click here to set your new password</a></p><p>This link expires in 24 hours.</p>`,
+          });
+        } catch (emailErr) {
+          console.error("Failed to send reset email:", emailErr);
+        }
+      }
+
+      res.json({ resetUrl, emailSent: !!sendgridKey });
+    } catch (error) {
+      console.error("Admin reset password error:", error);
+      res.status(500).json({ message: "Failed to generate reset link" });
     }
   });
 }

@@ -78,6 +78,17 @@ export const managedUsers = pgTable("managed_users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
 export const insertManagedUserSchema = createInsertSchema(managedUsers).omit({
   id: true,
   createdAt: true,
