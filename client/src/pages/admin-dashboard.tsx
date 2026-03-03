@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import type { ManagedUser, AdminStats, ExternalService, AllowedSubmodules } from "@shared/schema";
-import { submoduleRegistry } from "@shared/schema";
+import { submoduleRegistry, pageRegistry } from "@shared/schema";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -51,7 +51,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2 } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -215,6 +215,94 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function UserPagesCell({ userId }: { userId: string }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+
+  const { data: userPages = [], isLoading } = useQuery<string[]>({
+    queryKey: ["/api/admin/users", userId, "pages"],
+  });
+
+  const updatePagesMutation = useMutation({
+    mutationFn: async (allowedPages: string[]) => {
+      return apiRequest("PUT", `/api/admin/users/${userId}/pages`, { allowedPages });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "pages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: "Page access updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update page access", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleTogglePage = (pagePath: string, checked: boolean) => {
+    const newPages = checked
+      ? [...userPages, pagePath]
+      : userPages.filter(p => p !== pagePath);
+    updatePagesMutation.mutate(newPages);
+  };
+
+  const handleSelectAll = () => {
+    updatePagesMutation.mutate([]);
+  };
+
+  const isPageChecked = (pagePath: string): boolean => {
+    if (userPages.length === 0) return true;
+    return userPages.includes(pagePath);
+  };
+
+  const hasRestrictions = userPages.length > 0;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="gap-1" data-testid={`button-pages-${userId}`}>
+          <FileCheck className="h-4 w-4" />
+          <Badge variant={hasRestrictions ? "default" : "secondary"} className="text-xs">
+            {isLoading ? "-" : hasRestrictions ? userPages.length : "All"}
+          </Badge>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72" align="start">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="font-medium text-sm">Page Access</div>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={handleSelectAll} disabled={updatePagesMutation.isPending} data-testid={`button-pages-all-${userId}`}>
+                All
+              </Button>
+            </div>
+          </div>
+          {isLoading ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {pageRegistry.map(page => (
+                <div key={page.key} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`page-${userId}-${page.key}`}
+                    checked={isPageChecked(page.path)}
+                    onCheckedChange={(checked) => handleTogglePage(page.path, checked as boolean)}
+                    disabled={updatePagesMutation.isPending}
+                    data-testid={`checkbox-page-${userId}-${page.key}`}
+                  />
+                  <Label htmlFor={`page-${userId}-${page.key}`} className="text-sm cursor-pointer">
+                    {page.label}
+                  </Label>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -512,6 +600,7 @@ function AdminDashboard() {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Services</TableHead>
+                  <TableHead>Pages</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -540,6 +629,9 @@ function AdminDashboard() {
                     </TableCell>
                     <TableCell>
                       <UserServicesCell userId={user.id} enabledServices={enabledServices} />
+                    </TableCell>
+                    <TableCell>
+                      <UserPagesCell userId={user.id} />
                     </TableCell>
                     <TableCell>
                       {user.lastActiveAt

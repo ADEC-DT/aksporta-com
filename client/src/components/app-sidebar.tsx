@@ -77,9 +77,16 @@ export function AppSidebar() {
     enabled: !!user && !isAdmin,
   });
 
-  const filteredServices = isAdmin
+  const servicesByAccess = isAdmin
     ? enabledServices
     : enabledServices?.filter((s) => myServiceIds?.includes(s.id));
+
+  const allowedPagesRaw = (user as any)?.allowedPages as string[] | null | undefined;
+  const hasPageRestrictionsForFilter = !isAdmin && Array.isArray(allowedPagesRaw) && allowedPagesRaw.length > 0;
+
+  const filteredServices = hasPageRestrictionsForFilter
+    ? servicesByAccess?.filter((s) => s.url && allowedPagesRaw!.some(p => s.url === p || s.url!.startsWith(p + "/") || p.startsWith(s.url! + "/")))
+    : servicesByAccess;
   const isSuperAdmin = user?.role === "superadmin";
 
   const canAccessSubmodule = (serviceKey: string, submoduleKey: string): boolean => {
@@ -87,6 +94,11 @@ export function AppSidebar() {
     const allowed = (user as any)?.allowedSubmodules as AllowedSubmodules | null | undefined;
     if (!allowed || !allowed[serviceKey]) return true;
     return allowed[serviceKey].includes(submoduleKey);
+  };
+
+  const canAccessPage = (path: string): boolean => {
+    if (!hasPageRestrictionsForFilter) return true;
+    return allowedPagesRaw!.some(p => path === p || path.startsWith(p + "/"));
   };
 
   const getInitials = () => {
@@ -436,6 +448,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {secondaryNavItems
                 .filter((item) => !item.adminOnly || isAdmin)
+                .filter((item) => canAccessPage(item.url))
                 .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton

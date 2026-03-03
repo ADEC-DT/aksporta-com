@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -457,6 +457,33 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error setting user submodules:", error);
       res.status(500).json({ message: "Failed to set user submodules" });
+    }
+  });
+
+  app.get("/api/admin/users/:id/pages", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getManagedUser(req.params.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user.allowedPages || []);
+    } catch (error) {
+      console.error("Error getting user pages:", error);
+      res.status(500).json({ message: "Failed to get user pages" });
+    }
+  });
+
+  app.put("/api/admin/users/:id/pages", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validPaths = pageRegistry.map(p => p.path);
+      const schema = z.object({ allowedPages: z.array(z.string().refine(p => validPaths.includes(p), { message: "Invalid page path" })) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid input" });
+      const unique = [...new Set(parsed.data.allowedPages)];
+      const pages = unique.length > 0 ? unique : null;
+      await storage.updateManagedUser(req.params.id, { allowedPages: pages } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting user pages:", error);
+      res.status(500).json({ message: "Failed to set user pages" });
     }
   });
 

@@ -79,30 +79,6 @@ import { MinimizedSectionsProvider, MinimizedTaskbar } from "@/components/expand
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-const ALLOWED_ROUTES_FOR_NON_ADMIN = [
-  "/dashboard",
-  "/applications/customer-db",
-  "/erp",
-  "/finance",
-  "/events",
-  "/intranet",
-  "/projects",
-  "/settings",
-  "/my-tickets",
-  "/hr",
-  "/equestrian",
-  "/asset-lease",
-  "/business-units",
-  "/legal",
-  "/performance-kpi",
-  "/ops-fm",
-  "/media-marketing",
-  "/help",
-  "/other-systems",
-  "/veterinary",
-  "/livery",
-];
-
 function ProtectedRoutes() {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
@@ -120,12 +96,16 @@ function ProtectedRoutes() {
   }
 
   const isAdmin = user.role === "admin" || user.role === "superadmin";
-  const isAllowedRoute = location === "/" || ALLOWED_ROUTES_FOR_NON_ADMIN.some(
-    (route) => location === route || location.startsWith(route + "/")
-  );
-  
-  if (!isAdmin && !isAllowedRoute) {
-    return <Redirect to="/dashboard" />;
+  const allowedPages = (user as any).allowedPages as string[] | null | undefined;
+  const hasPageRestrictions = !isAdmin && Array.isArray(allowedPages) && allowedPages.length > 0;
+
+  if (hasPageRestrictions) {
+    const isAllowedRoute = location === "/" || allowedPages!.some(
+      (route) => location === route || location.startsWith(route + "/")
+    );
+    if (!isAllowedRoute) {
+      return <Redirect to="/dashboard" />;
+    }
   }
 
   const sidebarStyle = {
