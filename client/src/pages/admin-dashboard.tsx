@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import type { ManagedUser, AdminStats, ExternalService, AllowedSubmodules } from "@shared/schema";
-import { submoduleRegistry, pageRegistry } from "@shared/schema";
+import { submoduleRegistry } from "@shared/schema";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -64,24 +64,12 @@ interface UserFormData {
   role: "superadmin" | "admin" | "finance" | "procurement" | "others";
 }
 
-function getServiceRegistryKey(service: ExternalService): string | null {
-  const url = service.url || "";
-  if (url === "/erp") return "erp";
-  if (url === "/equestrian") return "equestrian";
-  if (url === "/projects") return "projects";
-  return null;
-}
-
 function UserServicesCell({ userId, enabledServices }: { userId: string; enabledServices: ExternalService[] }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
   const { data: userServiceIds = [], isLoading } = useQuery<string[]>({
     queryKey: ["/api/admin/users", userId, "services"],
-  });
-
-  const { data: userSubmodules = {}, isLoading: submodulesLoading } = useQuery<AllowedSubmodules>({
-    queryKey: ["/api/admin/users", userId, "submodules"],
   });
 
   const updateServicesMutation = useMutation({
@@ -97,25 +85,79 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
     },
   });
 
-  const updateSubmodulesMutation = useMutation({
-    mutationFn: async (allowedSubmodules: AllowedSubmodules) => {
-      return apiRequest("PUT", `/api/admin/users/${userId}/submodules`, { allowedSubmodules });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "submodules"] });
-      toast({ title: "Submodule access updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to update submodule access", description: error.message, variant: "destructive" });
-    },
-  });
-
   const handleToggleService = (serviceId: string, checked: boolean) => {
     const newServiceIds = checked
       ? [...userServiceIds, serviceId]
       : userServiceIds.filter(id => id !== serviceId);
     updateServicesMutation.mutate(newServiceIds);
   };
+
+  const assignedCount = userServiceIds.length;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="gap-1" data-testid={`button-services-${userId}`}>
+          <Settings2 className="h-4 w-4" />
+          <Badge variant="secondary" className="text-xs">{isLoading ? "-" : assignedCount}</Badge>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72" align="start">
+        <div className="space-y-3">
+          <div className="font-medium text-sm">Assigned Services</div>
+          {isLoading ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : enabledServices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No services enabled in system settings</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {enabledServices.map(service => {
+                const isAssigned = userServiceIds.includes(service.id);
+                return (
+                  <div key={service.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`service-${userId}-${service.id}`}
+                      checked={isAssigned}
+                      onCheckedChange={(checked) => handleToggleService(service.id, checked as boolean)}
+                      disabled={updateServicesMutation.isPending}
+                      data-testid={`checkbox-service-${userId}-${service.id}`}
+                    />
+                    <Label htmlFor={`service-${userId}-${service.id}`} className="text-sm cursor-pointer font-medium">
+                      {service.name}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function UserPagesCell({ userId }: { userId: string }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+
+  const { data: userSubmodules = {}, isLoading } = useQuery<AllowedSubmodules>({
+    queryKey: ["/api/admin/users", userId, "submodules"],
+  });
+
+  const updateSubmodulesMutation = useMutation({
+    mutationFn: async (allowedSubmodules: AllowedSubmodules) => {
+      return apiRequest("PUT", `/api/admin/users/${userId}/submodules`, { allowedSubmodules });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "submodules"] });
+      toast({ title: "Sub-page access updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update sub-page access", description: error.message, variant: "destructive" });
+    },
+  });
 
   const handleToggleSubmodule = (registryKey: string, submoduleKey: string, checked: boolean) => {
     const allSubKeys = submoduleRegistry[registryKey]?.map(s => s.key) || [];
@@ -152,115 +194,17 @@ function UserServicesCell({ userId, enabledServices }: { userId: string; enabled
     return userSubmodules[registryKey].includes(submoduleKey);
   };
 
-  const assignedCount = userServiceIds.length;
-  const isPending = updateServicesMutation.isPending || updateSubmodulesMutation.isPending;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1" data-testid={`button-services-${userId}`}>
-          <Settings2 className="h-4 w-4" />
-          <Badge variant="secondary" className="text-xs">{isLoading ? "-" : assignedCount}</Badge>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72" align="start">
-        <div className="space-y-3">
-          <div className="font-medium text-sm">Assigned Services & Submodules</div>
-          {(isLoading || submodulesLoading) ? (
-            <div className="flex justify-center py-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : enabledServices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No services enabled in system settings</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {enabledServices.map(service => {
-                const registryKey = getServiceRegistryKey(service);
-                const submodules = registryKey ? submoduleRegistry[registryKey] : null;
-                const isAssigned = userServiceIds.includes(service.id);
-
-                return (
-                  <div key={service.id}>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`service-${userId}-${service.id}`}
-                        checked={isAssigned}
-                        onCheckedChange={(checked) => handleToggleService(service.id, checked as boolean)}
-                        disabled={isPending}
-                        data-testid={`checkbox-service-${userId}-${service.id}`}
-                      />
-                      <Label htmlFor={`service-${userId}-${service.id}`} className="text-sm cursor-pointer font-medium">
-                        {service.name}
-                      </Label>
-                    </div>
-                    {isAssigned && submodules && submodules.length > 0 && (
-                      <div className="ml-6 mt-1 space-y-1 border-l-2 border-muted pl-3">
-                        {submodules.map(sub => (
-                          <div key={sub.key} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`sub-${userId}-${registryKey}-${sub.key}`}
-                              checked={isSubmoduleChecked(registryKey!, sub.key)}
-                              onCheckedChange={(checked) => handleToggleSubmodule(registryKey!, sub.key, checked as boolean)}
-                              disabled={isPending}
-                              data-testid={`checkbox-sub-${userId}-${registryKey}-${sub.key}`}
-                            />
-                            <Label htmlFor={`sub-${userId}-${registryKey}-${sub.key}`} className="text-xs cursor-pointer text-muted-foreground">
-                              {sub.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function UserPagesCell({ userId }: { userId: string }) {
-  const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-
-  const { data: userPages = [], isLoading } = useQuery<string[]>({
-    queryKey: ["/api/admin/users", userId, "pages"],
-  });
-
-  const updatePagesMutation = useMutation({
-    mutationFn: async (allowedPages: string[]) => {
-      return apiRequest("PUT", `/api/admin/users/${userId}/pages`, { allowedPages });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "pages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({ title: "Page access updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to update page access", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const handleTogglePage = (pagePath: string, checked: boolean) => {
-    const newPages = checked
-      ? [...userPages, pagePath]
-      : userPages.filter(p => p !== pagePath);
-    updatePagesMutation.mutate(newPages);
-  };
-
   const handleSelectAll = () => {
-    updatePagesMutation.mutate([]);
+    updateSubmodulesMutation.mutate({});
   };
 
-  const isPageChecked = (pagePath: string): boolean => {
-    if (userPages.length === 0) return true;
-    return userPages.includes(pagePath);
+  const registryKeys = Object.keys(submoduleRegistry);
+  const hasRestrictions = registryKeys.some(k => !!userSubmodules[k]);
+  const serviceLabels: Record<string, string> = {
+    erp: "ERP",
+    equestrian: "Equestrian",
+    projects: "Projects",
   };
-
-  const hasRestrictions = userPages.length > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -268,40 +212,52 @@ function UserPagesCell({ userId }: { userId: string }) {
         <Button variant="ghost" size="sm" className="gap-1" data-testid={`button-pages-${userId}`}>
           <FileCheck className="h-4 w-4" />
           <Badge variant={hasRestrictions ? "default" : "secondary"} className="text-xs">
-            {isLoading ? "-" : hasRestrictions ? userPages.length : "All"}
+            {isLoading ? "-" : hasRestrictions ? "Custom" : "All"}
           </Badge>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72" align="start">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="font-medium text-sm">Page Access</div>
-            <div className="flex gap-1">
-              <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={handleSelectAll} disabled={updatePagesMutation.isPending} data-testid={`button-pages-all-${userId}`}>
-                All
-              </Button>
-            </div>
+            <div className="font-medium text-sm">Sub-Page Access</div>
+            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={handleSelectAll} disabled={updateSubmodulesMutation.isPending} data-testid={`button-pages-all-${userId}`}>
+              All
+            </Button>
           </div>
           {isLoading ? (
             <div className="flex justify-center py-2">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
+          ) : registryKeys.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No sub-pages configured</p>
           ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {pageRegistry.map(page => (
-                <div key={page.key} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`page-${userId}-${page.key}`}
-                    checked={isPageChecked(page.path)}
-                    onCheckedChange={(checked) => handleTogglePage(page.path, checked as boolean)}
-                    disabled={updatePagesMutation.isPending}
-                    data-testid={`checkbox-page-${userId}-${page.key}`}
-                  />
-                  <Label htmlFor={`page-${userId}-${page.key}`} className="text-sm cursor-pointer">
-                    {page.label}
-                  </Label>
-                </div>
-              ))}
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {registryKeys.map(registryKey => {
+                const submodules = submoduleRegistry[registryKey];
+                return (
+                  <div key={registryKey}>
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                      {serviceLabels[registryKey] || registryKey}
+                    </div>
+                    <div className="space-y-1 ml-1 border-l-2 border-muted pl-3">
+                      {submodules.map(sub => (
+                        <div key={sub.key} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`sub-${userId}-${registryKey}-${sub.key}`}
+                            checked={isSubmoduleChecked(registryKey, sub.key)}
+                            onCheckedChange={(checked) => handleToggleSubmodule(registryKey, sub.key, checked as boolean)}
+                            disabled={updateSubmodulesMutation.isPending}
+                            data-testid={`checkbox-sub-${userId}-${registryKey}-${sub.key}`}
+                          />
+                          <Label htmlFor={`sub-${userId}-${registryKey}-${sub.key}`} className="text-sm cursor-pointer">
+                            {sub.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
