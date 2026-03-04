@@ -71,6 +71,7 @@ export function AppSidebar() {
   });
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const isITServiceDesk = user?.role === "it_service_desk";
 
   const { data: myServiceIds } = useQuery<string[]>({
     queryKey: ["/api/my-services"],
@@ -392,13 +393,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {(isAdmin || isITServiceDesk) && (
           <SidebarGroup className="mt-4">
             <SidebarGroupLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
               Administration
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -413,6 +415,8 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                )}
+                {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -427,6 +431,7 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                )}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild

@@ -61,7 +61,7 @@ interface UserFormData {
   password: string;
   firstName: string;
   lastName: string;
-  role: "superadmin" | "admin" | "finance" | "procurement" | "others";
+  role: "superadmin" | "admin" | "it_service_desk" | "finance" | "procurement" | "others";
 }
 
 function UserServicesCell({ userId, enabledServices }: { userId: string; enabledServices: ExternalService[] }) {
@@ -375,7 +375,7 @@ function AdminDashboard() {
       password: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
-      role: (user.role as "superadmin" | "admin" | "finance" | "procurement" | "others") || "others",
+      role: (user.role as "superadmin" | "admin" | "it_service_desk" | "finance" | "procurement" | "others") || "others",
     });
     setFormMode("edit");
     setDialogOpen(true);
@@ -436,6 +436,8 @@ function AdminDashboard() {
       case "superadmin":
         return "destructive";
       case "admin":
+        return "default";
+      case "it_service_desk":
         return "default";
       case "finance":
       case "procurement":
@@ -701,7 +703,7 @@ function AdminDashboard() {
               <Select
                 value={formData.role}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, role: value as "superadmin" | "admin" | "finance" | "procurement" | "others" })
+                  setFormData({ ...formData, role: value as "superadmin" | "admin" | "it_service_desk" | "finance" | "procurement" | "others" })
                 }
               >
                 <SelectTrigger data-testid="select-user-role">
@@ -710,6 +712,7 @@ function AdminDashboard() {
                 <SelectContent>
                   <SelectItem value="superadmin">Superadmin</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="it_service_desk">IT Service Desk</SelectItem>
                   <SelectItem value="finance">Finance</SelectItem>
                   <SelectItem value="procurement">Procurement</SelectItem>
                   <SelectItem value="others">Others</SelectItem>
