@@ -420,17 +420,6 @@ export default function ITDTPage() {
               data-testid="input-itsd-search"
             />
           </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-44 h-9" data-testid="select-itsd-category-filter">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="it_support">IT Support</SelectItem>
-              <SelectItem value="digital_transformation">Digital Transformation</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-36 h-9" data-testid="select-itsd-status-filter">
               <SelectValue placeholder="All Statuses" />
