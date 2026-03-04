@@ -22,7 +22,6 @@ import {
   Shield,
   Activity,
   ArrowUpRight,
-  FileCheck,
   Wallet,
   PieChart,
   Banknote,
@@ -104,14 +103,6 @@ const procurementModules = [
     icon: Receipt,
     action: "View Requisitions",
     url: "/erp/procurement/requisitions",
-  },
-  {
-    id: "requisition-arf",
-    title: "Requisition ARF",
-    subtitle: "Approval Request Form",
-    icon: FileCheck,
-    action: "New",
-    url: "/erp/procurement/requisitions/new?from=/erp/procurement",
   },
 ];
 
