@@ -10,7 +10,8 @@ import {
   User,
   ArrowRight,
   Wrench,
-  Laptop,
+  Monitor,
+  Zap,
   FileText,
   Calendar,
   ExternalLink
@@ -76,10 +77,9 @@ interface IntranetItem {
 const intranetUpdates: IntranetItem[] = [];
 
 const quickLinks = [
-  { title: "IT Support Request", icon: Laptop, url: "/intranet" },
-  { title: "Request ARF", icon: FileText, url: "/erp/procurement/requisitions/new?from=/dashboard" },
-  { title: "Expense Claims", icon: FileText, url: "/erp/finance" },
-  { title: "Meeting Room Booking", icon: Calendar, url: "/events" },
+  { title: "IT Support", icon: Monitor, url: "/intranet" },
+  { title: "Digital Transformation", icon: Zap, url: "/intranet" },
+  { title: "Requisition ARF", icon: FileText, url: "/intranet/requisitions" },
 ];
 
 export default function Dashboard() {
