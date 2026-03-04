@@ -1,66 +1,84 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
-import { 
-  Monitor,
-  Server,
-  Shield,
-  Cloud,
-  BarChart3,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  ChevronRight,
-  Cpu,
-  HardDrive,
-  Wifi,
-  Lock,
-  RefreshCw,
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Ticket,
-  Users
+  Clock,
+  CheckCircle,
+  Loader2,
+  ArrowLeft,
+  Send,
+  MessageSquare,
+  RefreshCw,
+  Eye,
+  Search,
+  ChevronRight,
+  Monitor,
+  Zap,
+  HelpCircle,
+  Headphones
 } from "lucide-react";
+import type { Ticket as TicketType, TicketComment } from "@shared/schema";
+import { format, formatDistanceToNow } from "date-fns";
 
-const itCategories = [
-  { id: "infrastructure", name: "Infrastructure", count: 45, icon: Server, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
-  { id: "security", name: "Cybersecurity", count: 18, icon: Shield, iconBg: "bg-red-100 text-red-600 dark:bg-red-900/30" },
-  { id: "cloud", name: "Cloud Services", count: 12, icon: Cloud, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
-  { id: "support", name: "IT Support", count: 34, icon: Ticket, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
-];
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
+  new: { label: "New", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: Clock },
+  in_progress: { label: "In Progress", color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", icon: RefreshCw },
+  under_review: { label: "Under Review", color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30", icon: Eye },
+  resolved: { label: "Resolved", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30", icon: CheckCircle },
+  closed: { label: "Closed", color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30", icon: CheckCircle },
+};
 
-const systemStatus = [
-  { name: "ERP System", status: "operational", uptime: "99.9%", icon: Monitor },
-  { name: "Email Server", status: "operational", uptime: "99.8%", icon: Server },
-  { name: "Network", status: "operational", uptime: "99.7%", icon: Wifi },
-  { name: "VPN Gateway", status: "degraded", uptime: "98.5%", icon: Lock },
-];
+const severityConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  low: { label: "Low", variant: "secondary" },
+  medium: { label: "Medium", variant: "default" },
+  high: { label: "High", variant: "destructive" },
+  critical: { label: "Critical", variant: "destructive" },
+};
 
-const activeProjects = [
-  { id: 1, name: "Cloud Migration Phase 2", progress: 65, status: "on_track", lead: "IT Team A" },
-  { id: 2, name: "Security Audit Implementation", progress: 40, status: "on_track", lead: "Security Team" },
-  { id: 3, name: "Network Upgrade", progress: 85, status: "on_track", lead: "Infrastructure" },
-  { id: 4, name: "ERP Integration Module", progress: 20, status: "delayed", lead: "Development" },
-];
-
-const itStats = [
-  { name: "Open Tickets", value: "34", trend: "-5 from yesterday" },
-  { name: "Active Users", value: "256", trend: "Online now" },
-  { name: "System Uptime", value: "99.9%", trend: "Last 30 days" },
-  { name: "Security Score", value: "A+", trend: "No threats detected" },
-];
-
-const recentAlerts = [
-  { id: 1, title: "VPN Gateway Performance", description: "Latency increased by 15%", priority: "medium", time: "2 hours ago" },
-  { id: 2, title: "Storage Capacity", description: "Primary storage at 78% capacity", priority: "low", time: "5 hours ago" },
-  { id: 3, title: "Failed Login Attempts", description: "3 failed attempts from unknown IP", priority: "high", time: "1 hour ago" },
-];
+const categoryConfig: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
+  it_support: { label: "IT Support", icon: Monitor, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  digital_transformation: { label: "Digital Transformation", icon: Zap, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  other: { label: "Other", icon: HelpCircle, color: "text-gray-600", bgColor: "bg-gray-100 dark:bg-gray-900/30" },
+};
 
 export default function ITDTPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const isITServiceDesk = user?.role === "it_service_desk";
 
-  if (!isAdmin) {
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+  const [newComment, setNewComment] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  if (!isAdmin && !isITServiceDesk) {
     return (
       <div className="flex items-center justify-center h-full p-6">
         <Card className="max-w-md w-full">
@@ -75,211 +93,443 @@ export default function ITDTPage() {
     );
   }
 
-  const handleLaunchPowerBI = () => {
-    window.open("https://app.powerbi.com", "_blank");
-  };
+  const { data: ticketsData, isLoading } = useQuery<{ tickets: TicketType[]; total: number }>({
+    queryKey: ["/api/admin/tickets", statusFilter, categoryFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (categoryFilter !== "all") params.set("category", categoryFilter);
+      const res = await fetch(`/api/admin/tickets?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch tickets");
+      return res.json();
+    },
+  });
 
-  const getStatusIndicator = (status: string) => {
-    if (status === "operational") {
-      return <div className="w-2.5 h-2.5 rounded-full bg-green-500" />;
-    }
-    if (status === "degraded") {
-      return <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />;
-    }
-    return <div className="w-2.5 h-2.5 rounded-full bg-red-500" />;
-  };
+  const { data: comments = [], isLoading: commentsLoading } = useQuery<TicketComment[]>({
+    queryKey: ["/api/tickets", selectedTicket?.id, "comments"],
+    enabled: !!selectedTicket,
+  });
 
-  const getProjectStatus = (status: string) => {
-    if (status === "on_track") {
-      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200">On Track</Badge>;
-    }
-    return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200">Delayed</Badge>;
-  };
+  const { data: usersList = [] } = useQuery<{ id: string; username: string; firstName: string; lastName: string }[]>({
+    queryKey: ["/api/users/list"],
+  });
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200">High</Badge>;
-      case "medium":
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200">Medium</Badge>;
-      default:
-        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200">Low</Badge>;
+  const updateTicketMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string } }) => {
+      return apiRequest("PATCH", `/api/admin/tickets/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets/stats"] });
+      if (selectedTicket) {
+        queryClient.invalidateQueries({ queryKey: ["/api/tickets", selectedTicket.id] });
+      }
+      toast({ title: "Ticket updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update ticket", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await apiRequest("POST", `/api/tickets/${selectedTicket?.id}/comments`, { message });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", selectedTicket?.id, "comments"] });
+      setNewComment("");
+      toast({ title: "Comment added" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add comment", description: error.message, variant: "destructive" });
+    },
+  });
+
+  function handleStatusChange(ticketId: string, newStatus: string) {
+    updateTicketMutation.mutate({ id: ticketId, data: { status: newStatus } });
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, status: newStatus });
     }
-  };
+  }
+
+  function handleAssign(ticketId: string, userId: string) {
+    const u = usersList.find(x => x.id === userId);
+    const name = u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username : "";
+    updateTicketMutation.mutate({ id: ticketId, data: { assignedTo: userId, assignedToName: name } });
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, assignedTo: userId, assignedToName: name });
+    }
+  }
+
+  function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    addCommentMutation.mutate(newComment);
+  }
+
+  const allTickets = ticketsData?.tickets || [];
+  const filteredTickets = searchQuery
+    ? allTickets.filter(t =>
+        t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.userEmail.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allTickets;
+
+  if (selectedTicket) {
+    const status = statusConfig[selectedTicket.status] || statusConfig.new;
+    const severity = severityConfig[selectedTicket.severity] || severityConfig.low;
+    const cat = categoryConfig[selectedTicket.category] || categoryConfig.other;
+
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSelectedTicket(null)}
+            data-testid="button-back-to-list"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold font-outfit">{selectedTicket.trackingId}</h1>
+              <Badge className={`${status.bgColor} ${status.color} border-0`}>{status.label}</Badge>
+              <Badge variant={severity.variant}>{severity.label}</Badge>
+              <Badge className={`${cat.bgColor} ${cat.color} border-0`}>{cat.label}</Badge>
+            </div>
+            <p className="text-muted-foreground">{selectedTicket.subject}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Ticket Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-muted-foreground text-xs">Description</Label>
+                <p className="mt-1 text-sm whitespace-pre-wrap">{selectedTicket.description}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Submitted By</Label>
+                  <p className="mt-1 text-sm">{selectedTicket.userName || selectedTicket.userEmail}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Created</Label>
+                  <p className="mt-1 text-sm">
+                    {selectedTicket.createdAt
+                      ? format(new Date(selectedTicket.createdAt), "PPp")
+                      : "Unknown"
+                    }
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Assigned To</Label>
+                  <p className="mt-1 text-sm">{selectedTicket.assignedToName || "Unassigned"}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  <h3 className="font-semibold">Comments</h3>
+                </div>
+
+                {commentsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : comments.length === 0 ? (
+                  <p className="py-4 text-center text-muted-foreground">No comments yet</p>
+                ) : (
+                  <ScrollArea className="h-64">
+                    <div className="space-y-4">
+                      {comments.map((comment) => (
+                        <div
+                          key={comment.id}
+                          className={`rounded-lg p-3 ${comment.isAdmin ? "bg-primary/10 border border-primary/20" : "bg-muted"}`}
+                        >
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              {comment.userName || comment.userEmail}
+                              {comment.isAdmin && (
+                                <Badge variant="outline" className="ml-2">Admin</Badge>
+                              )}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {comment.createdAt ? format(new Date(comment.createdAt), "PPp") : ""}
+                            </span>
+                          </div>
+                          <p className="text-sm">{comment.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+
+                {selectedTicket.status !== "closed" && (
+                  <form onSubmit={handleAddComment} className="mt-4 flex gap-2">
+                    <Input
+                      placeholder="Add a response..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      data-testid="input-itsd-comment"
+                    />
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={addCommentMutation.isPending || !newComment.trim()}
+                      data-testid="button-send-itsd-comment"
+                    >
+                      {addCommentMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Update Status</Label>
+                  <Select
+                    value={selectedTicket.status}
+                    onValueChange={(v) => handleStatusChange(selectedTicket.id, v)}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-update-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="under_review">Under Review</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Assign To</Label>
+                  <Select
+                    value={selectedTicket.assignedTo || "unassigned"}
+                    onValueChange={(v) => handleAssign(selectedTicket.id, v === "unassigned" ? "" : v)}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-itsd-assignee">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {usersList.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">Timeline</Label>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium">Created</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedTicket.createdAt
+                            ? format(new Date(selectedTicket.createdAt), "PPp")
+                            : "Unknown"
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    {selectedTicket.resolvedAt && (
+                      <div className="flex gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
+                        <div>
+                          <p className="text-sm font-medium">Resolved</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(selectedTicket.resolvedAt), "PPp")}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedTicket.closedAt && (
+                      <div className="flex gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-gray-500" />
+                        <div>
+                          <p className="text-sm font-medium">Closed</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(selectedTicket.closedAt), "PPp")}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      
-      <Card className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-0">
-        <CardContent className="p-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Cpu className="h-8 w-8" />
-            <h1 className="text-2xl font-bold font-outfit">IT & Digital Transformation</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Headphones className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold font-outfit" data-testid="text-itsd-title">IT Service Desk</h1>
+            <p className="text-muted-foreground text-sm">
+              Manage and respond to support tickets
+            </p>
           </div>
-          <p className="text-cyan-100 mb-4">
-            Manage IT infrastructure, digital initiatives, cybersecurity, and technology transformation projects.
-          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="pl-9 w-40 h-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-itsd-search"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-44 h-9" data-testid="select-itsd-category-filter">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="it_support">IT Support</SelectItem>
+              <SelectItem value="digital_transformation">Digital Transformation</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-36 h-9" data-testid="select-itsd-status-filter">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="under_review">Under Review</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredTickets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Ticket className="mb-4 h-16 w-16 text-muted-foreground" />
+              <h2 className="mb-2 text-xl font-semibold">No tickets found</h2>
+              <p className="text-muted-foreground">
+                {statusFilter !== "all" || categoryFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "No support tickets have been submitted yet"
+                }
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tracking ID</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Severity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTickets.map((ticket) => {
+                  const status = statusConfig[ticket.status] || statusConfig.new;
+                  const severity = severityConfig[ticket.severity] || severityConfig.low;
+                  const cat = categoryConfig[ticket.category] || categoryConfig.other;
+                  const StatusIcon = status.icon;
+
+                  return (
+                    <TableRow key={ticket.id} className="cursor-pointer" onClick={() => setSelectedTicket(ticket)} data-testid={`row-ticket-${ticket.id}`}>
+                      <TableCell className="font-mono text-xs">{ticket.trackingId}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{ticket.subject}</p>
+                          <p className="text-xs text-muted-foreground">{ticket.userName || ticket.userEmail}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`${cat.bgColor} ${cat.color} border-0 text-[10px]`}>
+                          {cat.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={severity.variant}>{severity.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <StatusIcon className={`h-3.5 w-3.5 ${status.color}`} />
+                          <span className={`text-xs ${status.color}`}>{status.label}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {ticket.assignedToName || "Unassigned"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {ticket.createdAt
+                          ? <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}</span>
+                          : "Unknown"
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {itStats.map((stat) => (
-          <Card key={stat.name} data-testid={`stat-${stat.name.toLowerCase().replace(/\s+/g, '-')}`}>
-            <CardContent className="p-4">
-              <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.name}</p>
-              <p className="text-xs text-muted-foreground mt-1">{stat.trend}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-              <CardTitle className="text-lg font-outfit">System Status</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-refresh-status">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {systemStatus.map((system) => (
-                  <div 
-                    key={system.name}
-                    className="flex items-center gap-3 p-4 rounded-lg border"
-                    data-testid={`system-${system.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    <system.icon className="h-5 w-5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{system.name}</p>
-                      <p className="text-xs text-muted-foreground">Uptime: {system.uptime}</p>
-                    </div>
-                    {getStatusIndicator(system.status)}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-              <CardTitle className="text-lg font-outfit">Digital Transformation Projects</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-view-all-projects">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activeProjects.map((project) => (
-                  <div 
-                    key={project.id}
-                    className="p-3 rounded-lg border"
-                    data-testid={`project-${project.id}`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="font-medium text-sm">{project.name}</p>
-                      {getProjectStatus(project.status)}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                        <div 
-                          className="h-full bg-primary rounded-full"
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">{project.progress}%</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Lead: {project.lead}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-              <CardTitle className="text-lg font-outfit">IT Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {itCategories.map((category) => (
-                  <div 
-                    key={category.id}
-                    className="flex items-center gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
-                    data-testid={`category-${category.id}`}
-                  >
-                    <div className={`p-2.5 rounded-lg ${category.iconBg}`}>
-                      <category.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{category.name}</p>
-                      <p className="text-xs text-muted-foreground">{category.count} items</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-outfit flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                Recent Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentAlerts.map((alert) => (
-                  <div 
-                    key={alert.id}
-                    className="p-3 rounded-lg border space-y-2"
-                    data-testid={`alert-${alert.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-sm">{alert.title}</p>
-                      {getPriorityBadge(alert.priority)}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{alert.description}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {alert.time}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-outfit">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-new-ticket">
-                  <Ticket className="h-4 w-4" />
-                  New IT Ticket
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-service-status">
-                  <Server className="h-4 w-4" />
-                  Service Status
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-3" data-testid="button-security-dashboard">
-                  <Shield className="h-4 w-4" />
-                  Security Dashboard
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }

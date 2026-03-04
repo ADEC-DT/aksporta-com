@@ -135,25 +135,23 @@ export function registerAuthRoutes(app: Express) {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const sendgridKey = process.env.SENDGRID_API_KEY;
-      if (sendgridKey) {
-        try {
-          const sgMail = (await import("@sendgrid/mail")).default;
-          sgMail.setApiKey(sendgridKey);
-          const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
-          const fromEmail = process.env.SENDGRID_FROM_EMAIL || "noreply@example.com";
-          await sgMail.send({
-            to: user.email,
-            from: fromEmail,
-            subject: "Password Reset — Unified Portal",
-            html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to reset your password</a></p><p>This link expires in 1 hour.</p><p>If you didn't request this, you can ignore this email.</p>`,
-          });
-        } catch (emailErr) {
-          console.error("Failed to send reset email:", emailErr);
-        }
+      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
+      let emailSent = false;
+      try {
+        const { getUncachableSendGridClient } = await import("./sendgrid");
+        const { client, fromEmail } = await getUncachableSendGridClient();
+        await client.send({
+          to: user.email,
+          from: fromEmail,
+          subject: "Password Reset — Unified Portal",
+          html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to reset your password</a></p><p>This link expires in 1 hour.</p><p>If you didn't request this, you can ignore this email.</p>`,
+        });
+        emailSent = true;
+      } catch (emailErr) {
+        console.error("Failed to send reset email:", emailErr);
       }
 
-      res.json({ message: "If an account with that email exists, a reset link has been generated", token: !sendgridKey ? token : undefined });
+      res.json({ message: "If an account with that email exists, a reset link has been generated", token: !emailSent ? token : undefined });
     } catch (error) {
       console.error("Forgot password error:", error);
       res.status(500).json({ message: "Failed to process request" });
@@ -203,24 +201,22 @@ export function registerAuthRoutes(app: Express) {
 
       const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
 
-      const sendgridKey = process.env.SENDGRID_API_KEY;
-      if (sendgridKey) {
-        try {
-          const sgMail = (await import("@sendgrid/mail")).default;
-          sgMail.setApiKey(sendgridKey);
-          const fromEmail = process.env.SENDGRID_FROM_EMAIL || "noreply@example.com";
-          await sgMail.send({
-            to: user.email,
-            from: fromEmail,
-            subject: "Password Reset — Unified Portal",
-            html: `<p>An administrator has initiated a password reset for your account.</p><p><a href="${resetUrl}">Click here to set your new password</a></p><p>This link expires in 24 hours.</p>`,
-          });
-        } catch (emailErr) {
-          console.error("Failed to send reset email:", emailErr);
-        }
+      let emailSent = false;
+      try {
+        const { getUncachableSendGridClient } = await import("./sendgrid");
+        const { client, fromEmail } = await getUncachableSendGridClient();
+        await client.send({
+          to: user.email,
+          from: fromEmail,
+          subject: "Password Reset — Unified Portal",
+          html: `<p>An administrator has initiated a password reset for your account.</p><p><a href="${resetUrl}">Click here to set your new password</a></p><p>This link expires in 24 hours.</p>`,
+        });
+        emailSent = true;
+      } catch (emailErr) {
+        console.error("Failed to send reset email:", emailErr);
       }
 
-      res.json({ resetUrl, emailSent: !!sendgridKey });
+      res.json({ resetUrl, emailSent });
     } catch (error) {
       console.error("Admin reset password error:", error);
       res.status(500).json({ message: "Failed to generate reset link" });
