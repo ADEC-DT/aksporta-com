@@ -73,7 +73,6 @@ export default function ITDTPage() {
   const isITServiceDesk = user?.role === "it_service_desk";
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [newComment, setNewComment] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,11 +93,11 @@ export default function ITDTPage() {
   }
 
   const { data: ticketsData, isLoading } = useQuery<{ tickets: TicketType[]; total: number }>({
-    queryKey: ["/api/admin/tickets", statusFilter, categoryFilter],
+    queryKey: ["/api/admin/tickets", statusFilter, "it_support"],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (categoryFilter !== "all") params.set("category", categoryFilter);
+      params.set("category", "it_support");
       const res = await fetch(`/api/admin/tickets?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch tickets");
       return res.json();
@@ -447,7 +446,7 @@ export default function ITDTPage() {
               <Ticket className="mb-4 h-16 w-16 text-muted-foreground" />
               <h2 className="mb-2 text-xl font-semibold">No tickets found</h2>
               <p className="text-muted-foreground">
-                {statusFilter !== "all" || categoryFilter !== "all"
+                {statusFilter !== "all"
                   ? "Try adjusting your filters"
                   : "No support tickets have been submitted yet"
                 }
@@ -459,7 +458,6 @@ export default function ITDTPage() {
                 <TableRow>
                   <TableHead>Tracking ID</TableHead>
                   <TableHead>Subject</TableHead>
-                  <TableHead>Category</TableHead>
                   <TableHead>Severity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Assigned</TableHead>
@@ -471,7 +469,6 @@ export default function ITDTPage() {
                 {filteredTickets.map((ticket) => {
                   const status = statusConfig[ticket.status] || statusConfig.new;
                   const severity = severityConfig[ticket.severity] || severityConfig.low;
-                  const cat = categoryConfig[ticket.category] || categoryConfig.other;
                   const StatusIcon = status.icon;
 
                   return (
@@ -482,11 +479,6 @@ export default function ITDTPage() {
                           <p className="font-medium text-sm">{ticket.subject}</p>
                           <p className="text-xs text-muted-foreground">{ticket.userName || ticket.userEmail}</p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`${cat.bgColor} ${cat.color} border-0 text-[10px]`}>
-                          {cat.label}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={severity.variant}>{severity.label}</Badge>

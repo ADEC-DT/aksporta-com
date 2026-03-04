@@ -33,6 +33,17 @@ const isAdmin: RequestHandler = async (req, res, next) => {
   next();
 };
 
+const isAdminOrITServiceDesk: RequestHandler = async (req, res, next) => {
+  const managedUser = (req as any).managedUser as ManagedUser;
+  if (!managedUser) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  if (managedUser.role !== "admin" && managedUser.role !== "superadmin" && managedUser.role !== "it_service_desk") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+};
+
 // Middleware to check if user is superadmin
 const isSuperAdmin: RequestHandler = async (req, res, next) => {
   const managedUser = (req as any).managedUser as ManagedUser;
@@ -1409,7 +1420,7 @@ export async function registerRoutes(
   // ===== ADMIN TICKET MANAGEMENT =====
 
   // Get all tickets (admin only)
-  app.get("/api/admin/tickets", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/tickets", isAuthenticated, isAdminOrITServiceDesk, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
@@ -1503,7 +1514,7 @@ export async function registerRoutes(
     assignedToName: z.string().optional(),
   });
 
-  app.patch("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.patch("/api/admin/tickets/:id", isAuthenticated, isAdminOrITServiceDesk, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
       const ticket = await storage.getTicket(req.params.id);
