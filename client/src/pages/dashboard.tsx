@@ -74,44 +74,7 @@ interface IntranetItem {
   author: string;
 }
 
-const intranetUpdates: IntranetItem[] = [
-  {
-    id: 1,
-    title: "New HR Policy Update",
-    date: "Today",
-    preview: "Updated leave policy for Q1 2026 has been published across all departments.",
-    dotColor: "bg-blue-500",
-    body: "The updated leave policy for Q1 2026 is now effective. Key changes include: increased annual leave from 22 to 25 days, new parental leave entitlements, and revised sick leave documentation requirements. All department heads should ensure their teams are briefed on the new policy by end of this week. Contact HR for any clarifications.",
-    author: "HR Department",
-  },
-  {
-    id: 2,
-    title: "Q4 Financial Results Townhall",
-    date: "Tomorrow, 2:00 PM",
-    preview: "All-hands meeting to discuss financial performance and 2026 outlook.",
-    dotColor: "bg-green-500",
-    body: "Join us for the Q4 2025 Financial Results Townhall. The CFO will present the annual financial performance, discuss key highlights, and outline the strategic budget allocation for 2026. Attendance is mandatory for all department managers. The meeting will be held in the main conference hall with remote access available via Teams.",
-    author: "Finance Team",
-  },
-  {
-    id: 3,
-    title: "NetSuite Maintenance Window",
-    date: "Jan 15, 11 PM",
-    preview: "Scheduled system maintenance for NetSuite ERP -- expect 3 hours of downtime.",
-    dotColor: "bg-amber-500",
-    body: "A scheduled maintenance window for NetSuite ERP is planned for January 15th from 11:00 PM to 2:00 AM (UAE time). During this period, all NetSuite modules including financial reporting, inventory management, and procurement workflows will be temporarily unavailable. Please plan accordingly and complete any urgent transactions before the maintenance window.",
-    author: "IT Service Desk",
-  },
-  {
-    id: 4,
-    title: "Employee Wellness Program Launch",
-    date: "Next Week",
-    preview: "New wellness initiatives including gym memberships and mental health support.",
-    dotColor: "bg-purple-500",
-    body: "We are excited to announce the launch of our comprehensive Employee Wellness Program starting next week. The program includes subsidized gym memberships, weekly yoga sessions, mental health counseling services, and quarterly wellness challenges. Registration opens this Friday through the HRMS self-service portal.",
-    author: "People & Culture",
-  },
-];
+const intranetUpdates: IntranetItem[] = [];
 
 const quickLinks = [
   { title: "IT Support Request", icon: Laptop, url: "/intranet" },
@@ -214,7 +177,9 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground mb-4">Latest news and announcements</p>
                 
                 <div className="space-y-1">
-                  {intranetUpdates.map((item) => (
+                  {intranetUpdates.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center" data-testid="text-no-updates">No updates yet</p>
+                  ) : intranetUpdates.map((item) => (
                     <div
                       key={item.id}
                       className="flex items-start gap-3 p-2.5 -mx-1 rounded-md hover-elevate cursor-pointer"
