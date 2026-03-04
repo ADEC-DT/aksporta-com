@@ -75,7 +75,6 @@ import LoginPage from "@/pages/login";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import { NotificationDropdown } from "@/components/notification-dropdown";
-import { NotificationReminder } from "@/components/notification-reminder";
 import { MinimizedSectionsProvider, MinimizedTaskbar } from "@/components/expandable-section";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -225,7 +224,6 @@ function App() {
                 <ProtectedRoutes />
               </Route>
             </Switch>
-            <NotificationReminder />
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>
