@@ -878,9 +878,6 @@ export class DatabaseStorage implements IStorage {
 
   async getSpacesWithHierarchy(viewType?: string): Promise<SpaceWithHierarchy[]> {
     let allSpaces = await this.getAllSpaces();
-    if (viewType) {
-      allSpaces = allSpaces.filter(s => s.viewType === viewType);
-    }
     const allGroups = await db.select().from(projectGroups).orderBy(asc(projectGroups.name));
     const allProjects = await db.select().from(projects).orderBy(desc(projects.createdAt));
 

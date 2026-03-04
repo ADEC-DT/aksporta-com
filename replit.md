@@ -81,7 +81,7 @@ The Projects section uses a 3-level hierarchy for organizing work:
 - **Spaces** (`spaces` table): Department-level grouping (e.g., "IT & Digital", "Operations", "HR & Admin"). Each has a name, color, description, and owner.
 - **Project Groups** (`project_groups` table): Projects within a space (e.g., "Unified Portal", "Infrastructure Upgrade"). Belong to a space via `spaceId`. Have status, date range, color.
 - **Tasks** (`projects` table): Individual work items within a project group. Linked via `projectGroupId` column. Tasks without a `projectGroupId` appear in an "Unassigned" section.
-- **Monday View**: Shows hierarchy as collapsible Space → Project → Task tree with inline status/priority editing
+- **Monday View**: Shows hierarchy as collapsible Space → Project → Task tree with inline status/priority editing. All spaces/projects are synchronized and visible in both Monday and Tuesday views
 - **Kanban View**: Flat drag-and-drop board grouped by status
 - **API**: `/api/spaces/hierarchy` returns full nested structure (SpaceWithHierarchy type)
 - **Seed Data**: 3 sample spaces, 4 project groups, 14 sample tasks seeded on first run

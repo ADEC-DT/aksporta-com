@@ -481,7 +481,6 @@ export default function ProjectsPage() {
   const [spaceName, setSpaceName] = useState("");
   const [spaceDescription, setSpaceDescription] = useState("");
   const [spaceColor, setSpaceColor] = useState("#6366f1");
-  const [spaceViewType, setSpaceViewType] = useState<string>(activeView);
   const [pgName, setPgName] = useState("");
   const [pgDescription, setPgDescription] = useState("");
   const [pgSpaceId, setPgSpaceId] = useState("");
@@ -528,9 +527,9 @@ export default function ProjectsPage() {
   });
 
   const { data: spacesHierarchy = [], isLoading: hierarchyLoading } = useQuery<SpaceWithHierarchy[]>({
-    queryKey: ["/api/spaces/hierarchy", activeView],
+    queryKey: ["/api/spaces/hierarchy"],
     queryFn: async () => {
-      const res = await fetch(`/api/spaces/hierarchy?viewType=${activeView}`, { credentials: "include" });
+      const res = await fetch(`/api/spaces/hierarchy`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch hierarchy");
       return res.json();
     },
@@ -764,7 +763,7 @@ export default function ProjectsPage() {
           name: spaceName.trim(),
           description: spaceDescription.trim() || undefined,
           color: spaceColor,
-          viewType: spaceViewType,
+          viewType: "monday",
         },
       });
     } else {
@@ -772,7 +771,7 @@ export default function ProjectsPage() {
         name: spaceName.trim(),
         description: spaceDescription.trim() || undefined,
         color: spaceColor,
-        viewType: spaceViewType,
+        viewType: "monday",
       });
     }
   };
@@ -1141,7 +1140,7 @@ export default function ProjectsPage() {
                   </Button>
                 </div>
               )}
-              <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceViewType(activeView); setSpaceDialogOpen(true); }} data-testid="button-new-space">
+              <Button onClick={() => { setEditingSpace(null); setSpaceName(""); setSpaceDescription(""); setSpaceColor("#6366f1"); setSpaceDialogOpen(true); }} data-testid="button-new-space">
                 <Plus className="h-4 w-4 mr-2" />
                 New Space
               </Button>
@@ -1393,7 +1392,6 @@ export default function ProjectsPage() {
                                     setSpaceName(space.name);
                                     setSpaceDescription(space.description || "");
                                     setSpaceColor(space.color || "#6366f1");
-                                    setSpaceViewType(space.viewType || "monday");
                                     setSpaceDialogOpen(true);
                                   }}
                                 >
@@ -2658,18 +2656,6 @@ export default function ProjectsPage() {
                 className="mt-1 min-h-[80px]"
                 data-testid="input-space-description"
               />
-            </div>
-            <div>
-              <Label>View</Label>
-              <Select value={spaceViewType} onValueChange={setSpaceViewType}>
-                <SelectTrigger className="mt-1" data-testid="select-space-view-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monday">Monday</SelectItem>
-                  <SelectItem value="tuesday">Tuesday</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label>Color</Label>
