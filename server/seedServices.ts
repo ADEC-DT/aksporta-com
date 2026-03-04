@@ -473,6 +473,12 @@ export async function seedExternalServices() {
       console.log("Renamed 'DT Support' to 'AKS Request Center'");
     }
 
+    const itDtService = existingServices.find(s => s.name === "IT & DT" && s.url === "/it-dt");
+    if (itDtService) {
+      await db.update(externalServices).set({ name: "IT Service Desk" }).where(eq(externalServices.id, itDtService.id));
+      console.log("Renamed 'IT & DT' to 'IT Service Desk'");
+    }
+
     if (existingServices.length > 0) {
       console.log(`External services already exist (${existingServices.length} services)`);
     } else {

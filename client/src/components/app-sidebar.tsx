@@ -433,11 +433,11 @@ export function AppSidebar() {
                     isActive={location === "/it-dt" || location.startsWith("/it-dt")}
                     className="h-9 px-3 rounded-md"
                     data-testid="nav-item-it-dt"
-                    tooltip="IT & DT"
+                    tooltip="IT Service Desk"
                   >
                     <Link href="/it-dt">
                       <Monitor className="h-4 w-4" />
-                      <span className="text-sm">IT & DT</span>
+                      <span className="text-sm">IT Service Desk</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

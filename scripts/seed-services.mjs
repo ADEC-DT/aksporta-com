@@ -16,7 +16,7 @@ const services = [
   { name: "Legal", url: "/legal", icon: "Scale", category: "general", isEnabled: true, isExternal: false, sortOrder: "11" },
   { name: "Performance & KPIs", url: "/performance-kpi", icon: "Target", category: "operations", isEnabled: true, isExternal: false, sortOrder: "12" },
   { name: "OPS & FM", url: "/ops-fm", icon: "Wrench", category: "operations", isEnabled: true, isExternal: false, sortOrder: "13" },
-  { name: "IT & DT", url: "/it-dt", icon: "Cpu", category: "it", isEnabled: true, isExternal: false, sortOrder: "14" },
+  { name: "IT Service Desk", url: "/it-dt", icon: "Cpu", category: "it", isEnabled: true, isExternal: false, sortOrder: "14" },
 ];
 
 async function seed() {

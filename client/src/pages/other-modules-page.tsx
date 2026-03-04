@@ -43,7 +43,7 @@ export default function OtherModulesPage({ section }: OtherModulesPageProps) {
     "performance-kpi": "Performance & KPIs",
     "ops-fm": "OPS & FM",
     "other-systems": "Other Systems",
-    "it-dt": "IT & DT",
+    "it-dt": "IT Service Desk",
   };
   const title = `${sectionLabels[section] || section} — Other Modules`;
   const modules = section === "erp" ? erpModules : [];

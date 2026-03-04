@@ -122,7 +122,7 @@ const portalSections = [
   { name: "legal", title: "Legal & Compliance" },
   { name: "performance_kpi", title: "Performance & KPIs" },
   { name: "ops_fm", title: "OPS & FM" },
-  { name: "it_dt", title: "IT & DT" },
+  { name: "it_dt", title: "IT Service Desk" },
 ];
 
 function getDeadlineStatus(deadline: string | null, status: string): "overdue" | "due_soon" | null {

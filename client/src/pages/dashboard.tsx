@@ -100,7 +100,7 @@ const intranetUpdates: IntranetItem[] = [
     preview: "Scheduled system maintenance for NetSuite ERP -- expect 3 hours of downtime.",
     dotColor: "bg-amber-500",
     body: "A scheduled maintenance window for NetSuite ERP is planned for January 15th from 11:00 PM to 2:00 AM (UAE time). During this period, all NetSuite modules including financial reporting, inventory management, and procurement workflows will be temporarily unavailable. Please plan accordingly and complete any urgent transactions before the maintenance window.",
-    author: "IT & DT Department",
+    author: "IT Service Desk",
   },
   {
     id: 4,

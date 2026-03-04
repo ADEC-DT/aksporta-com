@@ -213,7 +213,7 @@ export default function SprintManagementPage() {
               onClick={() => setLocation("/it-dt")}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to IT & DT
+              Back to IT Service Desk
             </Button>
           </CardContent>
         </Card>

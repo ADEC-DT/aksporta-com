@@ -68,7 +68,7 @@ shared/           # Shared code between client/server
 9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories
 10. **Performance & KPIs** (`/performance-kpi`) - KPI tracking, metrics dashboard, performance alerts
 11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
-12. **IT & DT** (`/it-dt`) - IT & Digital Transformation with system status, projects, security
+12. **IT Service Desk** (`/it-dt`) - IT Service Desk with system status, projects, security
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:
