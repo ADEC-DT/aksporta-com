@@ -68,7 +68,7 @@ shared/           # Shared code between client/server
 9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories
 10. **Performance & KPIs** (`/performance-kpi`) - KPI tracking, metrics dashboard, performance alerts
 11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
-12. **IT Service Desk** (`/it-dt`) - IT Service Desk with system status, projects, security
+12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to admin, superadmin, and it_service_desk roles
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:
@@ -144,11 +144,11 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **express-session**: Session middleware
 - **bcryptjs**: Password hashing
 - **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.
-- **Password Reset**: `password_reset_tokens` table stores tokens with expiry. Endpoints: `POST /api/auth/forgot-password` (generates token, sends email via SendGrid if configured), `POST /api/auth/reset-password` (validates token, sets new password), `POST /api/admin/users/:id/reset-password-link` (admin generates reset link for a user). Frontend pages: `/forgot-password`, `/reset-password/:token`. When SendGrid is not configured, the token is returned directly in the API response for manual sharing.
-- **SendGrid**: NOT configured. User dismissed the Replit SendGrid integration. To enable email-based password resets, set `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` environment variables. Install `@sendgrid/mail` package.
+- **Password Reset**: `password_reset_tokens` table stores tokens with expiry. Endpoints: `POST /api/auth/forgot-password` (generates token, sends email via SendGrid), `POST /api/auth/reset-password` (validates token, sets new password), `POST /api/admin/users/:id/reset-password-link` (admin generates reset link for a user). Frontend pages: `/forgot-password`, `/reset-password/:token`. In development mode only, if SendGrid fails, the token is returned in the API response as fallback.
+- **SendGrid**: Configured via Replit SendGrid integration (connector). Helper: `server/sendgrid.ts` provides `getUncachableSendGridClient()` which returns `{ client, fromEmail }`. Uses Replit connector secrets (no manual API key needed). Used for password reset emails.
 
 ### Access Control System
-- **Roles**: `superadmin`, `admin`, `finance`, `procurement`, `others`
+- **Roles**: `superadmin`, `admin`, `it_service_desk`, `finance`, `procurement`, `others`
 - **Middleware**: `isAuthenticated`, `isAdmin` (admin+superadmin), `isSuperAdmin`, `checkSubmoduleAccess(service, submodule)`
 - **Superadmin Protection**: Only superadmins can create/modify/delete superadmin accounts or assign the superadmin role. Enforced in POST/PATCH/DELETE `/api/admin/users` routes
 - **Service-Level Access**: `userServices` table maps users to enabled services. Sidebar filters services via `GET /api/my-services` (admins/superadmins see all). All data endpoints require authentication

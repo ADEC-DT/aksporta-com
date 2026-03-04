@@ -151,7 +151,8 @@ export function registerAuthRoutes(app: Express) {
         console.error("Failed to send reset email:", emailErr);
       }
 
-      res.json({ message: "If an account with that email exists, a reset link has been generated", token: !emailSent ? token : undefined });
+      const isDev = process.env.NODE_ENV === "development";
+      res.json({ message: "If an account with that email exists, a reset link has been generated", token: (!emailSent && isDev) ? token : undefined });
     } catch (error) {
       console.error("Forgot password error:", error);
       res.status(500).json({ message: "Failed to process request" });
