@@ -62,7 +62,6 @@ import LegalPage from "@/pages/legal";
 import PerformanceKPIPage from "@/pages/performance-kpi";
 import OpsFMPage from "@/pages/ops-fm";
 import ITDTPage from "@/pages/it-dt";
-import SprintManagementPage from "@/pages/sprint-management";
 
 import ProjectGroupPage from "@/pages/project-group";
 import CustomerDBPage from "@/pages/customer-db";
@@ -191,7 +190,6 @@ function ProtectedRoutes() {
                 <Route path="/performance-kpi" component={PerformanceKPIPage} />
                 <Route path="/ops-fm" component={OpsFMPage} />
                 <Route path="/it-dt" component={ITDTPage} />
-                <Route path="/sprint-management" component={SprintManagementPage} />
                 <Route path="/projects/group/:groupId" component={ProjectGroupPage} />
                 <Route path="/projects/monday" component={ProjectsPage} />
                 <Route path="/projects/tuesday" component={ProjectsPage} />

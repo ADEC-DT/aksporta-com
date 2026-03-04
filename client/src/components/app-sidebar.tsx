@@ -441,20 +441,6 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === "/sprint-management"}
-                    className="h-9 px-3 rounded-md"
-                    data-testid="nav-item-sprint-management"
-                    tooltip="Sprint Management"
-                  >
-                    <Link href="/sprint-management">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-sm">Sprint Management</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
