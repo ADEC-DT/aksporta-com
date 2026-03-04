@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,6 +157,17 @@ export default function IntranetPage() {
   const [priority, setPriority] = useState("medium");
   const [category, setCategory] = useState("it_support");
   const [subcategory, setSubcategory] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const newTicket = params.get("newTicket");
+    if (newTicket === "it_support" || newTicket === "digital_transformation") {
+      setCategory(newTicket);
+      setSubcategory("");
+      setDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const { data: stats } = useQuery<TicketStats>({
     queryKey: ["/api/tickets/stats"],

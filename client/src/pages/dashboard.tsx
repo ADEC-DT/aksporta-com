@@ -77,8 +77,8 @@ interface IntranetItem {
 const intranetUpdates: IntranetItem[] = [];
 
 const quickLinks = [
-  { title: "IT Support", icon: Monitor, url: "/intranet" },
-  { title: "Digital Transformation", icon: Zap, url: "/intranet" },
+  { title: "IT Support", icon: Monitor, url: "/intranet?newTicket=it_support" },
+  { title: "Digital Transformation", icon: Zap, url: "/intranet?newTicket=digital_transformation" },
   { title: "Requisition ARF", icon: FileText, url: "/intranet/requisitions" },
 ];
 
