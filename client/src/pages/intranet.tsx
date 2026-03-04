@@ -194,7 +194,6 @@ export default function IntranetPage() {
       if (!res.ok) throw new Error("Failed to fetch requisitions");
       return res.json();
     },
-    enabled: activeTab === "requisition_arf",
   });
 
   const createTicketMutation = useMutation({
@@ -297,6 +296,16 @@ export default function IntranetPage() {
         t.userEmail.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : allTickets;
+
+  const filteredRequisitions = activeTab === "all"
+    ? (searchQuery
+        ? requisitions.filter(r =>
+            r.requestTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (r.requestedBy || "").toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : requisitions)
+    : [];
 
   if (selectedTicket) {
     const status = statusConfig[selectedTicket.status] || statusConfig.new;
@@ -975,12 +984,12 @@ export default function IntranetPage() {
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : filteredTickets.length === 0 ? (
+              ) : filteredTickets.length === 0 && (activeTab !== "all" || filteredRequisitions.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Ticket className="mb-3 h-12 w-12 text-muted-foreground" />
-                  <h2 className="mb-1 text-lg font-semibold">No tickets found</h2>
+                  <h2 className="mb-1 text-lg font-semibold">No requests found</h2>
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "Try adjusting your search" : "Create a new ticket to get started"}
+                    {searchQuery ? "Try adjusting your search" : "Create a new request to get started"}
                   </p>
                 </div>
               ) : (
@@ -1062,6 +1071,56 @@ export default function IntranetPage() {
                           </TableRow>
                         );
                       })}
+                      {activeTab === "all" && filteredRequisitions.map((req) => (
+                        <TableRow
+                          key={`arf-${req.id}`}
+                          className="cursor-pointer"
+                          data-testid={`row-arf-all-${req.id}`}
+                        >
+                          <TableCell>
+                            <Link href={`/intranet/requisitions/${req.id}`}>
+                              <span className="font-mono text-xs text-primary hover:underline">{req.id.slice(0, 8).toUpperCase()}</span>
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <Link href={`/intranet/requisitions/${req.id}`}>
+                              <span className="font-medium text-sm hover:underline">{req.requestTitle}</span>
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-[10px]">
+                              Requisition ARF
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">—</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                req.status === "PO Created" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-[10px]" :
+                                req.status === "Rejected" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]" :
+                                req.status === "Awaiting Approval" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0 text-[10px]" :
+                                "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0 text-[10px]"
+                              }
+                            >
+                              {req.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">{req.requestedBy || "—"}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">{req.dateOfRequest || "—"}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Link href={`/intranet/requisitions/${req.id}`}>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
