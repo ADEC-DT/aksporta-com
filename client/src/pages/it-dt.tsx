@@ -110,14 +110,6 @@ export default function ITDTPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div />
-        <Button variant="outline" onClick={handleLaunchPowerBI} data-testid="button-launch-powerbi">
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Launch Power BI
-        </Button>
-      </div>
-
       <Card className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-0">
         <CardContent className="p-8">
           <div className="flex items-center gap-3 mb-2">
