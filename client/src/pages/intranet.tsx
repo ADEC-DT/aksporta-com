@@ -541,14 +541,6 @@ export default function IntranetPage() {
                 </p>
               </div>
             </div>
-            <Button
-              onClick={() => setDialogOpen(true)}
-              className="bg-white/20 hover:bg-white/30 text-white border-0"
-              data-testid="button-create-ticket"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Ticket
-            </Button>
           </div>
         </CardContent>
       </Card>
