@@ -126,11 +126,30 @@ export default function CustomerDBPage() {
       const res = await apiRequest("PATCH", `/api/data-sources/${activeSource}/records/${recordId}`, { field, value });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/data-sources", activeSource, "records"] });
+    onMutate: async ({ recordId, field, value }) => {
+      const qk = ["/api/data-sources", activeSource, "records", searchQuery, currentPage, sortBy, sortOrder];
+      await queryClient.cancelQueries({ queryKey: qk });
+      const previous = queryClient.getQueryData<{ records: DsRecord[]; total: number }>(qk);
+      if (previous) {
+        queryClient.setQueryData(qk, {
+          ...previous,
+          records: previous.records.map((r) =>
+            r.id === recordId ? { ...r, data: { ...(r.data as Record<string, any>), [field]: value } } : r
+          ),
+        });
+      }
+      return { previous, qk };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.qk, context.previous);
+      }
       toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    },
+    onSettled: (_data, _error, _vars, context) => {
+      if (context?.qk) {
+        queryClient.invalidateQueries({ queryKey: context.qk });
+      }
     },
   });
 
@@ -594,7 +613,6 @@ export default function CustomerDBPage() {
                                         <TableCell key={col.key} className="text-sm whitespace-nowrap">
                                           <Checkbox
                                             checked={boolVal}
-                                            disabled={toggleFieldMutation.isPending}
                                             onCheckedChange={(checked) => {
                                               toggleFieldMutation.mutate({ recordId: record.id, field: col.key, value: !!checked });
                                             }}

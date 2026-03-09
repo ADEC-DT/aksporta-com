@@ -787,7 +787,7 @@ export class DatabaseStorage implements IStorage {
       orderClause = options?.sortOrder === 'asc' ? asc(dsRecords.createdAt) : desc(dsRecords.createdAt);
     }
 
-    const records = await db.select().from(dsRecords).where(where).orderBy(orderClause).limit(limit).offset(offset);
+    const records = await db.select().from(dsRecords).where(where).orderBy(orderClause, asc(dsRecords.id)).limit(limit).offset(offset);
 
     return { records, total };
   }
