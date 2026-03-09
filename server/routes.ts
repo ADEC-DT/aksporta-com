@@ -2514,6 +2514,28 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/data-sources/:slug/records/:id", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const { field, value } = req.body;
+      if (!field || value === undefined) {
+        return res.status(400).json({ message: "field and value are required" });
+      }
+      const ds = await storage.getDataSourceBySlug(req.params.slug);
+      if (!ds) return res.status(404).json({ message: "Data source not found" });
+
+      const record = await storage.getDsRecord(req.params.id);
+      if (!record || record.dataSourceId !== ds.id) {
+        return res.status(404).json({ message: "Record not found" });
+      }
+
+      const updated = await storage.updateDsRecord(req.params.id, { [field]: value });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating record:", error);
+      res.status(500).json({ message: "Failed to update record" });
+    }
+  });
+
   app.post("/api/data-sources/:slug/records/delete-batch", isAuthenticated, async (req, res) => {
     try {
       const { ids } = req.body;

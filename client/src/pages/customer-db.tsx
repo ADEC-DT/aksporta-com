@@ -18,6 +18,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Search, Download, FileText, Users, Loader2, Upload, AlertCircle,
   ScanSearch, Merge, Trash2, ChevronLeft, ChevronRight, Clock,
@@ -118,6 +119,19 @@ export default function CustomerDBPage() {
       return res.json();
     },
     enabled: !!activeSource && activeTab === "history",
+  });
+
+  const toggleFieldMutation = useMutation({
+    mutationFn: async ({ recordId, field, value }: { recordId: string; field: string; value: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/data-sources/${activeSource}/records/${recordId}`, { field, value });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/data-sources", activeSource, "records"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    },
   });
 
   const previewMutation = useMutation({
@@ -570,11 +584,42 @@ export default function CustomerDBPage() {
                               const d = record.data as Record<string, any>;
                               return (
                                 <TableRow key={record.id} data-testid={`row-record-${record.id}`}>
-                                  {columns.map((col) => (
-                                    <TableCell key={col.key} className="text-sm whitespace-nowrap max-w-[200px] truncate">
-                                      {d[col.key] != null ? formatCellValue(d[col.key], col.key) : <span className="text-muted-foreground">-</span>}
-                                    </TableCell>
-                                  ))}
+                                  {columns.map((col) => {
+                                    const isBoolCol = col.type === "boolean";
+                                    const rawVal = d[col.key];
+                                    const boolVal = rawVal === true || rawVal === "TRUE" || rawVal === "true";
+
+                                    if (isBoolCol && isSuperAdmin) {
+                                      return (
+                                        <TableCell key={col.key} className="text-sm whitespace-nowrap">
+                                          <Checkbox
+                                            checked={boolVal}
+                                            disabled={toggleFieldMutation.isPending}
+                                            onCheckedChange={(checked) => {
+                                              toggleFieldMutation.mutate({ recordId: record.id, field: col.key, value: !!checked });
+                                            }}
+                                            data-testid={`checkbox-${col.key}-${record.id}`}
+                                          />
+                                        </TableCell>
+                                      );
+                                    }
+
+                                    if (isBoolCol) {
+                                      return (
+                                        <TableCell key={col.key} className="text-sm whitespace-nowrap">
+                                          <Badge variant={boolVal ? "default" : "secondary"}>
+                                            {boolVal ? "TRUE" : "FALSE"}
+                                          </Badge>
+                                        </TableCell>
+                                      );
+                                    }
+
+                                    return (
+                                      <TableCell key={col.key} className="text-sm whitespace-nowrap max-w-[200px] truncate">
+                                        {d[col.key] != null ? formatCellValue(d[col.key], col.key) : <span className="text-muted-foreground">-</span>}
+                                      </TableCell>
+                                    );
+                                  })}
                                 </TableRow>
                               );
                             })

@@ -138,6 +138,7 @@ export interface IStorage {
   getDsRecord(id: string): Promise<DsRecord | undefined>;
   createDsRecord(record: InsertDsRecord): Promise<DsRecord>;
   createDsRecordsBulk(records: InsertDsRecord[]): Promise<DsRecord[]>;
+  updateDsRecord(id: string, data: Record<string, any>): Promise<DsRecord | undefined>;
   deleteDsRecord(id: string): Promise<boolean>;
   deleteDsRecordsBySource(dataSourceId: string): Promise<number>;
 
@@ -805,6 +806,14 @@ export class DatabaseStorage implements IStorage {
     if (records.length === 0) return [];
     const created = await db.insert(dsRecords).values(records).returning();
     return created;
+  }
+
+  async updateDsRecord(id: string, data: Record<string, any>): Promise<DsRecord | undefined> {
+    const existing = await this.getDsRecord(id);
+    if (!existing) return undefined;
+    const merged = { ...(existing.data as Record<string, any>), ...data };
+    const [updated] = await db.update(dsRecords).set({ data: merged }).where(eq(dsRecords.id, id)).returning();
+    return updated;
   }
 
   async deleteDsRecord(id: string): Promise<boolean> {
