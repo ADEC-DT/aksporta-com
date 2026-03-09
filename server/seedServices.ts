@@ -633,6 +633,19 @@ const DATA_SOURCE_COLUMNS: Record<string, { key: string; label: string; type: st
     { key: "message", label: "Message", type: "text" },
     { key: "call_date", label: "Call date", type: "text" },
   ],
+  "employee-directory": [
+    { key: "employee_code", label: "Employee Code", type: "number" },
+    { key: "full_name", label: "Full Name", type: "text" },
+    { key: "email", label: "Email", type: "text" },
+    { key: "phone", label: "Phone", type: "text" },
+    { key: "position", label: "Position", type: "text" },
+    { key: "department_english", label: "Department ( English )", type: "text" },
+    { key: "sub_department_english", label: "Sub Department ( English )", type: "text" },
+    { key: "section_english", label: "Section ( English )", type: "text" },
+    { key: "cost_center", label: "Cost Center", type: "text" },
+    { key: "cost_center_account_number", label: "Cost Center - Account Number", type: "number" },
+    { key: "account", label: "Account", type: "boolean" },
+  ],
 };
 
 export async function seedDataSources() {
@@ -651,6 +664,18 @@ export async function seedDataSources() {
       console.log("Data sources seeded (6 sources)");
     } else {
       console.log("Data sources already seeded");
+
+      const employeeDir = existing.find(s => s.slug === "employee-directory");
+      if (!employeeDir) {
+        await db.insert(dataSources).values({
+          name: "Employee Directory",
+          slug: "employee-directory",
+          icon: "Users",
+          color: "#0ea5e9",
+          columns: DATA_SOURCE_COLUMNS["employee-directory"],
+        });
+        console.log("Added Employee Directory data source");
+      }
     }
 
     for (const [slug, cols] of Object.entries(DATA_SOURCE_COLUMNS)) {
