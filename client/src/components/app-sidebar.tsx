@@ -334,7 +334,6 @@ export function AppSidebar() {
                 const serviceUrl = service.url || "#";
 
                 if (serviceUrl === "/applications/customer-db") {
-                  if (!isAdmin) return null;
                   return (
                     <SidebarMenuItem key={service.id}>
                       <SidebarMenuButton

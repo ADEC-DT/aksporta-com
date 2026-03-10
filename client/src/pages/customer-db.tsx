@@ -525,6 +525,7 @@ export default function CustomerDBPage() {
             >
               Records
             </button>
+            {isSuperAdmin && (
             <button
               onClick={() => setActiveTab("cleanup")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === "cleanup" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
@@ -533,6 +534,7 @@ export default function CustomerDBPage() {
               <ScanSearch className="h-4 w-4" />
               Data Cleanup
             </button>
+            )}
             <button
               onClick={() => setActiveTab("history")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
@@ -682,7 +684,7 @@ export default function CustomerDBPage() {
             </Card>
           )}
 
-          {activeTab === "cleanup" && (
+          {activeTab === "cleanup" && isSuperAdmin && (
             <div className="space-y-4">
               <Card>
                 <CardHeader className="pb-3">

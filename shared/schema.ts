@@ -48,6 +48,7 @@ export const pageRegistry: { key: string; label: string; path: string }[] = [
   { key: "veterinary", label: "Veterinary", path: "/veterinary" },
   { key: "help", label: "Help Center", path: "/help" },
   { key: "my-tickets", label: "My Tickets", path: "/my-tickets" },
+  { key: "customer-db", label: "Customer DB", path: "/applications/customer-db" },
   { key: "settings", label: "Users Profile", path: "/settings" },
 ];
 

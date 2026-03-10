@@ -2554,7 +2554,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/data-sources/:slug/merge", isAuthenticated, async (req, res) => {
+  app.post("/api/data-sources/:slug/merge", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const { primaryId, secondaryIds } = req.body;
       if (!primaryId || !secondaryIds?.length) {
@@ -2581,7 +2581,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/data-sources/:slug/records", isAuthenticated, async (req, res) => {
+  app.delete("/api/data-sources/:slug/records", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const { ids } = req.body;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -2620,7 +2620,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/data-sources/:slug/records/delete-batch", isAuthenticated, async (req, res) => {
+  app.post("/api/data-sources/:slug/records/delete-batch", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const { ids } = req.body;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -2638,7 +2638,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/data-sources/:slug/records/all", isAuthenticated, async (req, res) => {
+  app.delete("/api/data-sources/:slug/records/all", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
       if (!ds) return res.status(404).json({ message: "Data source not found" });
@@ -2651,7 +2651,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/data-sources/:slug/records/clear-all", isAuthenticated, async (req, res) => {
+  app.post("/api/data-sources/:slug/records/clear-all", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const ds = await storage.getDataSourceBySlug(req.params.slug);
       if (!ds) return res.status(404).json({ message: "Data source not found" });
