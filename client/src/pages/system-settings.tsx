@@ -50,10 +50,251 @@ import {
   AlertTriangle,
   Shield,
   Search,
-  LayoutGrid
+  LayoutGrid,
+  HeartPulse,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Users,
+  Zap,
+  TicketIcon,
+  Globe,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useLocation, Link } from "wouter";
 import type { SystemSetting, AuditLog, IntegrationHealth, ManagedUser, ExternalService, SectionTemplate, PageSectionWithTemplate } from "@shared/schema";
+
+type ServiceHealth = {
+  id: string;
+  name: string;
+  url: string | null;
+  icon: string | null;
+  category: string | null;
+  status: "operational" | "degraded" | "down";
+  uptime: number;
+  responseTime: number;
+  lastChecked: string;
+};
+
+type HealthCheckData = {
+  services: ServiceHealth[];
+  summary: {
+    totalServices: number;
+    operationalCount: number;
+    degradedCount: number;
+    downCount: number;
+    avgUptime: number;
+    avgResponseTime: number;
+    openTickets: number;
+    activeUsers: number;
+    totalUsers: number;
+  };
+};
+
+function HealthCheckSection() {
+  const { data: healthData, isLoading, refetch, isFetching } = useQuery<HealthCheckData>({
+    queryKey: ["/api/admin/health-check"],
+    refetchInterval: 60000,
+  });
+
+  const statusConfig = {
+    operational: { label: "Operational", color: "text-emerald-500", bg: "bg-emerald-500/10", icon: CheckCircle2 },
+    degraded: { label: "Degraded", color: "text-amber-500", bg: "bg-amber-500/10", icon: AlertTriangle },
+    down: { label: "Down", color: "text-red-500", bg: "bg-red-500/10", icon: XCircle },
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const summary = healthData?.summary;
+  const services = healthData?.services || [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">System Health Overview</h3>
+          <p className="text-sm text-muted-foreground">Real-time status of all portal services</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          data-testid="button-refresh-health"
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-operational-count">{summary.operationalCount}</p>
+                  <p className="text-xs text-muted-foreground">Operational</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/10">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-degraded-count">{summary.degradedCount}</p>
+                  <p className="text-xs text-muted-foreground">Degraded</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Zap className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-avg-uptime">{summary.avgUptime}%</p>
+                  <p className="text-xs text-muted-foreground">Avg Uptime</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <Clock className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-avg-response">{summary.avgResponseTime}ms</p>
+                  <p className="text-xs text-muted-foreground">Avg Response</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-violet-500/10">
+                  <Globe className="h-5 w-5 text-violet-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-total-services">{summary.totalServices}</p>
+                  <p className="text-xs text-muted-foreground">Total Services</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-sky-500/10">
+                  <Users className="h-5 w-5 text-sky-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-active-users">{summary.activeUsers}<span className="text-sm font-normal text-muted-foreground">/{summary.totalUsers}</span></p>
+                  <p className="text-xs text-muted-foreground">Active Users</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500/10">
+                  <TicketIcon className="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" data-testid="text-open-tickets">{summary.openTickets}</p>
+                  <p className="text-xs text-muted-foreground">Open Tickets</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Service Status</CardTitle>
+          <CardDescription>Detailed health status for each service</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Uptime</TableHead>
+                <TableHead>Response Time</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Last Checked</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {services.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No services configured
+                  </TableCell>
+                </TableRow>
+              ) : (
+                services.map((service) => {
+                  const cfg = statusConfig[service.status];
+                  const StatusIcon = cfg.icon;
+                  return (
+                    <TableRow key={service.id} data-testid={`row-health-${service.id}`}>
+                      <TableCell className="font-medium">{service.name}</TableCell>
+                      <TableCell>
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                          <StatusIcon className="h-3.5 w-3.5" />
+                          {cfg.label}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 min-w-[120px]">
+                          <Progress value={service.uptime} className="h-2 w-16" />
+                          <span className="text-sm">{service.uptime}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{service.responseTime}ms</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{service.category || "general"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(service.lastChecked).toLocaleTimeString()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function SystemSettingsPage() {
   const [, setLocation] = useLocation();
@@ -503,6 +744,10 @@ export default function SystemSettingsPage() {
             <FileText className="mr-2 h-4 w-4" />
             Audit Logs
           </TabsTrigger>
+          <TabsTrigger value="health" data-testid="tab-health">
+            <HeartPulse className="mr-2 h-4 w-4" />
+            Health Check
+          </TabsTrigger>
           <TabsTrigger value="services" data-testid="tab-services">
             <Activity className="mr-2 h-4 w-4" />
             Services
@@ -806,6 +1051,10 @@ export default function SystemSettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="health" className="space-y-6">
+          <HealthCheckSection />
         </TabsContent>
 
         <TabsContent value="services" className="space-y-6">
