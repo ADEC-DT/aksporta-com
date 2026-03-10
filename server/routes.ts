@@ -1538,8 +1538,8 @@ export async function registerRoutes(
         ticketId: req.params.id,
         userId: user.id,
         userEmail: user.email,
-        userName: user.displayName || user.username,
-        isAdmin: user.role === "admin",
+        userName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+        isAdmin: user.role === "admin" || user.role === "superadmin",
         message: parsed.data.message,
       });
 
