@@ -160,3 +160,12 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **Session Security**: Session regeneration on login (prevents session fixation), sameSite=lax cookie, httpOnly, secure in production
 - **Route Protection**: System management routes (blueprints, spaces, project-groups, project-tags, data-source settings) require `isAdmin`; DB operations (setUserServices, reorderPageSections) wrapped in transactions
 - **SQL Safety**: getDsRecords sortBy parameter sanitized (alphanumeric + underscore only)
+
+### Database Integrity (added March 2026)
+- **Foreign Key Constraints**: All logical FK relationships now have `.references()` constraints in Drizzle schema with appropriate `onDelete` behavior (`cascade` for dependent data like comments/assignments, `set null` for optional references)
+- **Database Indexes**: Added indexes on all FK columns and frequently filtered columns (role, category, status, isActive) across all tables for query performance
+- **Tables with FK constraints**: `password_reset_tokens`, `tickets`, `ticket_comments`, `audit_logs`, `import_logs`, `spaces`, `project_groups`, `projects`, `project_assignments`, `project_comments`, `sm_billing_elements`, `sm_livery_agreements`, `sm_invoices`, `sm_invoice_lines`
+
+### Error Handling
+- **Global error handler** in `server/index.ts` logs errors via `console.error` without re-throwing (prevents process crashes)
+- **Vite dev server** error handler logs errors without calling `process.exit(1)` (prevents server crashes on HMR issues)

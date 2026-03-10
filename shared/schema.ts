@@ -76,16 +76,20 @@ export const managedUsers = pgTable("managed_users", {
   lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  roleIdx: index("managed_users_role_idx").on(table.role),
+}));
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "cascade" }),
   token: varchar("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  userIdx: index("password_reset_tokens_user_idx").on(table.userId),
+}));
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
@@ -174,7 +178,9 @@ export const externalServices = pgTable("external_services", {
   sortOrder: varchar("sort_order").default("0"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  categoryIdx: index("external_services_category_idx").on(table.category),
+}));
 
 export const insertExternalServiceSchema = createInsertSchema(externalServices).omit({
   id: true,
@@ -226,7 +232,7 @@ export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   action: varchar("action").notNull(),
   category: varchar("category").notNull(),
-  userId: varchar("user_id"),
+  userId: varchar("user_id").references(() => managedUsers.id, { onDelete: "set null" }),
   userEmail: varchar("user_email"),
   details: jsonb("details"),
   ipAddress: varchar("ip_address"),
@@ -290,10 +296,10 @@ export const tickets = pgTable("tickets", {
   subcategory: varchar("subcategory"),
   severity: varchar("severity").notNull(),
   status: varchar("status").notNull().default("new"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
   userEmail: varchar("user_email").notNull(),
   userName: varchar("user_name"),
-  assignedTo: varchar("assigned_to"),
+  assignedTo: varchar("assigned_to").references(() => managedUsers.id, { onDelete: "set null" }),
   assignedToName: varchar("assigned_to_name"),
   resolvedAt: timestamp("resolved_at"),
   closedAt: timestamp("closed_at"),
@@ -320,8 +326,8 @@ export type Ticket = typeof tickets.$inferSelect;
 // Ticket comments table
 export const ticketComments = pgTable("ticket_comments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  ticketId: varchar("ticket_id").notNull(),
-  userId: varchar("user_id").notNull(),
+  ticketId: varchar("ticket_id").notNull().references(() => tickets.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
   userEmail: varchar("user_email").notNull(),
   userName: varchar("user_name"),
   isAdmin: boolean("is_admin").notNull().default(false),
@@ -456,16 +462,19 @@ export type DsRecord = typeof dsRecords.$inferSelect;
 // Import logs table (tracking Customer DB import history)
 export const importLogs = pgTable("import_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  dataSourceId: varchar("data_source_id"),
+  dataSourceId: varchar("data_source_id").references(() => dataSources.id, { onDelete: "set null" }),
   fileName: varchar("file_name").notNull(),
   totalRows: integer("total_rows").notNull().default(0),
   imported: integer("imported").notNull().default(0),
   skipped: integer("skipped").notNull().default(0),
   skipReasons: jsonb("skip_reasons"),
-  importedBy: varchar("imported_by").notNull(),
+  importedBy: varchar("imported_by").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
   importedByName: varchar("imported_by_name"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  dataSourceIdx: index("import_logs_data_source_idx").on(table.dataSourceId),
+  importedByIdx: index("import_logs_imported_by_idx").on(table.importedBy),
+}));
 
 export const insertImportLogSchema = createInsertSchema(importLogs).omit({
   id: true,
@@ -584,7 +593,7 @@ export const spaces = pgTable("spaces", {
   name: varchar("name").notNull(),
   description: text("description"),
   color: varchar("color").notNull().default("#6366f1"),
-  ownerId: varchar("owner_id"),
+  ownerId: varchar("owner_id").references(() => managedUsers.id, { onDelete: "set null" }),
   viewType: varchar("view_type").notNull().default("monday"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -602,12 +611,12 @@ export const projectGroups = pgTable("project_groups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
-  spaceId: varchar("space_id").notNull(),
+  spaceId: varchar("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
   color: varchar("color"),
   status: varchar("status").notNull().default("active"),
   startDate: varchar("start_date"),
   endDate: varchar("end_date"),
-  createdBy: varchar("created_by").notNull(),
+  createdBy: varchar("created_by").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   spaceIdx: index("project_groups_space_idx").on(table.spaceId),
@@ -625,17 +634,17 @@ export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
-  projectGroupId: varchar("project_group_id"),
+  projectGroupId: varchar("project_group_id").references(() => projectGroups.id, { onDelete: "set null" }),
   status: varchar("status").notNull().default("not_started"),
   priority: varchar("priority").notNull().default("medium"),
   tags: text("tags").array().default(sql`'{}'::text[]`),
-  sprintId: varchar("sprint_id"),
+  sprintId: varchar("sprint_id").references(() => sprints.id, { onDelete: "set null" }),
   startDate: varchar("start_date"),
   deadline: varchar("deadline"),
   blocked: boolean("blocked").default(false),
   blockedBy: varchar("blocked_by"),
   blockedReason: text("blocked_reason"),
-  createdBy: varchar("created_by").notNull(),
+  createdBy: varchar("created_by").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -657,8 +666,8 @@ export type Project = typeof projects.$inferSelect;
 // Project assignments table (who is assigned to a project)
 export const projectAssignments = pgTable("project_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull(),
-  userId: varchar("user_id").notNull(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "cascade" }),
   role: varchar("role").notNull().default("member"),
   assignedAt: timestamp("assigned_at").defaultNow(),
   assignedBy: varchar("assigned_by").notNull(),
@@ -678,8 +687,8 @@ export type ProjectAssignment = typeof projectAssignments.$inferSelect;
 // Project comments table (for deadline changes, updates, discussions)
 export const projectComments = pgTable("project_comments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull(),
-  userId: varchar("user_id").notNull(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
   userName: varchar("user_name"),
   content: text("content").notNull(),
   type: varchar("type").notNull().default("comment"),
@@ -837,7 +846,9 @@ export const smStables = pgTable("sm_stables", {
   notes: text("notes"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  isActiveIdx: index("sm_stables_is_active_idx").on(table.isActive),
+}));
 
 export const insertSmStableSchema = createInsertSchema(smStables).omit({ id: true, createdAt: true });
 export type InsertSmStable = z.infer<typeof insertSmStableSchema>;
@@ -868,7 +879,9 @@ export const smHorses = pgTable("sm_horses", {
   group: varchar("group"),
   status: varchar("status").notNull().default("ACTIVE"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  statusIdx: index("sm_horses_status_idx").on(table.status),
+}));
 
 export const insertSmHorseSchema = createInsertSchema(smHorses).omit({ id: true, createdAt: true });
 export type InsertSmHorse = z.infer<typeof insertSmHorseSchema>;
@@ -905,22 +918,28 @@ export type SmItemService = typeof smItemServices.$inferSelect;
 
 export const smBillingElements = pgTable("sm_billing_elements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  stableId: varchar("stable_id"),
-  boxId: varchar("box_id"),
+  stableId: varchar("stable_id").references(() => smStables.id, { onDelete: "set null" }),
+  boxId: varchar("box_id").references(() => smBoxes.id, { onDelete: "set null" }),
   transactionDate: varchar("transaction_date").notNull(),
   refNumber: varchar("ref_number"),
   remarks: text("remarks"),
-  horseId: varchar("horse_id"),
-  customerId: varchar("customer_id"),
-  itemServiceId: varchar("item_service_id"),
+  horseId: varchar("horse_id").references(() => smHorses.id, { onDelete: "set null" }),
+  customerId: varchar("customer_id").references(() => smCustomers.id, { onDelete: "set null" }),
+  itemServiceId: varchar("item_service_id").references(() => smItemServices.id, { onDelete: "set null" }),
   unit: varchar("unit"),
   unitPrice: integer("unit_price").notNull().default(0),
   quantity: varchar("quantity").notNull().default("1"),
   billed: boolean("billed").notNull().default(false),
-  invoiceId: varchar("invoice_id"),
+  invoiceId: varchar("invoice_id").references(() => smInvoices.id, { onDelete: "set null" }),
   source: varchar("source").notNull().default("MANUAL"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  stableIdx: index("sm_billing_elements_stable_idx").on(table.stableId),
+  boxIdx: index("sm_billing_elements_box_idx").on(table.boxId),
+  horseIdx: index("sm_billing_elements_horse_idx").on(table.horseId),
+  customerIdx: index("sm_billing_elements_customer_idx").on(table.customerId),
+  itemServiceIdx: index("sm_billing_elements_item_service_idx").on(table.itemServiceId),
+}));
 
 export const insertSmBillingElementSchema = createInsertSchema(smBillingElements).omit({ id: true, createdAt: true });
 export type InsertSmBillingElement = z.infer<typeof insertSmBillingElementSchema>;
@@ -943,17 +962,22 @@ export const smLiveryAgreements = pgTable("sm_livery_agreements", {
   agreementType: varchar("agreement_type").notNull().default("PERMANENT_AUTO_RENEW"),
   startDate: varchar("start_date").notNull(),
   endDate: varchar("end_date"),
-  stableId: varchar("stable_id"),
-  boxId: varchar("box_id"),
-  horseId: varchar("horse_id"),
-  customerId: varchar("customer_id"),
+  stableId: varchar("stable_id").references(() => smStables.id, { onDelete: "set null" }),
+  boxId: varchar("box_id").references(() => smBoxes.id, { onDelete: "set null" }),
+  horseId: varchar("horse_id").references(() => smHorses.id, { onDelete: "set null" }),
+  customerId: varchar("customer_id").references(() => smCustomers.id, { onDelete: "set null" }),
   customerContact: varchar("customer_contact"),
   refNumber: varchar("ref_number"),
-  liveryPackageId: varchar("livery_package_id"),
+  liveryPackageId: varchar("livery_package_id").references(() => smLiveryPackages.id, { onDelete: "set null" }),
   remarks: text("remarks"),
   status: varchar("status").notNull().default("ACTIVE"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  stableIdx: index("sm_livery_agreements_stable_idx").on(table.stableId),
+  boxIdx: index("sm_livery_agreements_box_idx").on(table.boxId),
+  horseIdx: index("sm_livery_agreements_horse_idx").on(table.horseId),
+  customerIdx: index("sm_livery_agreements_customer_idx").on(table.customerId),
+}));
 
 export const insertSmLiveryAgreementSchema = createInsertSchema(smLiveryAgreements).omit({ id: true, createdAt: true });
 export type InsertSmLiveryAgreement = z.infer<typeof insertSmLiveryAgreementSchema>;
@@ -962,12 +986,14 @@ export type SmLiveryAgreement = typeof smLiveryAgreements.$inferSelect;
 export const smInvoices = pgTable("sm_invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   invoiceNumber: varchar("invoice_number").notNull(),
-  customerId: varchar("customer_id"),
+  customerId: varchar("customer_id").references(() => smCustomers.id, { onDelete: "set null" }),
   status: varchar("status").notNull().default("DRAFT"),
   totalAmount: integer("total_amount").notNull().default(0),
   invoiceDate: varchar("invoice_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  customerIdx: index("sm_invoices_customer_idx").on(table.customerId),
+}));
 
 export const insertSmInvoiceSchema = createInsertSchema(smInvoices).omit({ id: true, createdAt: true });
 export type InsertSmInvoice = z.infer<typeof insertSmInvoiceSchema>;
@@ -976,7 +1002,7 @@ export type SmInvoice = typeof smInvoices.$inferSelect;
 export const smInvoiceLines = pgTable("sm_invoice_lines", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   invoiceId: varchar("invoice_id").notNull().references(() => smInvoices.id, { onDelete: "cascade" }),
-  billingElementId: varchar("billing_element_id"),
+  billingElementId: varchar("billing_element_id").references(() => smBillingElements.id, { onDelete: "set null" }),
   description: varchar("description").notNull(),
   quantity: varchar("quantity").notNull().default("1"),
   unitPrice: integer("unit_price").notNull().default(0),

@@ -203,8 +203,8 @@ export async function registerRoutes(
     try {
       const services = await storage.getExternalServices();
       const enabledServices = services.filter(s => s.isEnabled);
-      const allTickets = await storage.getTickets({ limit: 1000, offset: 0 });
-      const allUsers = await storage.getAllUsers();
+      const allTickets = await storage.getAllTickets({ limit: 1000, offset: 0 });
+      const allUsers = await storage.getAllManagedUsers();
 
       const now = Date.now();
       const serviceHealthData = enabledServices.map((service) => {
@@ -236,8 +236,8 @@ export async function registerRoutes(
         ? Math.round(serviceHealthData.reduce((sum, s) => sum + s.responseTime, 0) / serviceHealthData.length)
         : 0;
 
-      const openTickets = allTickets.tickets.filter(t => t.status !== "resolved" && t.status !== "closed").length;
-      const activeUsers = allUsers.filter(u => u.isActive).length;
+      const openTickets = allTickets.tickets.filter((t: { status: string }) => t.status !== "resolved" && t.status !== "closed").length;
+      const activeUsers = allUsers.filter((u: { isActive: boolean }) => u.isActive).length;
 
       res.json({
         services: serviceHealthData,
@@ -545,7 +545,7 @@ export async function registerRoutes(
       const schema = z.object({ allowedPages: z.array(z.string().refine(p => validPaths.includes(p), { message: "Invalid page path" })) });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid input" });
-      const unique = [...new Set(parsed.data.allowedPages)];
+      const unique = Array.from(new Set(parsed.data.allowedPages));
       const pages = unique.length > 0 ? unique : null;
       await storage.updateManagedUser(req.params.id, { allowedPages: pages } as any);
       res.json({ success: true });
@@ -1105,7 +1105,12 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid input", errors: parsed.error.errors });
       }
-      let service = await storage.createExternalService(parsed.data);
+      const { color: _color, sortOrder: rawSort, category: rawCat, ...serviceRest } = parsed.data;
+      let service = await storage.createExternalService({
+        ...serviceRest,
+        category: rawCat ?? undefined,
+        sortOrder: rawSort != null ? String(rawSort) : undefined,
+      });
       
       if (!service.url) {
         const updated = await storage.updateExternalService(service.id, { url: `/services/${service.id}` });
@@ -1152,7 +1157,12 @@ export async function registerRoutes(
       if (!parsedService.success) {
         return res.status(400).json({ message: "Invalid input", errors: parsedService.error.errors });
       }
-      const service = await storage.updateExternalService(req.params.id, parsedService.data);
+      const { color: _color2, sortOrder: rawSort2, category: rawCat2, ...updateRest } = parsedService.data;
+      const service = await storage.updateExternalService(req.params.id, {
+        ...updateRest,
+        ...(rawCat2 !== undefined ? { category: rawCat2 ?? undefined } : {}),
+        ...(rawSort2 !== undefined ? { sortOrder: String(rawSort2) } : {}),
+      });
       
       if (service) {
         await storage.createAuditLog({
@@ -2178,12 +2188,12 @@ export async function registerRoutes(
           if (!emailMap.has(email)) emailMap.set(email, []);
           emailMap.get(email)!.push(c);
         }
-        for (const [, records] of emailMap) {
+        Array.from(emailMap.entries()).forEach(([, records]) => {
           if (records.length > 1) {
             groups.push({ matchType: "email", records });
-            records.forEach(r => usedIds.add(r.id));
+            records.forEach((r: { id: string }) => usedIds.add(r.id));
           }
-        }
+        });
       }
 
       if (criteria.name) {
@@ -2197,12 +2207,12 @@ export async function registerRoutes(
           if (!nameMap.has(key)) nameMap.set(key, []);
           nameMap.get(key)!.push(c);
         }
-        for (const [, records] of nameMap) {
+        Array.from(nameMap.entries()).forEach(([, records]) => {
           if (records.length > 1) {
             groups.push({ matchType: "name", records });
-            records.forEach(r => usedIds.add(r.id));
+            records.forEach((r: { id: string }) => usedIds.add(r.id));
           }
-        }
+        });
       }
 
       if (criteria.phone) {
@@ -2214,12 +2224,12 @@ export async function registerRoutes(
           if (!phoneMap.has(phone)) phoneMap.set(phone, []);
           phoneMap.get(phone)!.push(c);
         }
-        for (const [, records] of phoneMap) {
+        Array.from(phoneMap.entries()).forEach(([, records]) => {
           if (records.length > 1) {
             groups.push({ matchType: "phone", records });
-            records.forEach(r => usedIds.add(r.id));
+            records.forEach((r: { id: string }) => usedIds.add(r.id));
           }
-        }
+        });
       }
 
       res.json({ groups, totalDuplicates: groups.reduce((sum, g) => sum + g.records.length, 0) });
@@ -2531,11 +2541,11 @@ export async function registerRoutes(
           if (!valueMap.has(key)) valueMap.set(key, []);
           valueMap.get(key)!.push(record);
         }
-        for (const [val, recs] of valueMap) {
+        Array.from(valueMap.entries()).forEach(([val, recs]) => {
           if (recs.length > 1) {
             groups.push({ matchField: field, matchValue: val, records: recs });
           }
-        }
+        });
       }
 
       res.json({ groups, totalDuplicates: groups.reduce((sum, g) => sum + g.records.length, 0) });

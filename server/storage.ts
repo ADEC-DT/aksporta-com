@@ -310,14 +310,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createManagedUser(userData: InsertManagedUser): Promise<ManagedUser> {
-    const [user] = await db.insert(managedUsers).values(userData).returning();
+    const [user] = await db.insert(managedUsers).values(userData as any).returning();
     return user;
   }
 
   async updateManagedUser(id: string, data: Partial<InsertManagedUser>): Promise<ManagedUser | undefined> {
     const [user] = await db
       .update(managedUsers)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...data, updatedAt: new Date() } as any)
       .where(eq(managedUsers.id, id))
       .returning();
     return user;
@@ -759,7 +759,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDataSource(id: string, data: Partial<InsertDataSource>): Promise<DataSource | undefined> {
-    const [updated] = await db.update(dataSources).set(data).where(eq(dataSources.id, id)).returning();
+    const [updated] = await db.update(dataSources).set(data as any).where(eq(dataSources.id, id)).returning();
     return updated;
   }
 
