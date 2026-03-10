@@ -1400,7 +1400,7 @@ export async function registerRoutes(
       }
 
       // Users can only view their own tickets, admins can view all
-      if (ticket.userId !== user.id && user.role !== "admin") {
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
         return res.status(403).json({ message: "You can only view your own tickets" });
       }
 
@@ -1422,7 +1422,7 @@ export async function registerRoutes(
       }
 
       // Users can only view their own tickets, admins can view all
-      if (ticket.userId !== user.id && user.role !== "admin") {
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
         return res.status(403).json({ message: "You can only view your own tickets" });
       }
 
@@ -1449,7 +1449,7 @@ export async function registerRoutes(
       }
 
       // Users can only comment on their own tickets, admins can comment on all
-      if (ticket.userId !== user.id && user.role !== "admin") {
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
         return res.status(403).json({ message: "You can only comment on your own tickets" });
       }
 
