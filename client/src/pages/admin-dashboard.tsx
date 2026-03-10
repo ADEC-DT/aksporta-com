@@ -152,10 +152,10 @@ function UserPagesCell({ userId }: { userId: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users", userId, "submodules"] });
-      toast({ title: "Sub-page access updated" });
+      toast({ title: "Sub Services access updated" });
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to update sub-page access", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to update Sub Services access", description: error.message, variant: "destructive" });
     },
   });
 
@@ -229,7 +229,7 @@ function UserPagesCell({ userId }: { userId: string }) {
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : registryKeys.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sub-pages configured</p>
+            <p className="text-sm text-muted-foreground">No Sub Services configured</p>
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {registryKeys.map(registryKey => {
@@ -557,7 +557,7 @@ function AdminDashboard() {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Services</TableHead>
-                  <TableHead>Pages</TableHead>
+                  <TableHead>Sub Services</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
