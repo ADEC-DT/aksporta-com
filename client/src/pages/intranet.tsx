@@ -839,7 +839,7 @@ export default function IntranetPage() {
                     </CardContent>
                   </Card>
 
-                  <Card data-testid="card-sla-breaches">
+                  <Card data-testid="card-sla-breaches" className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveTab("all")}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${(stats?.slaBreaches || 0) > 0 ? "bg-red-100 dark:bg-red-900/30" : "bg-green-100 dark:bg-green-900/30"}`}>
@@ -855,7 +855,7 @@ export default function IntranetPage() {
                     </CardContent>
                   </Card>
 
-                  <Card data-testid="card-it-load">
+                  <Card data-testid="card-it-load" className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveTab("it_support")}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
@@ -873,7 +873,7 @@ export default function IntranetPage() {
                     </CardContent>
                   </Card>
 
-                  <Card data-testid="card-dt-load">
+                  <Card data-testid="card-dt-load" className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveTab("digital_transformation")}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
@@ -904,7 +904,7 @@ export default function IntranetPage() {
                         const maxVal = Math.max(itTotal, dtTotal, 1);
                         return (
                           <>
-                            <div className="space-y-2">
+                            <div className="space-y-2 cursor-pointer rounded-lg p-2 -m-2 hover:bg-muted/50 transition-colors" onClick={() => setActiveTab("it_support")} data-testid="link-it-breakdown">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm flex items-center gap-2">
                                   <Monitor className="h-3.5 w-3.5 text-blue-600" />
@@ -920,7 +920,7 @@ export default function IntranetPage() {
                                 />
                               </div>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-2 cursor-pointer rounded-lg p-2 -m-2 mt-2 hover:bg-muted/50 transition-colors" onClick={() => setActiveTab("digital_transformation")} data-testid="link-dt-breakdown">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm flex items-center gap-2">
                                   <Zap className="h-3.5 w-3.5 text-purple-600" />
@@ -954,7 +954,7 @@ export default function IntranetPage() {
                         const dtPct = dtLoad && dtLoad.total > 0 ? Math.round((dtLoad.resolved / dtLoad.total) * 100) : 0;
                         return (
                           <>
-                            <div className="space-y-2">
+                            <div className="space-y-2 cursor-pointer rounded-lg p-2 -m-2 hover:bg-muted/50 transition-colors" onClick={() => setActiveTab("it_support")} data-testid="link-it-resolution">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm flex items-center gap-2">
                                   <Monitor className="h-3.5 w-3.5 text-blue-600" />
@@ -966,7 +966,7 @@ export default function IntranetPage() {
                               </div>
                               <Progress value={itPct} className="h-2" data-testid="progress-it-resolution" />
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-2 cursor-pointer rounded-lg p-2 -m-2 mt-2 hover:bg-muted/50 transition-colors" onClick={() => setActiveTab("digital_transformation")} data-testid="link-dt-resolution">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm flex items-center gap-2">
                                   <Zap className="h-3.5 w-3.5 text-purple-600" />
