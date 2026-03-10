@@ -1389,6 +1389,82 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/tickets/stats", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const isAdmin = user.role === "admin" || user.role === "superadmin";
+      const userFilter = isAdmin ? sql`1=1` : sql`user_id = ${user.id}`;
+
+      const [counts] = await db.select({
+        total: sql<number>`count(*)::int`,
+        open: sql<number>`count(*) filter (where status in ('new','in_progress','under_review'))::int`,
+        resolved: sql<number>`count(*) filter (where status = 'resolved')::int`,
+        closed: sql<number>`count(*) filter (where status = 'closed')::int`,
+        statusNew: sql<number>`count(*) filter (where status = 'new')::int`,
+        statusInProgress: sql<number>`count(*) filter (where status = 'in_progress')::int`,
+        statusUnderReview: sql<number>`count(*) filter (where status = 'under_review')::int`,
+        itSupport: sql<number>`count(*) filter (where category = 'it_support')::int`,
+        digitalTransformation: sql<number>`count(*) filter (where category = 'digital_transformation')::int`,
+        critical: sql<number>`count(*) filter (where severity = 'critical' and status in ('new','in_progress','under_review'))::int`,
+        itOpen: sql<number>`count(*) filter (where category = 'it_support' and status in ('new','in_progress','under_review'))::int`,
+        itResolved: sql<number>`count(*) filter (where category = 'it_support' and status in ('resolved','closed'))::int`,
+        dtOpen: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('new','in_progress','under_review'))::int`,
+        dtResolved: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('resolved','closed'))::int`,
+        avgCloseMs: sql<number>`coalesce(avg(extract(epoch from (resolved_at - created_at)) * 1000) filter (where status in ('resolved','closed') and resolved_at is not null), 0)`,
+      }).from(tickets).where(userFilter);
+
+      const avgCloseTimeHours = Math.round((Number(counts.avgCloseMs) / (1000 * 60 * 60)) * 100) / 100;
+      const avgCloseTimeDays = Math.round((avgCloseTimeHours / 24) * 100) / 100;
+
+      const overdueRows = await db.select({ id: tickets.id }).from(tickets)
+        .where(sql`${userFilter} AND status in ('new','in_progress','under_review') AND (
+          (severity = 'critical' AND created_at < now() - interval '4 hours') OR
+          (severity = 'high' AND created_at < now() - interval '24 hours') OR
+          (severity = 'medium' AND created_at < now() - interval '48 hours') OR
+          (severity = 'low' AND created_at < now() - interval '72 hours')
+        )`);
+
+      const overdueTickets = overdueRows.map(r => r.id);
+
+      const stats = {
+        total: counts.total,
+        open: counts.open,
+        resolved: counts.resolved,
+        closed: counts.closed,
+        itSupport: counts.itSupport,
+        digitalTransformation: counts.digitalTransformation,
+        critical: counts.critical,
+        byStatus: {
+          new: counts.statusNew,
+          in_progress: counts.statusInProgress,
+          under_review: counts.statusUnderReview,
+          resolved: counts.resolved,
+          closed: counts.closed,
+        },
+        avgCloseTimeHours,
+        avgCloseTimeDays,
+        byDepartmentLoad: {
+          it_support: {
+            total: counts.itSupport,
+            open: counts.itOpen,
+            resolved: counts.itResolved,
+          },
+          digital_transformation: {
+            total: counts.digitalTransformation,
+            open: counts.dtOpen,
+            resolved: counts.dtResolved,
+          },
+        },
+        slaBreaches: overdueTickets.length,
+        overdueTickets,
+      };
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching ticket stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
   // Get ticket by ID (user can only view their own, admin can view all)
   app.get("/api/tickets/:id", isAuthenticated, async (req, res) => {
     try {
@@ -1493,82 +1569,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching all tickets:", error);
       res.status(500).json({ message: "Failed to fetch tickets" });
-    }
-  });
-
-  app.get("/api/tickets/stats", isAuthenticated, async (req, res) => {
-    try {
-      const user = (req as any).managedUser as ManagedUser;
-      const isAdmin = user.role === "admin" || user.role === "superadmin";
-      const userFilter = isAdmin ? sql`1=1` : sql`user_id = ${user.id}`;
-
-      const [counts] = await db.select({
-        total: sql<number>`count(*)::int`,
-        open: sql<number>`count(*) filter (where status in ('new','in_progress','under_review'))::int`,
-        resolved: sql<number>`count(*) filter (where status = 'resolved')::int`,
-        closed: sql<number>`count(*) filter (where status = 'closed')::int`,
-        statusNew: sql<number>`count(*) filter (where status = 'new')::int`,
-        statusInProgress: sql<number>`count(*) filter (where status = 'in_progress')::int`,
-        statusUnderReview: sql<number>`count(*) filter (where status = 'under_review')::int`,
-        itSupport: sql<number>`count(*) filter (where category = 'it_support')::int`,
-        digitalTransformation: sql<number>`count(*) filter (where category = 'digital_transformation')::int`,
-        critical: sql<number>`count(*) filter (where severity = 'critical' and status in ('new','in_progress','under_review'))::int`,
-        itOpen: sql<number>`count(*) filter (where category = 'it_support' and status in ('new','in_progress','under_review'))::int`,
-        itResolved: sql<number>`count(*) filter (where category = 'it_support' and status in ('resolved','closed'))::int`,
-        dtOpen: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('new','in_progress','under_review'))::int`,
-        dtResolved: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('resolved','closed'))::int`,
-        avgCloseMs: sql<number>`coalesce(avg(extract(epoch from (resolved_at - created_at)) * 1000) filter (where status in ('resolved','closed') and resolved_at is not null), 0)`,
-      }).from(tickets).where(userFilter);
-
-      const avgCloseTimeHours = Math.round((Number(counts.avgCloseMs) / (1000 * 60 * 60)) * 100) / 100;
-      const avgCloseTimeDays = Math.round((avgCloseTimeHours / 24) * 100) / 100;
-
-      const overdueRows = await db.select({ id: tickets.id }).from(tickets)
-        .where(sql`${userFilter} AND status in ('new','in_progress','under_review') AND (
-          (severity = 'critical' AND created_at < now() - interval '4 hours') OR
-          (severity = 'high' AND created_at < now() - interval '24 hours') OR
-          (severity = 'medium' AND created_at < now() - interval '48 hours') OR
-          (severity = 'low' AND created_at < now() - interval '72 hours')
-        )`);
-
-      const overdueTickets = overdueRows.map(r => r.id);
-
-      const stats = {
-        total: counts.total,
-        open: counts.open,
-        resolved: counts.resolved,
-        closed: counts.closed,
-        itSupport: counts.itSupport,
-        digitalTransformation: counts.digitalTransformation,
-        critical: counts.critical,
-        byStatus: {
-          new: counts.statusNew,
-          in_progress: counts.statusInProgress,
-          under_review: counts.statusUnderReview,
-          resolved: counts.resolved,
-          closed: counts.closed,
-        },
-        avgCloseTimeHours,
-        avgCloseTimeDays,
-        byDepartmentLoad: {
-          it_support: {
-            total: counts.itSupport,
-            open: counts.itOpen,
-            resolved: counts.itResolved,
-          },
-          digital_transformation: {
-            total: counts.digitalTransformation,
-            open: counts.dtOpen,
-            resolved: counts.dtResolved,
-          },
-        },
-        slaBreaches: overdueTickets.length,
-        overdueTickets,
-      };
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching ticket stats:", error);
-      res.status(500).json({ message: "Failed to fetch stats" });
     }
   });
 

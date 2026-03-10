@@ -68,7 +68,7 @@ shared/           # Shared code between client/server
 9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories
 10. **Performance & KPIs** (`/performance-kpi`) - KPI tracking, metrics dashboard, performance alerts
 11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
-12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to all authenticated users
+12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to all authenticated users. Non-admin users see only their own tickets; admin controls (status change, assignee) are hidden for non-admins. Backend enforces ticket ownership at all endpoints.
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:
