@@ -96,7 +96,7 @@ function ProtectedRoutes() {
   }
 
   const isAdmin = user.role === "admin" || user.role === "superadmin";
-  const isITServiceDesk = user.role === "it_service_desk";
+
   const allowedPages = (user as any).allowedPages as string[] | null | undefined;
   const hasPageRestrictions = !isAdmin && Array.isArray(allowedPages) && allowedPages.length > 0;
 
@@ -106,7 +106,7 @@ function ProtectedRoutes() {
   }
 
   if (hasPageRestrictions) {
-    const roleAllowedRoutes = isITServiceDesk ? ["/it-dt"] : [];
+    const roleAllowedRoutes: string[] = [];
     const isAllowedRoute = location === "/" || allowedPages!.some(
       (route) => location === route || location.startsWith(route + "/")
     ) || roleAllowedRoutes.some(r => location === r || location.startsWith(r + "/"));

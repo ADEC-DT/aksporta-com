@@ -70,14 +70,14 @@ export default function ITDTPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
-  const isITServiceDesk = user?.role === "it_service_desk";
+
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [newComment, setNewComment] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  if (!isAdmin && !isITServiceDesk) {
+  if (!user) {
     return (
       <div className="flex items-center justify-center h-full p-6">
         <Card className="max-w-md w-full">

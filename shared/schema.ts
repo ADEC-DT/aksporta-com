@@ -7,7 +7,7 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // User roles enum
-export const userRoles = ["superadmin", "admin", "it_service_desk", "finance", "procurement", "others"] as const;
+export const userRoles = ["superadmin", "admin", "finance", "procurement", "others"] as const;
 export type UserRole = typeof userRoles[number];
 
 // Submodule registry — defines all submodules for services that have them

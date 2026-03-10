@@ -71,7 +71,7 @@ export function AppSidebar() {
   });
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
-  const isITServiceDesk = user?.role === "it_service_desk";
+
 
   const { data: myServiceIds } = useQuery<string[]>({
     queryKey: ["/api/my-services"],
@@ -389,7 +389,7 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
-              {(isAdmin || isITServiceDesk) && canAccessPage("/it-dt") && (
+              {canAccessPage("/it-dt") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild

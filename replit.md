@@ -68,7 +68,7 @@ shared/           # Shared code between client/server
 9. **Legal** (`/legal`) - Legal & Compliance with contracts, compliance alerts, document categories
 10. **Performance & KPIs** (`/performance-kpi`) - KPI tracking, metrics dashboard, performance alerts
 11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
-12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to admin, superadmin, and it_service_desk roles
+12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to all authenticated users
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:
@@ -148,8 +148,8 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **SendGrid**: Configured via Replit SendGrid integration (connector). Helper: `server/sendgrid.ts` provides `getUncachableSendGridClient()` which returns `{ client, fromEmail }`. Uses Replit connector secrets (no manual API key needed). Used for password reset emails.
 
 ### Access Control System
-- **Roles**: `superadmin`, `admin`, `it_service_desk`, `finance`, `procurement`, `others`
-- **Middleware**: `isAuthenticated`, `isAdmin` (admin+superadmin), `isSuperAdmin`, `checkSubmoduleAccess(service, submodule)`
+- **Roles**: `superadmin`, `admin`, `finance`, `procurement`, `others`
+- **Middleware**: `isAuthenticated`, `isAdmin` (admin+superadmin), `isSuperAdmin`, `isAdminOrAuthenticated`, `checkSubmoduleAccess(service, submodule)`
 - **Superadmin Protection**: Only superadmins can create/modify/delete superadmin accounts or assign the superadmin role. Enforced in POST/PATCH/DELETE `/api/admin/users` routes
 - **Service-Level Access**: `userServices` table maps users to enabled services. Sidebar filters services via `GET /api/my-services` (admins/superadmins see all). All data endpoints require authentication
 - **Submodule Access**: `submoduleRegistry` in `shared/schema.ts` defines submodules for ERP (finance, procurement, inventory, payments), Equestrian (stable-assets), Projects (monday, tuesday). `allowed_submodules` JSONB column on `managed_users`. `checkSubmoduleAccess` middleware on SM and requisition routes. Superadmins bypass all restrictions
