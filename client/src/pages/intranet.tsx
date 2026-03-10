@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Headphones,
@@ -143,6 +144,8 @@ type TicketStats = {
 };
 
 export default function IntranetPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
@@ -443,6 +446,7 @@ export default function IntranetPage() {
           </Card>
 
           <div className="space-y-4">
+            {isAdmin && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Actions</CardTitle>
@@ -490,6 +494,7 @@ export default function IntranetPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
             <Card>
               <CardHeader className="pb-3">
@@ -1004,7 +1009,7 @@ export default function IntranetPage() {
                         <TableHead className="w-36">Category</TableHead>
                         <TableHead className="w-24">Priority</TableHead>
                         <TableHead className="w-28">Status</TableHead>
-                        <TableHead className="w-28">Assigned</TableHead>
+                        {isAdmin && <TableHead className="w-28">Assigned</TableHead>}
                         <TableHead className="w-28">Created</TableHead>
                         <TableHead className="w-16"></TableHead>
                       </TableRow>
@@ -1055,11 +1060,13 @@ export default function IntranetPage() {
                                 )}
                               </div>
                             </TableCell>
+                            {isAdmin && (
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
                                 {ticket.assignedToName || "Unassigned"}
                               </span>
                             </TableCell>
+                            )}
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
                                 {ticket.createdAt

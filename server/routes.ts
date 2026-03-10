@@ -201,7 +201,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/health-check", isAuthenticated, isAdmin, async (_req, res) => {
     try {
-      const services = await storage.getAllServices();
+      const services = await storage.getExternalServices();
       const enabledServices = services.filter(s => s.isEnabled);
       const allTickets = await storage.getTickets({ limit: 1000, offset: 0 });
       const allUsers = await storage.getAllUsers();
@@ -1476,15 +1476,19 @@ export async function registerRoutes(
 
   // ===== ADMIN TICKET MANAGEMENT =====
 
-  // Get all tickets (admin only)
   app.get("/api/admin/tickets", isAuthenticated, isAdminOrAuthenticated, async (req, res) => {
     try {
+      const user = (req as any).managedUser as ManagedUser;
+      const isAdmin = user.role === "admin" || user.role === "superadmin";
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       const status = req.query.status as string | undefined;
       const category = req.query.category as string | undefined;
 
-      const result = await storage.getAllTickets({ limit, offset, status, category });
+      const result = await storage.getAllTickets({
+        limit, offset, status, category,
+        userId: isAdmin ? undefined : user.id,
+      });
       res.json(result);
     } catch (error) {
       console.error("Error fetching all tickets:", error);
@@ -1494,6 +1498,10 @@ export async function registerRoutes(
 
   app.get("/api/tickets/stats", isAuthenticated, async (req, res) => {
     try {
+      const user = (req as any).managedUser as ManagedUser;
+      const isAdmin = user.role === "admin" || user.role === "superadmin";
+      const userFilter = isAdmin ? sql`1=1` : sql`user_id = ${user.id}`;
+
       const [counts] = await db.select({
         total: sql<number>`count(*)::int`,
         open: sql<number>`count(*) filter (where status in ('new','in_progress','under_review'))::int`,
@@ -1510,13 +1518,13 @@ export async function registerRoutes(
         dtOpen: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('new','in_progress','under_review'))::int`,
         dtResolved: sql<number>`count(*) filter (where category = 'digital_transformation' and status in ('resolved','closed'))::int`,
         avgCloseMs: sql<number>`coalesce(avg(extract(epoch from (resolved_at - created_at)) * 1000) filter (where status in ('resolved','closed') and resolved_at is not null), 0)`,
-      }).from(tickets);
+      }).from(tickets).where(userFilter);
 
       const avgCloseTimeHours = Math.round((Number(counts.avgCloseMs) / (1000 * 60 * 60)) * 100) / 100;
       const avgCloseTimeDays = Math.round((avgCloseTimeHours / 24) * 100) / 100;
 
       const overdueRows = await db.select({ id: tickets.id }).from(tickets)
-        .where(sql`status in ('new','in_progress','under_review') AND (
+        .where(sql`${userFilter} AND status in ('new','in_progress','under_review') AND (
           (severity = 'critical' AND created_at < now() - interval '4 hours') OR
           (severity = 'high' AND created_at < now() - interval '24 hours') OR
           (severity = 'medium' AND created_at < now() - interval '48 hours') OR
@@ -1574,10 +1582,19 @@ export async function registerRoutes(
   app.patch("/api/admin/tickets/:id", isAuthenticated, isAdminOrAuthenticated, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
+      const isAdmin = user.role === "admin" || user.role === "superadmin";
       const ticket = await storage.getTicket(req.params.id);
       
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      if (!isAdmin && ticket.userId !== user.id) {
+        return res.status(403).json({ message: "You can only update your own tickets" });
+      }
+
+      if (!isAdmin && (req.body.status || req.body.assignedTo !== undefined || req.body.assignedToName !== undefined)) {
+        return res.status(403).json({ message: "Only admins can change ticket status or assignment" });
       }
 
       const parsed = updateTicketSchema.safeParse(req.body);

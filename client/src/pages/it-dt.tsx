@@ -228,10 +228,12 @@ export default function ITDTPage() {
                     }
                   </p>
                 </div>
+                {isAdmin && (
                 <div>
                   <Label className="text-muted-foreground text-xs">Assigned To</Label>
                   <p className="mt-1 text-sm">{selectedTicket.assignedToName || "Unassigned"}</p>
                 </div>
+                )}
               </div>
 
               <Separator />
@@ -301,6 +303,7 @@ export default function ITDTPage() {
           </Card>
 
           <div className="space-y-4">
+            {isAdmin && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Actions</CardTitle>
@@ -346,47 +349,50 @@ export default function ITDTPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </CardContent>
+            </Card>
+            )}
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Timeline</Label>
-                  <div className="space-y-3">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+                    <div>
+                      <p className="text-sm font-medium">Created</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedTicket.createdAt
+                          ? format(new Date(selectedTicket.createdAt), "PPp")
+                          : "Unknown"
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {selectedTicket.resolvedAt && (
                     <div className="flex gap-3">
-                      <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+                      <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
                       <div>
-                        <p className="text-sm font-medium">Created</p>
+                        <p className="text-sm font-medium">Resolved</p>
                         <p className="text-xs text-muted-foreground">
-                          {selectedTicket.createdAt
-                            ? format(new Date(selectedTicket.createdAt), "PPp")
-                            : "Unknown"
-                          }
+                          {format(new Date(selectedTicket.resolvedAt), "PPp")}
                         </p>
                       </div>
                     </div>
-                    {selectedTicket.resolvedAt && (
-                      <div className="flex gap-3">
-                        <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
-                        <div>
-                          <p className="text-sm font-medium">Resolved</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(selectedTicket.resolvedAt), "PPp")}
-                          </p>
-                        </div>
+                  )}
+                  {selectedTicket.closedAt && (
+                    <div className="flex gap-3">
+                      <div className="mt-1 h-2 w-2 rounded-full bg-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Closed</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(selectedTicket.closedAt), "PPp")}
+                        </p>
                       </div>
-                    )}
-                    {selectedTicket.closedAt && (
-                      <div className="flex gap-3">
-                        <div className="mt-1 h-2 w-2 rounded-full bg-gray-500" />
-                        <div>
-                          <p className="text-sm font-medium">Closed</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(selectedTicket.closedAt), "PPp")}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -460,7 +466,7 @@ export default function ITDTPage() {
                   <TableHead>Subject</TableHead>
                   <TableHead>Severity</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Assigned</TableHead>
+                  {isAdmin && <TableHead>Assigned</TableHead>}
                   <TableHead>Created</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -489,11 +495,13 @@ export default function ITDTPage() {
                           <span className={`text-xs ${status.color}`}>{status.label}</span>
                         </div>
                       </TableCell>
+                      {isAdmin && (
                       <TableCell>
                         <span className="text-xs text-muted-foreground">
                           {ticket.assignedToName || "Unassigned"}
                         </span>
                       </TableCell>
+                      )}
                       <TableCell>
                         {ticket.createdAt
                           ? <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}</span>

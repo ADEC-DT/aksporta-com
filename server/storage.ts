@@ -89,7 +89,7 @@ export interface IStorage {
   getTicket(id: string): Promise<Ticket | undefined>;
   getTicketByTrackingId(trackingId: string): Promise<Ticket | undefined>;
   getTicketsByUser(userId: string): Promise<Ticket[]>;
-  getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }>;
+  getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number; userId?: string }): Promise<{ tickets: Ticket[]; total: number }>;
   updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | undefined>;
   
   // Ticket comments
@@ -506,11 +506,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tickets.createdAt));
   }
 
-  async getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number }): Promise<{ tickets: Ticket[]; total: number }> {
+  async getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number; userId?: string }): Promise<{ tickets: Ticket[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
     
     const conditions = [];
+    if (options?.userId) {
+      conditions.push(eq(tickets.userId, options.userId));
+    }
     if (options?.status) {
       conditions.push(eq(tickets.status, options.status));
     }
