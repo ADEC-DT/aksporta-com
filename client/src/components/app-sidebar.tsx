@@ -389,18 +389,33 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+              {(isAdmin || isITServiceDesk) && canAccessPage("/it-dt") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/it-dt" || location.startsWith("/it-dt")}
+                    className="h-9 px-3 rounded-md"
+                    data-testid="nav-item-it-dt"
+                    tooltip="IT Service Desk"
+                  >
+                    <Link href="/it-dt">
+                      <Monitor className="h-4 w-4" />
+                      <span className="text-sm">IT Service Desk</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(isAdmin || isITServiceDesk) && (
+        {isAdmin && (
           <SidebarGroup className="mt-4">
             <SidebarGroupLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
               Administration
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -415,8 +430,6 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                )}
-                {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -428,21 +441,6 @@ export function AppSidebar() {
                     <Link href="/admin/tickets">
                       <Ticket className="h-4 w-4" />
                       <span className="text-sm">Ticket Management</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                )}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === "/it-dt" || location.startsWith("/it-dt")}
-                    className="h-9 px-3 rounded-md"
-                    data-testid="nav-item-it-dt"
-                    tooltip="IT Service Desk"
-                  >
-                    <Link href="/it-dt">
-                      <Monitor className="h-4 w-4" />
-                      <span className="text-sm">IT Service Desk</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
