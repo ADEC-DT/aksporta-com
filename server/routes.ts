@@ -3545,6 +3545,10 @@ export async function registerRoutes(
 
   app.patch("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "admin" && managedUser.role !== "superadmin") {
+        return res.status(403).json({ message: "Only administrators can update requisitions" });
+      }
       const parsed = updateRequisitionSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid update data", errors: parsed.error.flatten() });
       const r = await storage.updateRequisition(req.params.id, parsed.data);

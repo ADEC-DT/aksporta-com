@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign } from "lucide-react";
 import type { Requisition, RequisitionAttachment } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 
 const statusOptions = ["Submitted", "Awaiting Approval", "PO Created", "Rejected"];
 
@@ -38,6 +39,8 @@ export default function RequisitionDetailPage() {
   const [, erpParams] = useRoute("/erp/procurement/requisitions/:id");
   const [, intranetParams] = useRoute("/intranet/requisitions/:id");
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const params = erpParams || intranetParams;
   const id = params?.id;
   const isIntranet = location.startsWith("/intranet");
@@ -97,16 +100,20 @@ export default function RequisitionDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={requisition.status} onValueChange={(val) => updateStatusMutation.mutate(val)}>
-            <SelectTrigger className="w-[180px]" data-testid="select-detail-status">
-              <Badge className={getStatusBadgeClass(requisition.status)}>{requisition.status}</Badge>
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isAdmin ? (
+            <Select value={requisition.status} onValueChange={(val) => updateStatusMutation.mutate(val)}>
+              <SelectTrigger className="w-[180px]" data-testid="select-detail-status">
+                <Badge className={getStatusBadgeClass(requisition.status)}>{requisition.status}</Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Badge className={getStatusBadgeClass(requisition.status)} data-testid="badge-detail-status">{requisition.status}</Badge>
+          )}
         </div>
       </div>
 

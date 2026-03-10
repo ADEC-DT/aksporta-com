@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Plus, Search, Filter, FileDown } from "lucide-react";
 import type { Requisition } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 import { jsPDF } from "jspdf";
 
 const statusOptions = ["Submitted", "Awaiting Approval", "PO Created", "Rejected"];
@@ -28,6 +29,8 @@ function getStatusBadgeClass(status: string) {
 export default function RequisitionsListPage() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const isIntranet = location.startsWith("/intranet");
@@ -224,19 +227,23 @@ export default function RequisitionsListPage() {
                       <td className="p-3 text-muted-foreground">{req.dateOfRequest}</td>
                       <td className="p-3 text-muted-foreground">{req.requiredByDate}</td>
                       <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                        <Select
-                          value={req.status}
-                          onValueChange={(val) => updateStatusMutation.mutate({ id: req.id, status: val })}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-[150px]" data-testid={`select-status-${req.id}`}>
-                            <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`}>{req.status}</Badge>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((s) => (
-                              <SelectItem key={s} value={s}>{s}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {isAdmin ? (
+                          <Select
+                            value={req.status}
+                            onValueChange={(val) => updateStatusMutation.mutate({ id: req.id, status: val })}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-[150px]" data-testid={`select-status-${req.id}`}>
+                              <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`}>{req.status}</Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((s) => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`} data-testid={`badge-status-${req.id}`}>{req.status}</Badge>
+                        )}
                       </td>
                       <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <Button
