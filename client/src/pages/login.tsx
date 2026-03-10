@@ -24,7 +24,7 @@ function LoginPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      setLocation("/netsuite");
+      setLocation("/dashboard");
     },
     onError: (error: Error) => {
       toast({
