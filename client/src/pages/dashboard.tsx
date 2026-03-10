@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { DetailPanel } from "@/components/detail-panel";
 import { 
   User,
-  ArrowRight,
   Wrench,
   Monitor,
   Zap,
@@ -133,12 +132,6 @@ export default function Dashboard() {
             <div>
               <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
                 <h3 className="text-lg font-semibold font-outfit">Business Applications</h3>
-                <Link href="/business-units">
-                  <Button variant="ghost" size="sm" className="text-primary" data-testid="button-view-all-apps">
-                    View All Apps
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
