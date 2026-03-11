@@ -272,6 +272,7 @@ export interface IStorage {
   updateSmBillingElement(id: string, d: Partial<InsertSmBillingElement>): Promise<SmBillingElement | undefined>;
   deleteSmBillingElement(id: string): Promise<boolean>;
   markSmBillingElementsBilled(ids: string[]): Promise<void>;
+  getSmReportData(groupBy: string): Promise<any[]>;
   // StableMaster - Livery Packages
   getSmLiveryPackages(): Promise<SmLiveryPackage[]>;
   createSmLiveryPackage(p: InsertSmLiveryPackage): Promise<SmLiveryPackage>;
@@ -1448,6 +1449,65 @@ export class DatabaseStorage implements IStorage {
   async markSmBillingElementsBilled(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     await db.update(smBillingElements).set({ billed: true }).where(inArray(smBillingElements.id, ids));
+  }
+  async getSmReportData(groupBy: string): Promise<any[]> {
+    const allAgreements = await db.select().from(smLiveryAgreements);
+    const allCustomers = await db.select().from(smCustomers);
+    const allPackages = await db.select().from(smLiveryPackages);
+    const allBilling = await db.select().from(smBillingElements);
+
+    const today = new Date().toISOString().split("T")[0];
+    const activeAgreements = allAgreements.filter((a) => {
+      if (a.status !== "ACTIVE") return false;
+      if (a.startDate > today) return false;
+      if (a.endDate && a.endDate < today) return false;
+      return true;
+    });
+
+    const customerMap = new Map(allCustomers.map((c) => [c.id, c]));
+    const packageMap = new Map(allPackages.map((p) => [p.id, p]));
+
+    if (groupBy === "customer") {
+      const grouped: Record<string, any> = {};
+      for (const agreement of activeAgreements) {
+        const customer = customerMap.get(agreement.customerId || "");
+        const key = customer?.name || "Unknown";
+        if (!grouped[key]) grouped[key] = { label: key, horseCount: 0, liveryRevenue: 0, otherRevenue: 0, totalRevenue: 0 };
+        if (agreement.horseId) grouped[key].horseCount++;
+        const pkg = agreement.liveryPackageId ? packageMap.get(agreement.liveryPackageId) : null;
+        const amount = pkg ? (pkg.monthlyPrice || 0) / 100 : 0;
+        grouped[key].liveryRevenue += amount;
+        grouped[key].totalRevenue += amount;
+      }
+      for (const el of allBilling) {
+        const customer = customerMap.get(el.customerId || "");
+        const key = customer?.name || "Unknown";
+        if (!grouped[key]) grouped[key] = { label: key, horseCount: 0, liveryRevenue: 0, otherRevenue: 0, totalRevenue: 0 };
+        const amount = ((el.unitPrice || 0) * parseFloat(el.quantity || "1")) / 100;
+        grouped[key].otherRevenue += amount;
+        grouped[key].totalRevenue += amount;
+      }
+      return Object.values(grouped);
+    } else {
+      const grouped: Record<string, any> = {};
+      for (const agreement of activeAgreements) {
+        const month = agreement.startDate?.substring(0, 7) || "Unknown";
+        if (!grouped[month]) grouped[month] = { label: month, horseCount: 0, liveryRevenue: 0, otherRevenue: 0, totalRevenue: 0 };
+        if (agreement.horseId) grouped[month].horseCount++;
+        const pkg = agreement.liveryPackageId ? packageMap.get(agreement.liveryPackageId) : null;
+        const amount = pkg ? (pkg.monthlyPrice || 0) / 100 : 0;
+        grouped[month].liveryRevenue += amount;
+        grouped[month].totalRevenue += amount;
+      }
+      for (const el of allBilling) {
+        const month = el.transactionDate?.substring(0, 7) || "Unknown";
+        if (!grouped[month]) grouped[month] = { label: month, horseCount: 0, liveryRevenue: 0, otherRevenue: 0, totalRevenue: 0 };
+        const amount = ((el.unitPrice || 0) * parseFloat(el.quantity || "1")) / 100;
+        grouped[month].otherRevenue += amount;
+        grouped[month].totalRevenue += amount;
+      }
+      return Object.values(grouped).sort((a, b) => a.label.localeCompare(b.label));
+    }
   }
 
   async getSmLiveryPackages(): Promise<SmLiveryPackage[]> {

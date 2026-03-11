@@ -3943,6 +3943,14 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/sm/reports/livery", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
+    try {
+      const groupBy = (req.query.groupBy as string) || "month";
+      const data = await storage.getSmReportData(groupBy);
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.post("/api/sm/billing-elements/mark-billed", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const { ids } = req.body;

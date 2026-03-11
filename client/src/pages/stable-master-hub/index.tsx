@@ -34,6 +34,7 @@ import BillingPage from "./billing";
 import LiveryReportPage from "./livery-report";
 import SchedulePage from "./schedule";
 import UserManagementPage from "./user-management";
+import LiveryReportsPage from "./livery-reports";
 import SettingsPage from "./settings";
 
 type NavItem = { label: string; route: string; icon: React.ReactNode };
@@ -65,6 +66,7 @@ const NAV_ENTITIES: NavItem[] = [
   { label: "Customers", route: "customers", icon: <Users className="h-4 w-4" /> },
   { label: "Stables & Boxes", route: "facilities", icon: <Building className="h-4 w-4" /> },
   { label: "Items & Services", route: "items", icon: <Box className="h-4 w-4" /> },
+  { label: "Livery Reports", route: "livery-reports", icon: <BarChart3 className="h-4 w-4" /> },
 ];
 
 const NAV_ADMIN: NavItem[] = [
@@ -83,6 +85,7 @@ const ROUTE_MAP: Record<string, string> = {
   "new-agreement": "new-agreement",
   packages: "packages",
   report: "report",
+  "livery-reports": "livery-reports",
   "user-management": "user-management",
   settings: "settings",
 };
@@ -138,6 +141,7 @@ export default function StableMasterHubPage() {
       case "billing": return <BillingPage />;
       case "report": return <LiveryReportPage />;
       case "schedule": return <SchedulePage />;
+      case "livery-reports": return <LiveryReportsPage />;
       case "user-management": return <UserManagementPage />;
       case "settings": return <SettingsPage />;
       default: return <HorsesPage />;
