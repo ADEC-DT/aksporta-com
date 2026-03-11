@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   Package,
   CreditCard,
+  Fence,
 } from "lucide-react";
 import {
   Sidebar,
@@ -212,7 +213,7 @@ export function AppSidebar() {
                             )}
                             {canAccessSubmodule("equestrian", "stable-master") && (
                             <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild isActive={location.startsWith("/equestrian/stable-master")} data-testid="nav-sub-equestrian-stable-master">
+                              <SidebarMenuSubButton asChild isActive={location.startsWith("/equestrian/stable-master") && !location.startsWith("/equestrian/stable-master-v1")} data-testid="nav-sub-equestrian-stable-master">
                                 <Link href="/equestrian/stable-master">
                                   <CircleDot className="h-3.5 w-3.5" />
                                   <span>Stable Master</span>
@@ -220,6 +221,14 @@ export function AppSidebar() {
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                             )}
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.startsWith("/equestrian/stable-master-v1")} data-testid="nav-sub-equestrian-stable-master-v1">
+                                <Link href="/equestrian/stable-master-v1">
+                                  <Fence className="h-3.5 w-3.5" />
+                                  <span>Stable Master V1</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>
