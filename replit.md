@@ -32,6 +32,21 @@ Preferred communication style: Simple, everyday language.
 - **Schema Location**: `shared/schema.ts` contains database tables and TypeScript types
 - **Validation**: Zod schemas generated from Drizzle tables via drizzle-zod
 - **Database**: PostgreSQL with tables for customers, profiles, users, tickets, etc.
+- **Migrations**: File-based migrations via `drizzle-kit generate` + `drizzle-orm/node-postgres/migrator`
+  - Migrations auto-run on server startup (both dev and production)
+  - Migration files stored in `migrations/` directory, copied to `dist/migrations/` during build
+  - Initial migration (`0000_first_joystick.sql`) is a baseline no-op (schema was pre-existing)
+
+### Schema Change Workflow (IMPORTANT)
+To safely change the database schema:
+1. Edit `shared/schema.ts` (add tables, columns, indexes, etc.)
+2. Run `npx drizzle-kit generate` to create a new incremental migration file
+3. Review the generated SQL in `migrations/` — verify it contains only safe ALTER/CREATE statements
+4. Restart the dev server — migration auto-applies on startup
+5. Deploy — production migration auto-applies on startup via `dist/migrations/`
+
+**NEVER use `drizzle-kit push`** — it can drop and recreate tables, causing data loss.
+**NEVER manually edit existing migration files** — only the latest generated migration can be reviewed/adjusted before first apply.
 
 ### Project Structure
 ```

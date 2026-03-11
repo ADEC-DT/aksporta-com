@@ -4,6 +4,9 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, registerAuthRoutes, seedAdminUser } from "./auth";
 import { seedExternalServices, seedSpacesAndProjects, seedStableMasterData, seedDataSources } from "./seedServices";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { db } from "./db";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
@@ -74,16 +77,18 @@ app.use((req, res, next) => {
 (async () => {
   const port = parseInt(process.env.PORT || "5000", 10);
 
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  const migrationsFolder = process.env.NODE_ENV === "production"
+    ? path.resolve(process.cwd(), "dist", "migrations")
+    : path.resolve(process.cwd(), "migrations");
+
+  try {
+    log("Running database migrations...");
+    await migrate(db, { migrationsFolder });
+    log("Database migrations completed successfully");
+  } catch (err: any) {
+    console.error("Migration error:", err);
+    throw err;
+  }
 
   setupAuth(app);
   registerAuthRoutes(app);
@@ -110,6 +115,17 @@ app.use((req, res, next) => {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
+
+  httpServer.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    },
+    () => {
+      log(`serving on port ${port}`);
+    },
+  );
 
   appReady = true;
   log("All routes and middleware initialized");
