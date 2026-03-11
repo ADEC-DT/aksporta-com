@@ -3641,6 +3641,17 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/sm/boxes/generate", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
+    try {
+      const { stableId, prefix, count, boxType } = req.body;
+      if (!stableId || !prefix || !count) return res.status(400).json({ message: "stableId, prefix, and count are required" });
+      const c = parseInt(count, 10);
+      if (isNaN(c) || c < 1 || c > 100) return res.status(400).json({ message: "count must be between 1 and 100" });
+      const boxes = await storage.generateSmBoxes({ stableId, prefix, count: c, boxType: boxType || "STALL" });
+      res.json(boxes);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // Horses
   app.get("/api/sm/horses", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
     try { res.json(await storage.getSmHorses()); } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -3928,6 +3939,15 @@ export async function registerRoutes(
     try {
       const ok = await storage.deleteSmBillingElement(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/sm/billing-elements/mark-billed", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids array is required" });
+      await storage.markSmBillingElementsBilled(ids);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

@@ -39,7 +39,7 @@ import {
   passwordResetTokens, type PasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, desc, and, ilike, or, asc } from "drizzle-orm";
+import { eq, sql, desc, and, ilike, or, asc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Managed users CRUD
@@ -247,6 +247,7 @@ export interface IStorage {
   createSmBox(b: InsertSmBox): Promise<SmBox>;
   updateSmBox(id: string, d: Partial<InsertSmBox>): Promise<SmBox | undefined>;
   deleteSmBox(id: string): Promise<boolean>;
+  generateSmBoxes(data: { stableId: string; prefix: string; count: number; boxType: string }): Promise<SmBox[]>;
   // StableMaster - Horses
   getSmHorses(): Promise<SmHorse[]>;
   getSmHorse(id: string): Promise<SmHorse | undefined>;
@@ -270,6 +271,7 @@ export interface IStorage {
   createSmBillingElement(b: InsertSmBillingElement): Promise<SmBillingElement>;
   updateSmBillingElement(id: string, d: Partial<InsertSmBillingElement>): Promise<SmBillingElement | undefined>;
   deleteSmBillingElement(id: string): Promise<boolean>;
+  markSmBillingElementsBilled(ids: string[]): Promise<void>;
   // StableMaster - Livery Packages
   getSmLiveryPackages(): Promise<SmLiveryPackage[]>;
   createSmLiveryPackage(p: InsertSmLiveryPackage): Promise<SmLiveryPackage>;
@@ -1352,6 +1354,15 @@ export class DatabaseStorage implements IStorage {
     const r = await db.delete(smBoxes).where(eq(smBoxes.id, id)).returning();
     return r.length > 0;
   }
+  async generateSmBoxes(data: { stableId: string; prefix: string; count: number; boxType: string }): Promise<SmBox[]> {
+    const results: SmBox[] = [];
+    for (let i = 1; i <= Math.min(data.count, 100); i++) {
+      const name = `${data.prefix}${String(i).padStart(2, "0")}`;
+      const [r] = await db.insert(smBoxes).values({ stableId: data.stableId, name, boxType: data.boxType, status: "AVAILABLE" }).returning();
+      results.push(r);
+    }
+    return results;
+  }
 
   async getSmHorses(): Promise<SmHorse[]> {
     return await db.select().from(smHorses).orderBy(smHorses.name);
@@ -1433,6 +1444,10 @@ export class DatabaseStorage implements IStorage {
   async deleteSmBillingElement(id: string): Promise<boolean> {
     const r = await db.delete(smBillingElements).where(eq(smBillingElements.id, id)).returning();
     return r.length > 0;
+  }
+  async markSmBillingElementsBilled(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(smBillingElements).set({ billed: true }).where(inArray(smBillingElements.id, ids));
   }
 
   async getSmLiveryPackages(): Promise<SmLiveryPackage[]> {

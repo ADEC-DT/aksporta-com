@@ -70,6 +70,12 @@ shared/           # Shared code between client/server
 11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
 12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to all authenticated users. Non-admin users see only their own tickets; admin controls (status change, assignee) are hidden for non-admins. Backend enforces ticket ownership at all endpoints.
 
+### Equestrian - StableMaster Hub
+The StableMaster Hub (`/equestrian/stable-master`) is a separate implementation from Stable Assets Management (`/equestrian/stable-assets`), built from an external spec. It shares the same `sm_*` database tables and `/api/sm/` API endpoints, but has its own distinct frontend:
+- **File structure**: `client/src/pages/stable-master-hub/` directory with separate files per page (index.tsx, horses.tsx, customers.tsx, items-services.tsx, facilities.tsx, livery-packages.tsx, agreements.tsx, new-agreement.tsx, billing.tsx, livery-report.tsx, schedule.tsx, user-management.tsx, settings.tsx)
+- **Key differences from Stable Assets**: Items page is read-only (no CRUD), Facilities combines stables+boxes with server-side bulk generate endpoint, Billing shows active agreements with pre-filled dialog, Livery Report has KPI cards and monthly revenue breakdown, Livery Packages have covered items checkboxes, internal sidebar navigation
+- **Backend additions**: `POST /api/sm/boxes/generate` (bulk box creation), `POST /api/sm/billing-elements/mark-billed` (batch mark as billed), `netsuiteItemId` field on smItemServices
+
 ### Business Units
 The Master Customer Database consolidates data from three business units:
 - **Boutique Mall** - Retail tenant customers

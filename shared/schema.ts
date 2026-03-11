@@ -911,6 +911,7 @@ export const smItemServices = pgTable("sm_item_services", {
   defaultUnit: varchar("default_unit").notNull(),
   unitPrice: integer("unit_price").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  netsuiteItemId: varchar("netsuite_item_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
