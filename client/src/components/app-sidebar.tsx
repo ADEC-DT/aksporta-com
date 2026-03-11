@@ -210,6 +210,16 @@ export function AppSidebar() {
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                             )}
+                            {canAccessSubmodule("equestrian", "stable-master") && (
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.startsWith("/equestrian/stable-master")} data-testid="nav-sub-equestrian-stable-master">
+                                <Link href="/equestrian/stable-master">
+                                  <CircleDot className="h-3.5 w-3.5" />
+                                  <span>Stable Master</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            )}
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>

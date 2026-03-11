@@ -2210,7 +2210,7 @@ export default function StableMasterPage() {
   const [location, setLocation] = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const basePath = "/equestrian/stable-assets";
+  const basePath = location.startsWith("/equestrian/stable-master") ? "/equestrian/stable-master" : "/equestrian/stable-assets";
 
   const activeFromRoute = useMemo(() => {
     const suffix = location.replace(basePath, "").replace(/^\//, "");
