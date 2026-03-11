@@ -222,11 +222,11 @@ export function AppSidebar() {
                             </SidebarMenuSubItem>
                             )}
                             <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild isActive={location.startsWith("/equestrian/stable-master-v1")} data-testid="nav-sub-equestrian-stable-master-v1">
-                                <Link href="/equestrian/stable-master-v1">
+                              <SidebarMenuSubButton asChild data-testid="nav-sub-equestrian-stable-master-v1">
+                                <a href="https://stable-master.replit.app/" target="_blank" rel="noopener noreferrer">
                                   <Fence className="h-3.5 w-3.5" />
                                   <span>Stable Master V1</span>
-                                </Link>
+                                </a>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           </SidebarMenuSub>
