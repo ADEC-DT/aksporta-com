@@ -1099,6 +1099,17 @@ export default function ProjectsPage() {
 
       {(activeView === "monday" || activeView === "tuesday") && (
         <div className="space-y-4" data-testid={`${activeView}-view`}>
+            {activeView === "monday" && (
+              <div className="rounded-lg overflow-hidden" data-testid="monday-embed-iframe">
+                <iframe
+                  src="https://view.monday.com/embed/5092992415-bd7bc0ec6321cfe2548a2df62562c7cc?r=euc1"
+                  width="100%"
+                  height="500"
+                  style={{ border: 0, boxShadow: "5px 5px 56px 0px rgba(0,0,0,0.25)" }}
+                  title="Monday.com Board"
+                />
+              </div>
+            )}
             <div className="flex items-center gap-3">
               {activeView === "tuesday" && (
                 <div className="flex items-center border rounded-md overflow-visible">
