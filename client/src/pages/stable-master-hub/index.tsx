@@ -13,7 +13,6 @@ import {
   Receipt,
   FileText,
   FilePlus,
-  Package,
   Users,
   Building,
   Box,
@@ -25,11 +24,9 @@ import HorsesPage from "./horses";
 import CustomersPage from "./customers";
 import ItemsServicesPage from "./items-services";
 import FacilitiesPage from "./facilities";
-import LiveryPackagesPage from "./livery-packages";
 import AgreementsPage from "./agreements";
 import NewAgreementPage from "./new-agreement";
 import BillingPage from "./billing";
-import LiveryReportPage from "./livery-report";
 import SchedulePage from "./schedule";
 import LiveryReportsPage from "./livery-reports";
 import BillingElementsPage from "./billing-elements";
@@ -59,8 +56,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Agreements", route: "agreements", icon: <FileText className="h-4 w-4" /> },
       { label: "New Agreement", route: "new-agreement", icon: <FilePlus className="h-4 w-4" /> },
-      { label: "Packages", route: "packages", icon: <Package className="h-4 w-4" /> },
-      { label: "Revenue Report", route: "report", icon: <BarChart3 className="h-4 w-4" /> },
     ],
   },
   {
@@ -92,8 +87,6 @@ const ROUTE_MAP: Record<string, string> = {
   schedule: "schedule",
   agreements: "agreements",
   "new-agreement": "new-agreement",
-  packages: "packages",
-  report: "report",
   "billing-elements": "billing-elements",
   "livery-reports": "livery-reports",
 };
@@ -146,12 +139,10 @@ export default function StableMasterHubPage() {
       case "customers": return <CustomersPage />;
       case "items": return <ItemsServicesPage />;
       case "facilities": return <FacilitiesPage />;
-      case "packages": return <LiveryPackagesPage />;
       case "agreements": return <AgreementsPage />;
       case "new-agreement": return <NewAgreementPage />;
       case "billing": return <BillingPage />;
       case "billing-elements": return <BillingElementsPage />;
-      case "report": return <LiveryReportPage />;
       case "schedule": return <SchedulePage />;
       case "livery-reports": return <LiveryReportsPage />;
       default: return <HorsesPage />;
