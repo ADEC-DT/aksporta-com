@@ -66,14 +66,19 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Livery Reports", route: "livery-reports", icon: <BarChart3 className="h-4 w-4" /> },
     ],
   },
+  {
+    label: "Others",
+    defaultOpen: true,
+    items: [
+      { label: "Horses", route: "horses", icon: <Fence className="h-4 w-4" /> },
+      { label: "Customers", route: "customers", icon: <Users className="h-4 w-4" /> },
+      { label: "Stables & Boxes", route: "facilities", icon: <Building className="h-4 w-4" /> },
+      { label: "Items & Services", route: "items", icon: <Box className="h-4 w-4" /> },
+    ],
+  },
 ];
 
-const NAV_ENTITIES: NavItem[] = [
-  { label: "Horses", route: "horses", icon: <Fence className="h-4 w-4" /> },
-  { label: "Customers", route: "customers", icon: <Users className="h-4 w-4" /> },
-  { label: "Stables & Boxes", route: "facilities", icon: <Building className="h-4 w-4" /> },
-  { label: "Items & Services", route: "items", icon: <Box className="h-4 w-4" /> },
-];
+const NAV_ENTITIES: NavItem[] = [];
 
 const NAV_ADMIN: NavItem[] = [
   { label: "User Management", route: "user-management", icon: <Shield className="h-4 w-4" /> },
@@ -110,6 +115,7 @@ export default function StableMasterHubPage() {
     Activities: true,
     Livery: true,
     Reports: true,
+    Others: true,
   });
 
   const navigate = (route: string) => {
