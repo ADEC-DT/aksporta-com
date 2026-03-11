@@ -66,7 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Others",
+    label: "Master Data",
     defaultOpen: true,
     items: [
       { label: "Horses", route: "horses", icon: <Fence className="h-4 w-4" /> },
@@ -106,7 +106,7 @@ export default function StableMasterHubPage() {
     "Billing Elements": true,
     Livery: true,
     Reports: true,
-    Others: true,
+    "Master Data": true,
   });
 
   const navigate = (route: string) => {
