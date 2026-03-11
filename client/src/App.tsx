@@ -68,6 +68,7 @@ import CustomerDBPage from "@/pages/customer-db";
 import CustomerProfilePage from "@/pages/customer-profile";
 import DynamicServicePage from "@/pages/dynamic-service";
 import StableMasterPage from "@/pages/stable-master";
+import StableMasterHubPage from "@/pages/stable-master-hub";
 import RequisitionsListPage from "@/pages/requisitions-list";
 import RequisitionNewPage from "@/pages/requisition-new";
 import RequisitionDetailPage from "@/pages/requisition-detail";
@@ -181,8 +182,8 @@ function ProtectedRoutes() {
                 <Route path="/equestrian/overview" component={EquestrianPage} />
                 <Route path="/equestrian/stable-assets/:rest*" component={StableMasterPage} />
                 <Route path="/equestrian/stable-assets" component={StableMasterPage} />
-                <Route path="/equestrian/stable-master/:rest*" component={StableMasterPage} />
-                <Route path="/equestrian/stable-master" component={StableMasterPage} />
+                <Route path="/equestrian/stable-master/:rest*" component={StableMasterHubPage} />
+                <Route path="/equestrian/stable-master" component={StableMasterHubPage} />
                 <Route path="/equestrian">
                   <Redirect to="/equestrian/stable-assets" />
                 </Route>
