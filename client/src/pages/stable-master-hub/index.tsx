@@ -80,10 +80,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 const NAV_ENTITIES: NavItem[] = [];
 
-const NAV_ADMIN: NavItem[] = [
-  { label: "User Management", route: "user-management", icon: <Shield className="h-4 w-4" /> },
-  { label: "Global Settings", route: "settings", icon: <Settings className="h-4 w-4" /> },
-];
+const NAV_ADMIN: NavItem[] = [];
 
 const ROUTE_MAP: Record<string, string> = {
   horses: "horses",
@@ -198,11 +195,6 @@ export default function StableMasterHubPage() {
                 </div>
               ))}
               {NAV_ENTITIES.map(renderNavItem)}
-            </div>
-            <Separator className="my-3" />
-            <div className="space-y-1">
-              <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">Administration</p>
-              {NAV_ADMIN.map(renderNavItem)}
             </div>
           </ScrollArea>
         </div>
