@@ -37,6 +37,7 @@ import {
   smInvoices, type SmInvoice, type InsertSmInvoice,
   smInvoiceLines, type SmInvoiceLine, type InsertSmInvoiceLine,
   passwordResetTokens, type PasswordResetToken,
+  ssoTokens, type SsoToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc, inArray } from "drizzle-orm";
@@ -55,6 +56,10 @@ export interface IStorage {
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<void>;
+
+  // SSO tokens
+  createSsoToken(token: string, userId: string, expiresAt: Date): Promise<SsoToken>;
+  validateAndConsumeSsoToken(token: string): Promise<{ userId: string } | null>;
 
   // Stats
   getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }>;
@@ -345,6 +350,21 @@ export class DatabaseStorage implements IStorage {
 
   async markPasswordResetTokenUsed(token: string): Promise<void> {
     await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.token, token));
+  }
+
+  async createSsoToken(token: string, userId: string, expiresAt: Date): Promise<SsoToken> {
+    const [created] = await db.insert(ssoTokens).values({ token, userId, expiresAt, used: false }).returning();
+    return created;
+  }
+
+  async validateAndConsumeSsoToken(tokenValue: string): Promise<{ userId: string } | null> {
+    const now = new Date();
+    const [consumed] = await db.update(ssoTokens)
+      .set({ used: true })
+      .where(and(eq(ssoTokens.token, tokenValue), eq(ssoTokens.used, false), sql`${ssoTokens.expiresAt} > ${now}`))
+      .returning();
+    if (!consumed) return null;
+    return { userId: consumed.userId };
   }
 
   async getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }> {

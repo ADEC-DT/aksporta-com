@@ -95,6 +95,22 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
+export const ssoTokens = pgTable("sso_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique(),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  tokenIdx: index("sso_tokens_token_idx").on(table.token),
+  userIdx: index("sso_tokens_user_idx").on(table.userId),
+}));
+
+export const insertSsoTokenSchema = createInsertSchema(ssoTokens).omit({ id: true, createdAt: true });
+export type InsertSsoToken = z.infer<typeof insertSsoTokenSchema>;
+export type SsoToken = typeof ssoTokens.$inferSelect;
+
 export const insertManagedUserSchema = createInsertSchema(managedUsers).omit({
   id: true,
   createdAt: true,

@@ -222,11 +222,25 @@ export function AppSidebar() {
                             </SidebarMenuSubItem>
                             )}
                             <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild data-testid="nav-sub-equestrian-stable-master-v1">
-                                <a href="https://stable-master.replit.app/" target="_blank" rel="noopener noreferrer">
-                                  <Fence className="h-3.5 w-3.5" />
-                                  <span>Stable Master V1</span>
-                                </a>
+                              <SidebarMenuSubButton
+                                data-testid="nav-sub-equestrian-stable-master-v1"
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch("/api/sso/generate-token", { method: "POST", headers: { "Content-Type": "application/json" } });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      window.open(data.url, "_blank");
+                                    } else {
+                                      window.open("https://stable-master.replit.app/", "_blank");
+                                    }
+                                  } catch {
+                                    window.open("https://stable-master.replit.app/", "_blank");
+                                  }
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Fence className="h-3.5 w-3.5" />
+                                <span>Stable Master V1</span>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           </SidebarMenuSub>

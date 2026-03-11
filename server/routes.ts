@@ -4122,5 +4122,52 @@ export async function registerRoutes(
     }
   });
 
+  // SSO token endpoints
+  app.post("/api/sso/generate-token", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.managedUser;
+      if (!user) return res.status(401).json({ message: "User not found" });
+      const isSuperOrAdmin = user.role === "superadmin" || user.role === "admin";
+      if (!isSuperOrAdmin) {
+        const allowed = user.allowedSubmodules as Record<string, string[]> | null;
+        const hasAccess = allowed && allowed["equestrian"] && (
+          allowed["equestrian"].includes("stable-master") || allowed["equestrian"].includes("stable-assets")
+        );
+        if (!hasAccess) return res.status(403).json({ message: "No access to equestrian module" });
+      }
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(64).toString("hex");
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      await storage.createSsoToken(token, req.session.userId, expiresAt);
+      const url = `https://stable-master.replit.app/sso?token=${token}`;
+      res.json({ token, url });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/sso/verify-token", async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "Token is required" });
+      }
+      const result = await storage.validateAndConsumeSsoToken(token);
+      if (!result) {
+        return res.status(401).json({ message: "Invalid, expired, or already used token" });
+      }
+      const user = await storage.getManagedUser(result.userId);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ message: "User not found or inactive" });
+      }
+      res.json({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   return httpServer;
 }
