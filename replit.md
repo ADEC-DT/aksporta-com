@@ -72,9 +72,11 @@ shared/           # Shared code between client/server
 
 ### Equestrian - StableMaster Hub
 The StableMaster Hub (`/equestrian/stable-master`) is a separate implementation from Stable Assets Management (`/equestrian/stable-assets`), built from an external spec. It shares the same `sm_*` database tables and `/api/sm/` API endpoints, but has its own distinct frontend:
-- **File structure**: `client/src/pages/stable-master-hub/` directory with separate files per page (index.tsx, horses.tsx, customers.tsx, items-services.tsx, facilities.tsx, livery-packages.tsx, agreements.tsx, new-agreement.tsx, billing.tsx, livery-report.tsx, schedule.tsx, user-management.tsx, settings.tsx)
+- **File structure**: `client/src/pages/stable-master-hub/` directory with separate files per page (index.tsx, horses.tsx, customers.tsx, items-services.tsx, facilities.tsx, livery-packages.tsx, agreements.tsx, new-agreement.tsx, billing.tsx, billing-elements.tsx, livery-report.tsx, livery-reports.tsx, schedule.tsx)
+- **Navigation**: 5 collapsible groups in sidebar — Activities (Post Billing, Schedule), Billing Elements (Billing Elements), Livery (Agreements, New Agreement, Packages, Revenue Report), Reports (Livery Reports), Others (Horses, Customers, Stables & Boxes, Items & Services). No Administration section (handled by main portal).
+- **Billing Elements page**: Adds extra charges to horses. Two modes: livery (auto-filled from active agreement context) and non-livery (manual customer/horse selection). Searchable dropdowns, price auto-computation `(unitPrice/100)*qty`, history table with delete. Uses `GET /api/sm/billing-elements/enriched`, `GET /api/sm/horses-with-agreements`, `POST /api/sm/billing-elements`.
 - **Key differences from Stable Assets**: Items page is read-only (no CRUD), Facilities combines stables+boxes with server-side bulk generate endpoint, Billing shows active agreements with pre-filled dialog, Livery Report has KPI cards and monthly revenue breakdown, Livery Packages have covered items checkboxes, internal sidebar navigation
-- **Backend additions**: `POST /api/sm/boxes/generate` (bulk box creation), `POST /api/sm/billing-elements/mark-billed` (batch mark as billed), `netsuiteItemId` field on smItemServices
+- **Backend additions**: `POST /api/sm/boxes/generate` (bulk box creation), `POST /api/sm/billing-elements/mark-billed` (batch mark as billed), `GET /api/sm/billing-elements/enriched` (enriched with entity names), `GET /api/sm/horses-with-agreements` (active agreements with enriched data), `netsuiteItemId` field on smItemServices, `agreementId` and `billingMonth` fields on smBillingElements
 
 ### Business Units
 The Master Customer Database consolidates data from three business units:

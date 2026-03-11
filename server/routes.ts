@@ -3925,8 +3925,33 @@ export async function registerRoutes(
       res.json(await storage.getSmBillingElements({ unbilledOnly, limit }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
+  app.get("/api/sm/billing-elements/enriched", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
+    try {
+      const billed = req.query.billed !== undefined ? req.query.billed === "true" : undefined;
+      res.json(await storage.getSmBillingElementsEnriched(billed));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.get("/api/sm/horses-with-agreements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (_req, res) => {
+    try { res.json(await storage.getSmHorsesWithActiveAgreements()); } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
   app.post("/api/sm/billing-elements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmBillingElement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      if (req.body.transactionDate && !req.body.billingMonth) {
+        req.body.billingMonth = req.body.transactionDate.substring(0, 7);
+      }
+      const { unitPrice, quantity, transactionDate } = req.body;
+      if (unitPrice !== undefined && (typeof unitPrice !== "number" || unitPrice < 0)) {
+        return res.status(400).json({ message: "unitPrice must be a non-negative number" });
+      }
+      if (quantity !== undefined) {
+        const q = typeof quantity === "string" ? parseFloat(quantity) : quantity;
+        if (isNaN(q) || q <= 0) return res.status(400).json({ message: "quantity must be a positive number" });
+      }
+      if (transactionDate && !/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) {
+        return res.status(400).json({ message: "transactionDate must be YYYY-MM-DD format" });
+      }
+      res.json(await storage.createSmBillingElement(req.body));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/sm/billing-elements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {

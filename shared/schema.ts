@@ -934,6 +934,8 @@ export const smBillingElements = pgTable("sm_billing_elements", {
   quantity: varchar("quantity").notNull().default("1"),
   billed: boolean("billed").notNull().default(false),
   invoiceId: varchar("invoice_id").references(() => smInvoices.id, { onDelete: "set null" }),
+  agreementId: varchar("agreement_id").references(() => smLiveryAgreements.id, { onDelete: "set null" }),
+  billingMonth: varchar("billing_month"),
   source: varchar("source").notNull().default("MANUAL"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({

@@ -268,10 +268,12 @@ export interface IStorage {
   deleteSmItemService(id: string): Promise<boolean>;
   // StableMaster - Billing Elements
   getSmBillingElements(opts?: { unbilledOnly?: boolean; limit?: number }): Promise<SmBillingElement[]>;
+  getSmBillingElementsEnriched(billed?: boolean): Promise<any[]>;
   createSmBillingElement(b: InsertSmBillingElement): Promise<SmBillingElement>;
   updateSmBillingElement(id: string, d: Partial<InsertSmBillingElement>): Promise<SmBillingElement | undefined>;
   deleteSmBillingElement(id: string): Promise<boolean>;
   markSmBillingElementsBilled(ids: string[]): Promise<void>;
+  getSmHorsesWithActiveAgreements(): Promise<any[]>;
   getSmReportData(groupBy: string): Promise<any[]>;
   // StableMaster - Livery Packages
   getSmLiveryPackages(): Promise<SmLiveryPackage[]>;
@@ -1450,6 +1452,69 @@ export class DatabaseStorage implements IStorage {
     if (ids.length === 0) return;
     await db.update(smBillingElements).set({ billed: true }).where(inArray(smBillingElements.id, ids));
   }
+
+  async getSmBillingElementsEnriched(billed?: boolean): Promise<any[]> {
+    const conditions = [];
+    if (billed !== undefined) conditions.push(eq(smBillingElements.billed, billed));
+    const elements = conditions.length > 0
+      ? await db.select().from(smBillingElements).where(and(...conditions)).orderBy(desc(smBillingElements.transactionDate), desc(smBillingElements.createdAt))
+      : await db.select().from(smBillingElements).orderBy(desc(smBillingElements.transactionDate), desc(smBillingElements.createdAt));
+
+    const allHorses = await db.select().from(smHorses);
+    const allCustomers = await db.select().from(smCustomers);
+    const allBoxes = await db.select().from(smBoxes);
+    const allStables = await db.select().from(smStables);
+    const allItems = await db.select().from(smItemServices);
+
+    return elements.map((el) => {
+      const horse = allHorses.find((h) => h.id === el.horseId);
+      const customer = allCustomers.find((c) => c.id === el.customerId);
+      const box = allBoxes.find((b) => b.id === el.boxId);
+      const stable = box ? allStables.find((s) => s.id === box.stableId) : (el.stableId ? allStables.find((s) => s.id === el.stableId) : null);
+      const item = allItems.find((i) => i.id === el.itemServiceId);
+      return {
+        ...el,
+        horseName: horse?.name || "Unknown",
+        customerName: customer?.name || "Unknown",
+        boxName: box?.name || "—",
+        stableName: stable?.name || "—",
+        itemName: item?.name || "Unknown",
+      };
+    });
+  }
+
+  async getSmHorsesWithActiveAgreements(): Promise<any[]> {
+    const allAgreements = await db.select().from(smLiveryAgreements).where(eq(smLiveryAgreements.status, "ACTIVE"));
+    const today = new Date().toISOString().split("T")[0];
+    const activeAgreements = allAgreements.filter((a) => a.startDate <= today && (!a.endDate || a.endDate >= today));
+
+    const allHorses = await db.select().from(smHorses);
+    const allCustomers = await db.select().from(smCustomers);
+    const allBoxes = await db.select().from(smBoxes);
+    const allStables = await db.select().from(smStables);
+
+    return activeAgreements
+      .map((agreement) => {
+        const horse = allHorses.find((h) => h.id === agreement.horseId);
+        const customer = allCustomers.find((c) => c.id === agreement.customerId);
+        if (!horse || !customer) return null;
+        const box = allBoxes.find((b) => b.id === agreement.boxId);
+        const stable = box ? allStables.find((s) => s.id === box.stableId) : (agreement.stableId ? allStables.find((s) => s.id === agreement.stableId) : null);
+        return {
+          horseId: horse.id,
+          horseName: horse.name,
+          customerId: customer.id,
+          customerName: customer.name,
+          boxId: box?.id || null,
+          boxName: box?.name || "—",
+          stableId: stable?.id || null,
+          stableName: stable?.name || "—",
+          agreementId: agreement.id,
+        };
+      })
+      .filter(Boolean);
+  }
+
   async getSmReportData(groupBy: string): Promise<any[]> {
     const allAgreements = await db.select().from(smLiveryAgreements);
     const allCustomers = await db.select().from(smCustomers);

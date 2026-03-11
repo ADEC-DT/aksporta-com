@@ -11,17 +11,15 @@ import {
   PanelLeft,
   PanelLeftClose,
   Receipt,
-  Calendar,
   FileText,
   FilePlus,
   Package,
   Users,
   Building,
   Box,
-  Settings,
-  Shield,
   BarChart3,
   Clock,
+  DollarSign,
 } from "lucide-react";
 import HorsesPage from "./horses";
 import CustomersPage from "./customers";
@@ -33,9 +31,8 @@ import NewAgreementPage from "./new-agreement";
 import BillingPage from "./billing";
 import LiveryReportPage from "./livery-report";
 import SchedulePage from "./schedule";
-import UserManagementPage from "./user-management";
 import LiveryReportsPage from "./livery-reports";
-import SettingsPage from "./settings";
+import BillingElementsPage from "./billing-elements";
 
 type NavItem = { label: string; route: string; icon: React.ReactNode };
 type NavGroup = { label: string; items: NavItem[]; defaultOpen?: boolean };
@@ -47,6 +44,13 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Post Billing", route: "billing", icon: <Receipt className="h-4 w-4" /> },
       { label: "Schedule", route: "schedule", icon: <Clock className="h-4 w-4" /> },
+    ],
+  },
+  {
+    label: "Billing Elements",
+    defaultOpen: true,
+    items: [
+      { label: "Billing Elements", route: "billing-elements", icon: <DollarSign className="h-4 w-4" /> },
     ],
   },
   {
@@ -78,9 +82,6 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-const NAV_ENTITIES: NavItem[] = [];
-
-const NAV_ADMIN: NavItem[] = [];
 
 const ROUTE_MAP: Record<string, string> = {
   horses: "horses",
@@ -93,9 +94,8 @@ const ROUTE_MAP: Record<string, string> = {
   "new-agreement": "new-agreement",
   packages: "packages",
   report: "report",
+  "billing-elements": "billing-elements",
   "livery-reports": "livery-reports",
-  "user-management": "user-management",
-  settings: "settings",
 };
 
 function extractRoute(pathname: string, basePath: string): string {
@@ -110,6 +110,7 @@ export default function StableMasterHubPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Activities: true,
+    "Billing Elements": true,
     Livery: true,
     Reports: true,
     Others: true,
@@ -149,11 +150,10 @@ export default function StableMasterHubPage() {
       case "agreements": return <AgreementsPage />;
       case "new-agreement": return <NewAgreementPage />;
       case "billing": return <BillingPage />;
+      case "billing-elements": return <BillingElementsPage />;
       case "report": return <LiveryReportPage />;
       case "schedule": return <SchedulePage />;
       case "livery-reports": return <LiveryReportsPage />;
-      case "user-management": return <UserManagementPage />;
-      case "settings": return <SettingsPage />;
       default: return <HorsesPage />;
     }
   };
@@ -194,7 +194,6 @@ export default function StableMasterHubPage() {
                   )}
                 </div>
               ))}
-              {NAV_ENTITIES.map(renderNavItem)}
             </div>
           </ScrollArea>
         </div>
