@@ -3123,14 +3123,15 @@ export async function registerRoutes(
       const projectsWithAssignments = await Promise.all(
         projectList.map(async (project) => {
           const assignments = await storage.getProjectAssignments(project.id);
-          // Include user data in each assignment
           const assignmentsWithUsers = await Promise.all(
             assignments.map(async (assignment) => {
               const user = await storage.getManagedUser(assignment.userId);
               return { ...assignment, user };
             })
           );
-          return { ...project, assignments: assignmentsWithUsers };
+          const ownerUser = project.ownerUserId ? await storage.getManagedUser(project.ownerUserId) : null;
+          const createdByUser = project.createdBy ? await storage.getManagedUser(project.createdBy) : null;
+          return { ...project, assignments: assignmentsWithUsers, ownerUser, createdByUser };
         })
       );
       
@@ -3164,20 +3165,14 @@ export async function registerRoutes(
       const bodyData = { ...req.body };
       if (bodyData.startDate === "") bodyData.startDate = null;
       if (bodyData.deadline === "") bodyData.deadline = null;
+      // Default owner to creator if not specified
+      if (!bodyData.ownerUserId) bodyData.ownerUserId = managedUser.id;
       
       const data = insertProjectSchema.parse({
         ...bodyData,
         createdBy: managedUser.id
       });
       const project = await storage.createProject(data);
-      
-      // Auto-assign creator to the project
-      await storage.createProjectAssignment({
-        projectId: project.id,
-        userId: managedUser.id,
-        role: "owner",
-        assignedBy: managedUser.id
-      });
       
       res.status(201).json(project);
     } catch (error) {
@@ -3313,15 +3308,6 @@ export async function registerRoutes(
       // Others role cannot comment
       if (managedUser.role === "others") {
         return res.status(403).json({ message: "Insufficient permissions to add comments" });
-      }
-      
-      // Check if user is assigned to the project
-      const assignments = await storage.getProjectAssignments(req.params.id);
-      const isAssigned = assignments.some(a => a.userId === managedUser.id);
-      const isAdmin = managedUser.role === "admin";
-      
-      if (!isAssigned && !isAdmin) {
-        return res.status(403).json({ message: "Only assigned team members can comment" });
       }
       
       const data = insertProjectCommentSchema.parse({

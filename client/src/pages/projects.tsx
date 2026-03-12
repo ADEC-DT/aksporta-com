@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -473,7 +473,12 @@ export default function ProjectsPage() {
   const [deadlineJustification, setDeadlineJustification] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUsersToAssign, setSelectedUsersToAssign] = useState<string[]>([]);
-  const [initialAssignee, setInitialAssignee] = useState<string>("");
+  const [initialOwner, setInitialOwner] = useState<string>("");
+  const [editingOwnerUserId, setEditingOwnerUserId] = useState<string>("");
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState("");
+  const [mentionStart, setMentionStart] = useState(0);
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [manageTagsDialogOpen, setManageTagsDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<ProjectTag | null>(null);
   const [newTagName, setNewTagName] = useState("");
@@ -546,22 +551,12 @@ export default function ProjectsPage() {
 
   // Project mutations
   const createProjectMutation = useMutation({
-    mutationFn: (data: ProjectFormValues) => apiRequest("POST", "/api/projects", data),
-    onSuccess: async (response: any) => {
-      // If an initial assignee was selected, assign them to the project FIRST
-      if (initialAssignee && response?.id) {
-        try {
-          await apiRequest("POST", `/api/projects/${response.id}/assignments`, { userId: initialAssignee });
-        } catch (error) {
-          console.error("Failed to assign user:", error);
-        }
-      }
-      
+    mutationFn: (data: any) => apiRequest("POST", "/api/projects", data),
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
-      
       setProjectDialogOpen(false);
-      setInitialAssignee("");
+      setInitialOwner("");
       toast({ title: "Task created successfully" });
     },
     onError: () => toast({ title: "Failed to create task", variant: "destructive" }),
@@ -590,6 +585,20 @@ export default function ProjectsPage() {
       toast({ title: "Project deleted successfully" });
     },
     onError: () => toast({ title: "Failed to delete project", variant: "destructive" }),
+  });
+
+  const updateOwnerMutation = useMutation({
+    mutationFn: ({ id, ownerUserId }: { id: string; ownerUserId: string | null }) =>
+      apiRequest("PATCH", `/api/projects/${id}`, { ownerUserId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces/hierarchy"] });
+      if (selectedProject) {
+        refetchProjectDetail(selectedProject.id);
+      }
+      toast({ title: "Owner updated" });
+    },
+    onError: () => toast({ title: "Failed to update owner", variant: "destructive" }),
   });
 
   // Assignment mutations
@@ -999,7 +1008,7 @@ export default function ProjectsPage() {
     if (editingProject) {
       updateProjectMutation.mutate({ id: editingProject.id, data: values });
     } else {
-      createProjectMutation.mutate(values);
+      createProjectMutation.mutate({ ...values, ownerUserId: initialOwner || undefined });
     }
   };
 
@@ -1092,12 +1101,56 @@ export default function ProjectsPage() {
       if (res.ok) {
         const data = await res.json();
         setSelectedProject(data);
+        setEditingOwnerUserId(data.ownerUserId || "");
         setProjectDetailOpen(true);
       }
     } catch (error) {
       console.error("Failed to fetch project detail:", error);
     }
   };
+
+  const handleCommentInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setNewComment(val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBeforeCursor = val.slice(0, cursor);
+    const atIdx = textBeforeCursor.lastIndexOf("@");
+    if (atIdx !== -1) {
+      const textAfterAt = textBeforeCursor.slice(atIdx + 1);
+      if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+        setMentionActive(true);
+        setMentionSearch(textAfterAt);
+        setMentionStart(atIdx);
+        return;
+      }
+    }
+    setMentionActive(false);
+    setMentionSearch("");
+  }, []);
+
+  const insertMention = useCallback((user: SimpleUser) => {
+    const username = user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.username;
+    const before = newComment.slice(0, mentionStart);
+    const after = newComment.slice(mentionStart + 1 + mentionSearch.length);
+    const inserted = `${before}@${username} ${after}`;
+    setNewComment(inserted);
+    setMentionActive(false);
+    setMentionSearch("");
+    setTimeout(() => commentTextareaRef.current?.focus(), 0);
+  }, [newComment, mentionStart, mentionSearch]);
+
+  const mentionUsers = useMemo(() => {
+    if (!mentionActive || !mentionSearch) return allUsers.slice(0, 6);
+    const q = mentionSearch.toLowerCase();
+    return allUsers.filter(u => {
+      const name = u.firstName && u.lastName
+        ? `${u.firstName} ${u.lastName}`.toLowerCase()
+        : u.username.toLowerCase();
+      return name.includes(q) || u.username.toLowerCase().includes(q);
+    }).slice(0, 6);
+  }, [mentionActive, mentionSearch, allUsers]);
 
   const getTimelineStatus = (deadline: string | null | undefined) => {
     if (!deadline) return { text: "No deadline", color: "text-muted-foreground" };
@@ -1272,8 +1325,8 @@ export default function ProjectsPage() {
 
               const renderTaskRow = (project: ProjectWithAssignments) => {
                 const timeline = getTimelineStatus(project.deadline);
-                const assignedUsers = getAssignedUsers(project);
                 const sprint = sprintsData.find(s => s.id === (project as any).sprintId);
+                const owner = (project as any).ownerUser;
 
                 return (
                   <div
@@ -1288,22 +1341,17 @@ export default function ProjectsPage() {
                       {project.name}
                     </span>
 
-                    <div className="flex -space-x-2">
-                      {assignedUsers.slice(0, 3).map((assignment: any) => (
-                        <Avatar key={assignment.id} className="h-6 w-6 border-2 border-background">
-                          <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
-                            {getUserInitials(assignment.user)}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                      {assignedUsers.length > 3 && (
-                        <Avatar className="h-6 w-6 border-2 border-background">
-                          <AvatarFallback className="text-[9px] bg-muted">
-                            +{assignedUsers.length - 3}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
-                      {assignedUsers.length === 0 && (
+                    <div className="flex items-center gap-1.5">
+                      {owner ? (
+                        <>
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
+                              {getUserInitials(owner)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs truncate">{getUserName(owner)}</span>
+                        </>
+                      ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
@@ -1523,7 +1571,7 @@ export default function ProjectsPage() {
                                     <div className="pl-12 mt-1">
                                       <div className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
                                         <span>Task Name</span>
-                                        <span>Assignee</span>
+                                        <span>Owner</span>
                                         <span>Status</span>
                                         <span>Priority</span>
                                         <span>Deadline</span>
@@ -1565,7 +1613,7 @@ export default function ProjectsPage() {
                         <div className="pl-6 mt-1">
                           <div className="grid grid-cols-[1fr_120px_120px_100px_120px_150px_120px] gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
                             <span>Task Name</span>
-                            <span>Assignee</span>
+                            <span>Owner</span>
                             <span>Status</span>
                             <span>Priority</span>
                             <span>Deadline</span>
@@ -1711,7 +1759,7 @@ export default function ProjectsPage() {
                                 >
                                   {columnProjects.map((project, index) => {
                                     const timeline = getTimelineStatus(project.deadline);
-                                    const assignedUsers = getAssignedUsers(project);
+                                    const kanbanOwner = (project as any).ownerUser;
                                     const pgInfo = (project as any).projectGroupId ? pgLookup[(project as any).projectGroupId] : null;
                                     
                                     return (
@@ -1761,20 +1809,18 @@ export default function ProjectsPage() {
                                               </div>
                                               
                                               <div className="flex items-center justify-between pl-6">
-                                                <div className="flex -space-x-2">
-                                                  {assignedUsers.slice(0, 2).map((assignment: any) => (
-                                                    <Avatar key={assignment.id} className="h-5 w-5 border-2 border-background">
-                                                      <AvatarFallback className="text-[8px] bg-primary text-primary-foreground">
-                                                        {getUserInitials(assignment.user)}
-                                                      </AvatarFallback>
-                                                    </Avatar>
-                                                  ))}
-                                                  {assignedUsers.length > 2 && (
-                                                    <Avatar className="h-5 w-5 border-2 border-background">
-                                                      <AvatarFallback className="text-[8px] bg-muted">
-                                                        +{assignedUsers.length - 2}
-                                                      </AvatarFallback>
-                                                    </Avatar>
+                                                <div className="flex items-center gap-1.5">
+                                                  {kanbanOwner ? (
+                                                    <>
+                                                      <Avatar className="h-5 w-5">
+                                                        <AvatarFallback className="text-[8px] bg-primary text-primary-foreground">
+                                                          {getUserInitials(kanbanOwner)}
+                                                        </AvatarFallback>
+                                                      </Avatar>
+                                                      <span className="text-[10px] text-muted-foreground truncate max-w-[70px]">{getUserName(kanbanOwner)}</span>
+                                                    </>
+                                                  ) : (
+                                                    <span className="text-[10px] text-muted-foreground">No owner</span>
                                                   )}
                                                 </div>
                                                 <div className="flex items-center gap-1">
@@ -1928,29 +1974,27 @@ export default function ProjectsPage() {
                   )}
                 />
                 <FormItem>
-                  <FormLabel>Assign to</FormLabel>
-                  <Select 
-                    value={initialAssignee} 
-                    onValueChange={setInitialAssignee}
-                    disabled={!!editingProject}
+                  <FormLabel>Owner</FormLabel>
+                  <Select
+                    value={editingProject ? (editingProject.ownerUserId || "") : initialOwner}
+                    onValueChange={editingProject
+                      ? (val) => updateOwnerMutation.mutate({ id: editingProject.id, ownerUserId: val || null })
+                      : setInitialOwner}
                   >
-                    <SelectTrigger data-testid="select-assignee">
-                      <SelectValue placeholder="Select user" />
+                    <SelectTrigger data-testid="select-owner">
+                      <SelectValue placeholder="Select owner" />
                     </SelectTrigger>
                     <SelectContent>
                       {allUsers.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
-                          {user.firstName && user.lastName 
-                            ? `${user.firstName} ${user.lastName}` 
+                          {user.firstName && user.lastName
+                            ? `${user.firstName} ${user.lastName}`
                             : user.username}
                           {user.id === currentUser?.id && " (me)"}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {editingProject && (
-                    <p className="text-xs text-muted-foreground mt-1">Use the Assign button to modify assignments</p>
-                  )}
                 </FormItem>
               </div>
               <FormField
@@ -2254,57 +2298,62 @@ export default function ProjectsPage() {
                   )}
                 </div>
 
-                {/* Assigned Users */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Assigned Team ({selectedProject.assignments.length})
-                    </h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={openAssignDialog}
-                      data-testid="button-assign-users"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Assign
-                    </Button>
+                {/* Created By + Owner */}
+                <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/20">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Created By</p>
+                    <div className="flex items-center gap-2">
+                      {selectedProject.createdByUser ? (
+                        <>
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="text-[10px] bg-muted">
+                              {getUserInitials(selectedProject.createdByUser)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium" data-testid="text-created-by">
+                            {getUserName(selectedProject.createdByUser)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProject.assignments.map((assignment: any) => (
-                      <Badge 
-                        key={assignment.id} 
-                        variant="secondary" 
-                        className="flex items-center gap-2 py-1.5"
-                      >
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-[10px]">
-                            {getUserInitials(assignment.user)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{getUserName(assignment.user)}</span>
-                        {assignment.role === "owner" && (
-                          <span className="text-xs text-muted-foreground">(Owner)</span>
-                        )}
-                        {assignment.role !== "owner" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 ml-1"
-                            onClick={() => removeAssignmentMutation.mutate({
-                              projectId: selectedProject.id,
-                              assignmentId: assignment.id
-                            })}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </Badge>
-                    ))}
-                    {selectedProject.assignments.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No team members assigned</p>
-                    )}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Owner</p>
+                    <Select
+                      value={editingOwnerUserId || "none"}
+                      onValueChange={(val) => {
+                        const ownerId = val === "none" ? null : val;
+                        setEditingOwnerUserId(ownerId || "");
+                        updateOwnerMutation.mutate({ id: selectedProject.id, ownerUserId: ownerId });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm" data-testid="select-detail-owner">
+                        <SelectValue placeholder="Unassigned">
+                          {editingOwnerUserId ? (
+                            <div className="flex items-center gap-1.5">
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
+                                  {getUserInitials(allUsers.find(u => u.id === editingOwnerUserId))}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{getUserName(allUsers.find(u => u.id === editingOwnerUserId))}</span>
+                            </div>
+                          ) : "Unassigned"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Unassigned</SelectItem>
+                        {allUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.firstName && user.lastName
+                              ? `${user.firstName} ${user.lastName}`
+                              : user.username}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -2358,57 +2407,122 @@ export default function ProjectsPage() {
                   )}
                 </div>
 
-                {/* Comments Section */}
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium flex items-center gap-2 mb-3">
-                    <MessageSquare className="h-4 w-4" />
-                    Comments & Activity
-                  </h4>
-                  
-                  <ScrollArea className="h-[200px] mb-4">
-                    <div className="space-y-3">
-                      {selectedProject.comments?.map((comment: ProjectComment) => (
-                        <div key={comment.id} className="p-3 rounded-lg bg-muted/50">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-sm">{comment.userName || "Unknown"}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(comment.createdAt!), { addSuffix: true })}
-                            </span>
-                          </div>
-                          {comment.type === "deadline_change" && (
-                            <Badge variant="outline" className="mb-2 text-xs">
-                              Deadline Change: {comment.oldDeadline || "None"} → {comment.newDeadline}
-                            </Badge>
-                          )}
-                          <p className="text-sm">{comment.content}</p>
-                        </div>
-                      ))}
-                      {(!selectedProject.comments || selectedProject.comments.length === 0) && (
-                        <p className="text-sm text-muted-foreground text-center py-4">No comments yet</p>
+                {/* Conversation / Comments Section */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-medium text-sm">
+                      Conversation
+                      {selectedProject.comments && selectedProject.comments.length > 0 && (
+                        <span className="ml-1.5 text-muted-foreground font-normal">({selectedProject.comments.length})</span>
                       )}
+                    </h4>
+                  </div>
+
+                  <ScrollArea className="h-[280px]">
+                    <div className="p-4 space-y-4">
+                      {(!selectedProject.comments || selectedProject.comments.length === 0) && (
+                        <div className="flex flex-col items-center justify-center py-8 text-center">
+                          <MessageSquare className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                          <p className="text-sm text-muted-foreground">No messages yet — be the first to comment.</p>
+                        </div>
+                      )}
+                      {selectedProject.comments?.map((comment: ProjectComment) => {
+                        const isCurrentUser = comment.userId === currentUser?.id;
+                        const initials = comment.userName
+                          ? comment.userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                          : "?";
+                        return (
+                          <div key={comment.id} className={`flex gap-3 ${isCurrentUser ? "flex-row-reverse" : ""}`}>
+                            <Avatar className="h-8 w-8 shrink-0 mt-0.5">
+                              <AvatarFallback className={`text-[10px] ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className={`flex flex-col gap-1 max-w-[75%] ${isCurrentUser ? "items-end" : "items-start"}`}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold">{comment.userName || "Unknown"}</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {formatDistanceToNow(new Date(comment.createdAt!), { addSuffix: true })}
+                                </span>
+                              </div>
+                              {comment.type === "deadline_change" && (
+                                <Badge variant="outline" className="text-[10px] h-5 mb-1">
+                                  📅 Deadline: {comment.oldDeadline || "None"} → {comment.newDeadline}
+                                </Badge>
+                              )}
+                              <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                                isCurrentUser
+                                  ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                  : "bg-muted rounded-tl-sm"
+                              }`}>
+                                {comment.content.split(/(@\S+)/g).map((part: string, i: number) =>
+                                  part.startsWith("@") ? (
+                                    <span key={i} className={`font-semibold ${isCurrentUser ? "text-primary-foreground/90" : "text-primary"}`}>{part}</span>
+                                  ) : part
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
 
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Add a comment..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleAddComment();
-                        }
-                      }}
-                      data-testid="input-new-comment"
-                    />
-                    <Button 
-                      onClick={handleAddComment}
-                      disabled={addCommentMutation.isPending || !newComment.trim()}
-                      data-testid="button-send-comment"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                  {/* Comment Input */}
+                  <div className="border-t p-3 bg-background">
+                    <div className="relative">
+                      {mentionActive && mentionUsers.length > 0 && (
+                        <div className="absolute bottom-full left-0 mb-1 w-56 bg-popover border rounded-lg shadow-lg z-50 overflow-hidden">
+                          <div className="p-1">
+                            {mentionUsers.map((user) => (
+                              <button
+                                key={user.id}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent text-left"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  insertMention(user);
+                                }}
+                              >
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback className="text-[9px] bg-primary text-primary-foreground">
+                                    {getUserInitials(user)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">{getUserName(user)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2 items-end">
+                        <Textarea
+                          ref={commentTextareaRef}
+                          placeholder="Write a message… type @ to mention someone"
+                          value={newComment}
+                          onChange={handleCommentInput}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") { setMentionActive(false); return; }
+                            if (e.key === "Enter" && !e.shiftKey && !mentionActive) {
+                              e.preventDefault();
+                              handleAddComment();
+                            }
+                          }}
+                          className="min-h-[60px] max-h-[120px] resize-none text-sm"
+                          data-testid="input-new-comment"
+                        />
+                        <Button
+                          onClick={handleAddComment}
+                          disabled={addCommentMutation.isPending || !newComment.trim()}
+                          size="sm"
+                          className="shrink-0 h-9"
+                          data-testid="button-send-comment"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">Enter to send · Shift+Enter for new line · @ to mention</p>
+                    </div>
                   </div>
                 </div>
               </div>

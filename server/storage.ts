@@ -979,6 +979,8 @@ export class DatabaseStorage implements IStorage {
             .map(p => ({
               ...p,
               assignments: assignmentsByProject.get(p.id) || [],
+              ownerUser: p.ownerUserId ? (userMap.get(p.ownerUserId) || null) : null,
+              createdByUser: p.createdBy ? (userMap.get(p.createdBy) || null) : null,
             })),
         })),
     }));
@@ -1095,7 +1097,10 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    return { ...project, assignments: assignmentsWithUsers, comments };
+    const ownerUser = project.ownerUserId ? await this.getManagedUser(project.ownerUserId) : null;
+    const createdByUser = project.createdBy ? await this.getManagedUser(project.createdBy) : null;
+    
+    return { ...project, assignments: assignmentsWithUsers, comments, ownerUser, createdByUser };
   }
 
   async createProject(project: InsertProject): Promise<Project> {

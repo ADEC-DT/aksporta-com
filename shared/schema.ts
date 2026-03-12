@@ -676,6 +676,7 @@ export const projects = pgTable("projects", {
   blockedBy: varchar("blocked_by"),
   blockedReason: text("blocked_reason"),
   createdBy: varchar("created_by").notNull().references(() => managedUsers.id, { onDelete: "restrict" }),
+  ownerUserId: varchar("owner_user_id").references(() => managedUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -743,6 +744,8 @@ export type ProjectComment = typeof projectComments.$inferSelect;
 export type ProjectWithAssignments = Project & {
   assignments: (ProjectAssignment & { user?: ManagedUser })[];
   comments?: ProjectComment[];
+  ownerUser?: ManagedUser | null;
+  createdByUser?: ManagedUser | null;
 };
 
 // Space with nested project groups and tasks
