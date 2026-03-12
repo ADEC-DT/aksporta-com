@@ -127,6 +127,10 @@ app.use((req, res, next) => {
     },
   );
 
+  if (!isDev && !process.env.APP_URL) {
+    console.warn("[WARN] APP_URL environment variable is not set. Password reset links will use the Host header, which may be unreliable. Set APP_URL to your production domain (e.g. https://aksportal.com).");
+  }
+
   setupAuth(app);
   registerAuthRoutes(app);
   

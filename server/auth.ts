@@ -148,8 +148,14 @@ export function registerAuthRoutes(app: Express) {
           html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to reset your password</a></p><p>This link expires in 1 hour.</p><p>If you didn't request this, you can ignore this email.</p>`,
         });
         emailSent = true;
-      } catch (emailErr) {
-        console.error("Failed to send reset email:", emailErr);
+        console.log(`Password reset email sent to ${user.email}`);
+      } catch (emailErr: any) {
+        const errMsg = emailErr?.response?.body?.errors?.[0]?.message || emailErr?.message || "Unknown error";
+        console.error(`[WARN] Failed to send password reset email to ${user.email}: ${errMsg}`);
+      }
+
+      if (!emailSent) {
+        console.warn(`[WARN] Password reset requested for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
       }
 
       const isDev = process.env.NODE_ENV === "development";
@@ -215,8 +221,14 @@ export function registerAuthRoutes(app: Express) {
           html: `<p>An administrator has initiated a password reset for your account.</p><p><a href="${resetUrl}">Click here to set your new password</a></p><p>This link expires in 24 hours.</p>`,
         });
         emailSent = true;
-      } catch (emailErr) {
-        console.error("Failed to send reset email:", emailErr);
+        console.log(`Admin-initiated password reset email sent to ${user.email}`);
+      } catch (emailErr: any) {
+        const errMsg = emailErr?.response?.body?.errors?.[0]?.message || emailErr?.message || "Unknown error";
+        console.error(`[WARN] Failed to send admin reset email to ${user.email}: ${errMsg}`);
+      }
+
+      if (!emailSent) {
+        console.warn(`[WARN] Admin reset link generated for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
       }
 
       res.json({ resetUrl, emailSent });
