@@ -221,6 +221,7 @@ export function AppSidebar() {
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                             )}
+                            {canAccessSubmodule("equestrian", "stable-master-mvp") && (
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton
                                 data-testid="nav-sub-equestrian-stable-master-v1"
@@ -243,6 +244,7 @@ export function AppSidebar() {
                                 <span>Stable Master MVP</span>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            )}
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>

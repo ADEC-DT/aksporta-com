@@ -21,6 +21,7 @@ export const submoduleRegistry: Record<string, { key: string; label: string; pat
   equestrian: [
     { key: "stable-assets", label: "Stable Assets Manager", path: "/equestrian/stable-assets" },
     { key: "stable-master", label: "Stable Master", path: "/equestrian/stable-master" },
+    { key: "stable-master-mvp", label: "Stable Master MVP", path: "/equestrian/stable-master-mvp" },
   ],
   projects: [
     { key: "monday", label: "Monday", path: "/projects/monday" },
