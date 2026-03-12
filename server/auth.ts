@@ -135,7 +135,8 @@ export function registerAuthRoutes(app: Express) {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
+      const baseUrl = (process.env.APP_URL || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
+      const resetUrl = `${baseUrl}/reset-password/${token}`;
       let emailSent = false;
       try {
         const { getUncachableSendGridClient } = await import("./sendgrid");
@@ -200,7 +201,8 @@ export function registerAuthRoutes(app: Express) {
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${token}`;
+      const baseUrl = (process.env.APP_URL || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
+      const resetUrl = `${baseUrl}/reset-password/${token}`;
 
       let emailSent = false;
       try {

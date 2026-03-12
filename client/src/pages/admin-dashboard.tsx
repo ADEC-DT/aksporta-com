@@ -50,7 +50,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -284,6 +284,9 @@ function AdminDashboard() {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetResult, setResetResult] = useState<{ resetUrl: string; emailSent: boolean; userName: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { data: currentUser, isLoading: currentUserLoading } = useQuery<ManagedUser>({
     queryKey: ["/api/me"],
@@ -352,6 +355,26 @@ function AdminDashboard() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to delete user", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/reset-password-link`);
+      return res.json();
+    },
+    onSuccess: (data, userId) => {
+      const user = users?.find(u => u.id === userId);
+      setResetResult({
+        resetUrl: data.resetUrl,
+        emailSent: data.emailSent,
+        userName: user?.username || "",
+      });
+      setCopied(false);
+      setResetDialogOpen(true);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to generate reset link", description: error.message, variant: "destructive" });
     },
   });
 
@@ -598,6 +621,16 @@ function AdminDashboard() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => resetPasswordMutation.mutate(user.id)}
+                          disabled={resetPasswordMutation.isPending}
+                          title="Reset Password"
+                          data-testid={`button-reset-password-${user.id}`}
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleOpenEdit(user)}
                           data-testid={`button-edit-user-${user.id}`}
                         >
@@ -763,6 +796,64 @@ function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Reset Link</DialogTitle>
+            <DialogDescription>
+              Reset link generated for <span className="font-medium">{resetResult?.userName}</span>. This link expires in 24 hours.
+            </DialogDescription>
+          </DialogHeader>
+          {resetResult && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm">
+                {resetResult.emailSent ? (
+                  <>
+                    <Mail className="h-4 w-4 text-green-500" />
+                    <span className="text-muted-foreground">Email sent to user successfully</span>
+                  </>
+                ) : (
+                  <>
+                    <MailX className="h-4 w-4 text-orange-500" />
+                    <span className="text-muted-foreground">Email could not be sent. Share the link manually.</span>
+                  </>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Reset Link</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={resetResult.resetUrl}
+                    className="text-xs font-mono"
+                    data-testid="input-admin-reset-link"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(resetResult.resetUrl);
+                      setCopied(true);
+                      toast({ title: "Link copied to clipboard" });
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    data-testid="button-copy-reset-link"
+                  >
+                    {copied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)} data-testid="button-close-reset-dialog">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
