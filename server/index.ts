@@ -2,11 +2,52 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { setupAuth, registerAuthRoutes, seedAdminUser } from "./auth";
 import { seedExternalServices, seedSpacesAndProjects, seedStableMasterData, seedDataSources } from "./seedServices";
+import { storage } from "./storage";
+
+const isDev = process.env.NODE_ENV !== "production";
 
 const app = express();
 const httpServer = createServer(app);
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "https:", "wss:", ...(isDev ? ["ws:"] : [])],
+      frameSrc: ["'self'", "https://view.monday.com"],
+      frameAncestors: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { message: "Too many login attempts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  message: { message: "Too many password reset requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/auth/login", loginLimiter);
+app.use("/api/auth/forgot-password", forgotPasswordLimiter);
 
 app.use(
   express.json({
@@ -60,7 +101,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      const sensitiveRoutes = ["/api/sso/generate-token", "/api/sso/verify-token", "/api/auth/login"];
+      if (capturedJsonResponse && !sensitiveRoutes.includes(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -113,4 +155,15 @@ app.use((req, res, next) => {
 
   appReady = true;
   log("All routes and middleware initialized");
+
+  setInterval(async () => {
+    try {
+      const deleted = await storage.cleanupExpiredTokens();
+      if (deleted > 0) {
+        log(`Cleaned up ${deleted} expired/used tokens`, "cleanup");
+      }
+    } catch (e) {
+      console.error("Token cleanup error:", e);
+    }
+  }, 60 * 60 * 1000);
 })();

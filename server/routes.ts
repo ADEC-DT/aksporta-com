@@ -4122,6 +4122,28 @@ export async function registerRoutes(
     }
   });
 
+  const cors = (await import("cors")).default;
+  const rateLimit = (await import("express-rate-limit")).default;
+
+  const ssoAllowedOrigins = process.env.SSO_ALLOWED_ORIGINS
+    ? process.env.SSO_ALLOWED_ORIGINS.split(",").map(s => s.trim())
+    : ["https://stable-master.replit.app"];
+
+  const ssoVerifyCors = cors({
+    origin: ssoAllowedOrigins,
+    methods: ["POST"],
+    allowedHeaders: ["Content-Type"],
+    credentials: false,
+  });
+
+  const ssoVerifyLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: { message: "Too many verification attempts, please try again later" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // SSO token endpoints
   app.post("/api/sso/generate-token", isAuthenticated, async (req: any, res) => {
     try {
@@ -4144,7 +4166,8 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.post("/api/sso/verify-token", async (req, res) => {
+  app.options("/api/sso/verify-token", ssoVerifyCors);
+  app.post("/api/sso/verify-token", ssoVerifyCors, ssoVerifyLimiter, async (req, res) => {
     try {
       const { token } = req.body;
       if (!token || typeof token !== "string") {

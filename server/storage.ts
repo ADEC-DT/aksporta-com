@@ -60,6 +60,7 @@ export interface IStorage {
   // SSO tokens
   createSsoToken(token: string, userId: string, expiresAt: Date): Promise<SsoToken>;
   validateAndConsumeSsoToken(token: string): Promise<{ userId: string } | null>;
+  cleanupExpiredTokens(): Promise<number>;
 
   // Stats
   getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }>;
@@ -365,6 +366,23 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!consumed) return null;
     return { userId: consumed.userId };
+  }
+
+  async cleanupExpiredTokens(): Promise<number> {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const deletedSso = await db.delete(ssoTokens)
+      .where(or(
+        sql`${ssoTokens.expiresAt} < NOW()`,
+        and(eq(ssoTokens.used, true), sql`${ssoTokens.createdAt} < ${oneHourAgo}`)
+      ))
+      .returning();
+    const deletedPrt = await db.delete(passwordResetTokens)
+      .where(or(
+        sql`${passwordResetTokens.expiresAt} < NOW()`,
+        sql`${passwordResetTokens.usedAt} IS NOT NULL`
+      ))
+      .returning();
+    return deletedSso.length + deletedPrt.length;
   }
 
   async getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }> {

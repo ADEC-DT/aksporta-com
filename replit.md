@@ -167,6 +167,11 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **Data Sanitization**: All user-facing endpoints strip `password`, `mfaSecret`, `mfaBackupCodes` before responding (login, auth/user, /api/me, admin user CRUD)
 - **SSO Tokens**: `sso_tokens` table stores one-time tokens for cross-app SSO with stable-master.replit.app. `POST /api/sso/generate-token` (authenticated, creates 5-min token), `POST /api/sso/verify-token` (public, validates & consumes token, returns user data). Sidebar "Stable Master V1" link generates token on click and opens external app with `?token=` param.
 - **Session Security**: Session regeneration on login (prevents session fixation), sameSite=lax cookie, httpOnly, secure in production
+- **Security Headers**: Helmet middleware provides HSTS, CSP (self + inline styles/scripts for Vite/React, Monday.com iframe allowed), X-Content-Type-Options, X-Frame-Options
+- **Rate Limiting**: `express-rate-limit` on `/api/auth/login` (5/min), `/api/auth/forgot-password` (3/min), `/api/sso/verify-token` (10/min). Registered in `server/index.ts` before auth routes to ensure correct middleware order
+- **CORS**: Targeted CORS on `/api/sso/verify-token` only — allows `https://stable-master.replit.app` (configurable via `SSO_ALLOWED_ORIGINS` env var, comma-separated). No blanket CORS on other routes
+- **Token Cleanup**: Hourly `setInterval` job deletes expired SSO tokens, used SSO tokens older than 1 hour, expired password-reset tokens, and used password-reset tokens. Method: `storage.cleanupExpiredTokens()`
+- **Sensitive Log Redaction**: API response bodies are not logged for `/api/sso/generate-token`, `/api/sso/verify-token`, `/api/auth/login` to prevent token/credential leakage
 - **Route Protection**: System management routes (blueprints, spaces, project-groups, project-tags, data-source settings) require `isAdmin`; DB operations (setUserServices, reorderPageSections) wrapped in transactions
 - **SQL Safety**: getDsRecords sortBy parameter sanitized (alphanumeric + underscore only)
 
