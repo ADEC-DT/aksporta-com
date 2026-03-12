@@ -133,6 +133,16 @@ const defaultServices = [
     isExternal: false,
     sortOrder: "13",
   },
+  {
+    name: "IT Service Desk",
+    description: null,
+    url: "/it-dt",
+    icon: "MonitorCog",
+    category: "general",
+    isEnabled: true,
+    isExternal: false,
+    sortOrder: "14",
+  },
 ];
 
 const defaultIcons = [
@@ -477,6 +487,22 @@ export async function seedExternalServices() {
     if (itDtService) {
       await db.update(externalServices).set({ name: "IT Service Desk" }).where(eq(externalServices.id, itDtService.id));
       console.log("Renamed 'IT & DT' to 'IT Service Desk'");
+    }
+
+    // Ensure IT Service Desk exists (may be missing in older environments)
+    const itServiceDesk = existingServices.find(s => s.url === "/it-dt");
+    if (!itServiceDesk && existingServices.length > 0) {
+      await db.insert(externalServices).values({
+        name: "IT Service Desk",
+        description: null,
+        url: "/it-dt",
+        icon: "MonitorCog",
+        category: "general",
+        isEnabled: true,
+        isExternal: false,
+        sortOrder: "14",
+      });
+      console.log("Added missing 'IT Service Desk' service");
     }
 
     if (existingServices.length > 0) {
