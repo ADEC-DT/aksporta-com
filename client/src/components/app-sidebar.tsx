@@ -240,7 +240,7 @@ export function AppSidebar() {
                                 className="cursor-pointer"
                               >
                                 <Fence className="h-3.5 w-3.5" />
-                                <span>Stable Master V1</span>
+                                <span>Stable Master MVP</span>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           </SidebarMenuSub>
