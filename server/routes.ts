@@ -2938,7 +2938,8 @@ export async function registerRoutes(
   app.get("/api/spaces/hierarchy", isAuthenticated, async (req, res) => {
     try {
       const viewType = req.query.viewType as string | undefined;
-      const hierarchy = await storage.getSpacesWithHierarchy(viewType);
+      const currentUser = (req as any).managedUser;
+      const hierarchy = await storage.getSpacesWithHierarchy(viewType, currentUser?.id);
       res.json(hierarchy);
     } catch (error) {
       console.error("Error fetching hierarchy:", error);
@@ -2946,9 +2947,10 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/spaces", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/spaces", isAuthenticated, async (req, res) => {
     try {
-      const data = insertSpaceSchema.parse(req.body);
+      const currentUser = (req as any).managedUser;
+      const data = insertSpaceSchema.parse({ ...req.body, ownerId: currentUser.id });
       const space = await storage.createSpace(data);
       res.status(201).json(space);
     } catch (error) {
@@ -2957,25 +2959,92 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/spaces/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.patch("/api/spaces/:id", isAuthenticated, async (req, res) => {
     try {
-      const space = await storage.updateSpace(req.params.id, req.body);
+      const currentUser = (req as any).managedUser;
+      const space = await storage.getSpace(req.params.id);
       if (!space) return res.status(404).json({ message: "Space not found" });
-      res.json(space);
+      const isOwner = space.ownerId === currentUser.id;
+      const isAdminUser = currentUser.role === "admin" || currentUser.role === "superadmin";
+      if (!isOwner && !isAdminUser) return res.status(403).json({ message: "Forbidden" });
+      const updated = await storage.updateSpace(req.params.id, req.body);
+      res.json(updated);
     } catch (error) {
       console.error("Error updating space:", error);
       res.status(500).json({ message: "Failed to update space" });
     }
   });
 
-  app.delete("/api/spaces/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.delete("/api/spaces/:id", isAuthenticated, async (req, res) => {
     try {
+      const currentUser = (req as any).managedUser;
+      const space = await storage.getSpace(req.params.id);
+      if (!space) return res.status(404).json({ message: "Space not found" });
+      const isOwner = space.ownerId === currentUser.id;
+      const isAdminUser = currentUser.role === "admin" || currentUser.role === "superadmin";
+      if (!isOwner && !isAdminUser) return res.status(403).json({ message: "Forbidden" });
       const deleted = await storage.deleteSpace(req.params.id);
       if (!deleted) return res.status(404).json({ message: "Space not found" });
       res.json({ message: "Space deleted" });
     } catch (error) {
       console.error("Error deleting space:", error);
       res.status(500).json({ message: "Failed to delete space" });
+    }
+  });
+
+  // Space members endpoints
+  app.get("/api/spaces/:id/members", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser;
+      const space = await storage.getSpace(req.params.id);
+      if (!space) return res.status(404).json({ message: "Space not found" });
+      const isOwner = space.ownerId === currentUser.id;
+      const isAdminUser = currentUser.role === "admin" || currentUser.role === "superadmin";
+      const isMember = !isOwner && !isAdminUser ? await storage.isSpaceMember(req.params.id, currentUser.id) : false;
+      if (!isOwner && !isAdminUser && !isMember) return res.status(403).json({ message: "Forbidden" });
+      const members = await storage.getSpaceMembers(req.params.id);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching space members:", error);
+      res.status(500).json({ message: "Failed to fetch members" });
+    }
+  });
+
+  app.post("/api/spaces/:id/members", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser;
+      const space = await storage.getSpace(req.params.id);
+      if (!space) return res.status(404).json({ message: "Space not found" });
+      const isOwner = space.ownerId === currentUser.id;
+      const isAdminUser = currentUser.role === "admin" || currentUser.role === "superadmin";
+      if (!isOwner && !isAdminUser) return res.status(403).json({ message: "Forbidden" });
+      const parsed = z.object({ userId: z.string().min(1) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "userId is required" });
+      const { userId } = parsed.data;
+      if (userId === space.ownerId) return res.status(400).json({ message: "Owner is already the creator" });
+      const targetUser = await storage.getManagedUser(userId);
+      if (!targetUser) return res.status(404).json({ message: "User not found" });
+      const member = await storage.addSpaceMember(req.params.id, userId);
+      res.status(201).json(member);
+    } catch (error) {
+      console.error("Error adding space member:", error);
+      res.status(500).json({ message: "Failed to add member" });
+    }
+  });
+
+  app.delete("/api/spaces/:id/members/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = (req as any).managedUser;
+      const space = await storage.getSpace(req.params.id);
+      if (!space) return res.status(404).json({ message: "Space not found" });
+      const isOwner = space.ownerId === currentUser.id;
+      const isAdminUser = currentUser.role === "admin" || currentUser.role === "superadmin";
+      if (!isOwner && !isAdminUser) return res.status(403).json({ message: "Forbidden" });
+      await storage.removeSpaceMember(req.params.id, req.params.userId);
+      res.json({ message: "Member removed" });
+    } catch (error) {
+      console.error("Error removing space member:", error);
+      res.status(500).json({ message: "Failed to remove member" });
     }
   });
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, index, jsonb, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, index, uniqueIndex, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -623,6 +623,18 @@ export const insertSpaceSchema = createInsertSchema(spaces).omit({
 
 export type InsertSpace = z.infer<typeof insertSpaceSchema>;
 export type Space = typeof spaces.$inferSelect;
+
+// Space members table (users who have been granted access to a space)
+export const spaceMembers = pgTable("space_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  spaceId: varchar("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => managedUsers.id, { onDelete: "cascade" }),
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => ({
+  spaceMemberUniqueIdx: uniqueIndex("space_members_space_user_unique_idx").on(table.spaceId, table.userId),
+}));
+
+export type SpaceMember = typeof spaceMembers.$inferSelect;
 
 // Project groups table (projects within a space)
 export const projectGroups = pgTable("project_groups", {

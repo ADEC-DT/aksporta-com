@@ -61,7 +61,10 @@ import {
   Pencil,
   GanttChart,
   ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Share2,
+  UserPlus,
+  UserMinus
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -481,6 +484,9 @@ export default function ProjectsPage() {
   const [spaceName, setSpaceName] = useState("");
   const [spaceDescription, setSpaceDescription] = useState("");
   const [spaceColor, setSpaceColor] = useState("#6366f1");
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [sharingSpace, setSharingSpace] = useState<any>(null);
+  const [addMemberUserId, setAddMemberUserId] = useState("");
   const [pgName, setPgName] = useState("");
   const [pgDescription, setPgDescription] = useState("");
   const [pgSpaceId, setPgSpaceId] = useState("");
@@ -732,6 +738,42 @@ export default function ProjectsPage() {
       toast({ title: "Space deleted successfully" });
     },
     onError: () => toast({ title: "Failed to delete space", variant: "destructive" }),
+  });
+
+  // Space members query (only fetches when share dialog is open)
+  const { data: spaceMembers = [], isLoading: spaceMembersLoading } = useQuery<any[]>({
+    queryKey: ["/api/spaces", sharingSpace?.id, "members"],
+    queryFn: async () => {
+      if (!sharingSpace?.id) return [];
+      const res = await fetch(`/api/spaces/${sharingSpace.id}/members`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch members");
+      return res.json();
+    },
+    enabled: !!sharingSpace?.id && shareDialogOpen,
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async ({ spaceId, userId }: { spaceId: string; userId: string }) => {
+      const res = await apiRequest("POST", `/api/spaces/${spaceId}/members`, { userId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces", sharingSpace?.id, "members"] });
+      setAddMemberUserId("");
+      toast({ title: "User added to space" });
+    },
+    onError: (err: any) => toast({ title: err.message || "Failed to add member", variant: "destructive" }),
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async ({ spaceId, userId }: { spaceId: string; userId: string }) => {
+      await apiRequest("DELETE", `/api/spaces/${spaceId}/members/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spaces", sharingSpace?.id, "members"] });
+      toast({ title: "User removed from space" });
+    },
+    onError: () => toast({ title: "Failed to remove member", variant: "destructive" }),
   });
 
   const createProjectGroupMutation2 = useMutation({
@@ -1409,7 +1451,21 @@ export default function ProjectsPage() {
                                   <Pencil className="h-3.5 w-3.5" />
                                   Rename
                                 </div>
-                                {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
+                                {(space.ownerId === currentUser?.id || currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
+                                  <div
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm hover-elevate"
+                                    data-testid={`button-share-space-${space.id}`}
+                                    onClick={() => {
+                                      setSharingSpace(space);
+                                      setAddMemberUserId("");
+                                      setShareDialogOpen(true);
+                                    }}
+                                  >
+                                    <Share2 className="h-3.5 w-3.5" />
+                                    Share
+                                  </div>
+                                )}
+                                {(space.ownerId === currentUser?.id || currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
                                   <div
                                     className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm text-destructive hover-elevate"
                                     data-testid={`button-delete-space-${space.id}`}
@@ -2693,6 +2749,117 @@ export default function ProjectsPage() {
               data-testid="button-save-space"
             >
               {editingSpace ? "Update" : "Create"} Space
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Space Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={(open) => { setShareDialogOpen(open); if (!open) setSharingSpace(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Share2 className="h-4 w-4" />
+              Share Space
+            </DialogTitle>
+            <DialogDescription>
+              {sharingSpace ? `"${sharingSpace.name}" is private by default. Add users to grant them access.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Add user */}
+            <div className="flex gap-2">
+              <Select value={addMemberUserId} onValueChange={setAddMemberUserId}>
+                <SelectTrigger className="flex-1" data-testid="select-share-user">
+                  <SelectValue placeholder="Select a user to add..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUsers
+                    .filter(u => u.id !== sharingSpace?.ownerId && !spaceMembers.some((m: any) => m.userId === u.id))
+                    .map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName || u.lastName ? `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() : u.username}
+                        <span className="ml-1 text-xs text-muted-foreground">({u.email})</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                disabled={!addMemberUserId || addMemberMutation.isPending}
+                onClick={() => addMemberMutation.mutate({ spaceId: sharingSpace.id, userId: addMemberUserId })}
+                data-testid="button-add-space-member"
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Current members list */}
+            <div>
+              <p className="text-sm font-medium mb-2 text-muted-foreground">People with access</p>
+              {spaceMembersLoading ? (
+                <div className="text-sm text-muted-foreground py-2">Loading...</div>
+              ) : (
+                <div className="space-y-2">
+                  {/* Owner row */}
+                  {sharingSpace?.ownerId && (
+                    <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className="text-xs">
+                            {(() => {
+                              const owner = allUsers.find(u => u.id === sharingSpace.ownerId);
+                              return owner ? (owner.firstName?.[0] ?? owner.username[0]).toUpperCase() : "?";
+                            })()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="text-sm">
+                          {(() => {
+                            const owner = allUsers.find(u => u.id === sharingSpace.ownerId);
+                            return owner ? (owner.firstName || owner.lastName ? `${owner.firstName ?? ""} ${owner.lastName ?? ""}`.trim() : owner.username) : "Unknown";
+                          })()}
+                          <span className="ml-1 text-xs text-muted-foreground">(owner)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {spaceMembers.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-1 text-center">No shared users yet</p>
+                  )}
+                  {spaceMembers.map((member: any) => (
+                    <div key={member.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/50" data-testid={`member-row-${member.userId}`}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className="text-xs">
+                            {(member.user?.firstName?.[0] ?? member.user?.username?.[0] ?? "?").toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="text-sm">
+                          {member.user?.firstName || member.user?.lastName
+                            ? `${member.user.firstName ?? ""} ${member.user.lastName ?? ""}`.trim()
+                            : member.user?.username}
+                          <div className="text-xs text-muted-foreground">{member.user?.email}</div>
+                        </div>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        disabled={removeMemberMutation.isPending}
+                        onClick={() => removeMemberMutation.mutate({ spaceId: sharingSpace.id, userId: member.userId })}
+                        data-testid={`button-remove-member-${member.userId}`}
+                      >
+                        <UserMinus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareDialogOpen(false)} data-testid="button-close-share-dialog">
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

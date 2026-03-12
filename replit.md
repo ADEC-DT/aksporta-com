@@ -86,13 +86,14 @@ The Master Customer Database consolidates data from three business units:
 
 ### Project Hierarchy (Space → Project → Task)
 The Projects section uses a 3-level hierarchy for organizing work:
-- **Spaces** (`spaces` table): Department-level grouping (e.g., "IT & Digital", "Operations", "HR & Admin"). Each has a name, color, description, and owner.
+- **Spaces** (`spaces` table): Department-level grouping (e.g., "IT & Digital", "Operations", "HR & Admin"). Each has a name, color, description, and owner (`ownerId`). Any authenticated user can create a space (no admin required). Spaces with `ownerId=null` are legacy/public (visible to all). Spaces with an ownerId are private — visible only to owner and invited members.
+- **Space Members** (`space_members` table): Junction table for space sharing. `POST /api/spaces/:id/members` (owner/admin), `DELETE /api/spaces/:id/members/:userId` (owner/admin), `GET /api/spaces/:id/members` (owner/admin/member). Unique constraint on `(spaceId, userId)`. Returns sanitized user DTO (no sensitive fields).
 - **Project Groups** (`project_groups` table): Projects within a space (e.g., "Unified Portal", "Infrastructure Upgrade"). Belong to a space via `spaceId`. Have status, date range, color.
 - **Tasks** (`projects` table): Individual work items within a project group. Linked via `projectGroupId` column. Tasks without a `projectGroupId` appear in an "Unassigned" section.
 - **Monday View**: Shows hierarchy as collapsible Space → Project → Task tree with inline status/priority editing. All spaces/projects are synchronized and visible in both Monday and Tuesday views
 - **Kanban View**: Flat drag-and-drop board grouped by status
-- **API**: `/api/spaces/hierarchy` returns full nested structure (SpaceWithHierarchy type)
-- **Seed Data**: 3 sample spaces, 4 project groups, 14 sample tasks seeded on first run
+- **API**: `/api/spaces/hierarchy?userId=<id>` returns full nested structure filtered by user visibility (SpaceWithHierarchy type)
+- **Seed Data**: 3 sample spaces (no ownerId — public/backward-compat), 4 project groups, 14 sample tasks seeded on first run
 
 ### Collaboration Stamp System
 The portal includes a Collaboration Stamp feature for tracking development status across sections:

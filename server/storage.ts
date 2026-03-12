@@ -16,6 +16,7 @@ import {
   collaborationBlueprints, type CollaborationBlueprint, type InsertBlueprint,
   sprints, type Sprint, type InsertSprint,
   spaces, type Space, type InsertSpace,
+  spaceMembers, type SpaceMember,
   projectGroups, type ProjectGroup, type InsertProjectGroup, type SpaceWithHierarchy,
   projects, type Project, type InsertProject, type ProjectWithAssignments,
   projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
@@ -162,7 +163,13 @@ export interface IStorage {
   createSpace(space: InsertSpace): Promise<Space>;
   updateSpace(id: string, data: Partial<InsertSpace>): Promise<Space | undefined>;
   deleteSpace(id: string): Promise<boolean>;
-  getSpacesWithHierarchy(viewType?: string): Promise<SpaceWithHierarchy[]>;
+  getSpacesWithHierarchy(viewType?: string, userId?: string): Promise<SpaceWithHierarchy[]>;
+
+  // Space members
+  getSpaceMembers(spaceId: string): Promise<(SpaceMember & { user: { id: string; username: string; firstName: string | null; lastName: string | null; email: string } })[]>;
+  addSpaceMember(spaceId: string, userId: string): Promise<SpaceMember>;
+  removeSpaceMember(spaceId: string, userId: string): Promise<boolean>;
+  isSpaceMember(spaceId: string, userId: string): Promise<boolean>;
 
   // Project Groups CRUD
   getAllProjectGroups(spaceId?: string): Promise<ProjectGroup[]>;
@@ -931,8 +938,22 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async getSpacesWithHierarchy(viewType?: string): Promise<SpaceWithHierarchy[]> {
+  async getSpacesWithHierarchy(viewType?: string, userId?: string): Promise<SpaceWithHierarchy[]> {
     let allSpaces = await this.getAllSpaces();
+
+    // Filter spaces by user visibility:
+    // - Spaces with no ownerId are "public" (visible to all) — backward compat for seeded data
+    // - Spaces with an ownerId are private: visible to the owner and their invited members
+    if (userId) {
+      const memberRows = await db.select({ spaceId: spaceMembers.spaceId }).from(spaceMembers).where(eq(spaceMembers.userId, userId));
+      const memberSpaceIds = new Set(memberRows.map(r => r.spaceId));
+      allSpaces = allSpaces.filter(s =>
+        !s.ownerId ||           // public (no owner set)
+        s.ownerId === userId || // current user owns it
+        memberSpaceIds.has(s.id) // current user is a member
+      );
+    }
+
     const allGroups = await db.select().from(projectGroups).orderBy(asc(projectGroups.name));
     const allProjects = await db.select().from(projects).orderBy(desc(projects.createdAt));
 
@@ -961,6 +982,54 @@ export class DatabaseStorage implements IStorage {
             })),
         })),
     }));
+  }
+
+  async getSpaceMembers(spaceId: string): Promise<(SpaceMember & { user: { id: string; username: string; firstName: string | null; lastName: string | null; email: string } })[]> {
+    const rows = await db
+      .select({
+        member: spaceMembers,
+        userId: managedUsers.id,
+        username: managedUsers.username,
+        firstName: managedUsers.firstName,
+        lastName: managedUsers.lastName,
+        email: managedUsers.email,
+      })
+      .from(spaceMembers)
+      .innerJoin(managedUsers, eq(spaceMembers.userId, managedUsers.id))
+      .where(eq(spaceMembers.spaceId, spaceId));
+    return rows.map(r => ({
+      ...r.member,
+      user: { id: r.userId, username: r.username, firstName: r.firstName, lastName: r.lastName, email: r.email },
+    }));
+  }
+
+  async addSpaceMember(spaceId: string, userId: string): Promise<SpaceMember> {
+    const [created] = await db
+      .insert(spaceMembers)
+      .values({ spaceId, userId })
+      .onConflictDoNothing()
+      .returning();
+    if (!created) {
+      const [existing] = await db.select().from(spaceMembers).where(
+        and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId))
+      );
+      return existing;
+    }
+    return created;
+  }
+
+  async removeSpaceMember(spaceId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(spaceMembers).where(
+      and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId))
+    ).returning();
+    return result.length > 0;
+  }
+
+  async isSpaceMember(spaceId: string, userId: string): Promise<boolean> {
+    const rows = await db.select().from(spaceMembers).where(
+      and(eq(spaceMembers.spaceId, spaceId), eq(spaceMembers.userId, userId))
+    );
+    return rows.length > 0;
   }
 
   // Project Groups methods
