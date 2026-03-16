@@ -29,7 +29,7 @@ function LoginPage() {
     onError: (error: Error) => {
       toast({
         title: "Login failed",
-        description: error.message.includes("401") ? "Invalid username or password" : error.message,
+        description: error.message.includes("401") ? "Invalid username/email or password" : error.message,
         variant: "destructive",
       });
     },
@@ -38,7 +38,7 @@ function LoginPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!username || !password) {
-      toast({ title: "Please enter username and password", variant: "destructive" });
+      toast({ title: "Please enter username/email and password", variant: "destructive" });
       return;
     }
     loginMutation.mutate({ username, password });
@@ -59,13 +59,13 @@ function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Username or Email</Label>
               <Input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder="Enter your username or email"
                 autoComplete="username"
                 data-testid="input-login-username"
               />

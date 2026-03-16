@@ -49,8 +49,9 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ message: "Username and password are required" });
       }
 
-      // Find user by username
-      const user = await storage.getManagedUserByUsername(username);
+      const user = username.includes("@")
+        ? await storage.getManagedUserByEmail(username)
+        : await storage.getManagedUserByUsername(username);
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
