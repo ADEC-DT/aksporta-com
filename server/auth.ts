@@ -140,6 +140,8 @@ export function registerAuthRoutes(app: Express) {
         return res.json({ message: "If an account with that email exists, a reset link has been generated" });
       }
 
+      await storage.invalidateUserResetTokens(user.id);
+
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
@@ -167,8 +169,8 @@ export function registerAuthRoutes(app: Express) {
         console.warn(`[WARN] Password reset requested for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
       }
 
-      const isDev = process.env.NODE_ENV === "development";
-      res.json({ message: "If an account with that email exists, a reset link has been generated", token: (!emailSent && isDev) ? token : undefined });
+      const showDevToken = process.env.NODE_ENV === "development" && process.env.DEV_SHOW_RESET_TOKEN === "true";
+      res.json({ message: "If an account with that email exists, a reset link has been generated", token: (!emailSent && showDevToken) ? token : undefined });
     } catch (error) {
       console.error("Forgot password error:", error);
       res.status(500).json({ message: "Failed to process request" });
@@ -195,10 +197,43 @@ export function registerAuthRoutes(app: Express) {
       await storage.updateManagedUser(resetToken.userId, { password: hashedPassword } as any);
       await storage.markPasswordResetTokenUsed(parsed.data.token);
 
+      await storage.destroyUserSessions(resetToken.userId);
+
+      const user = await storage.getManagedUser(resetToken.userId);
+      if (user) {
+        try {
+          const { getUncachableSendGridClient } = await import("./sendgrid");
+          const { client, fromEmail } = await getUncachableSendGridClient();
+          await client.send({
+            to: user.email,
+            from: fromEmail,
+            subject: "Password Changed — Unified Portal",
+            html: `<p>Your password was successfully changed.</p><p>If you did not make this change, please contact support immediately.</p>`,
+          });
+          console.log(`Password change confirmation email sent to ${user.email}`);
+        } catch (emailErr: any) {
+          const errMsg = emailErr?.response?.body?.errors?.[0]?.message || emailErr?.message || "Unknown error";
+          console.error(`[WARN] Failed to send password change confirmation to ${user.email}: ${errMsg}`);
+        }
+      }
+
       res.json({ message: "Password has been reset successfully" });
     } catch (error) {
       console.error("Reset password error:", error);
       res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.get("/api/auth/validate-reset-token/:token", async (req, res) => {
+    try {
+      const resetToken = await storage.getPasswordResetToken(req.params.token);
+      if (!resetToken) return res.status(400).json({ valid: false, message: "Invalid or expired reset link" });
+      if (resetToken.usedAt) return res.status(400).json({ valid: false, message: "This reset link has already been used" });
+      if (resetToken.expiresAt < new Date()) return res.status(400).json({ valid: false, message: "This reset link has expired" });
+      res.json({ valid: true });
+    } catch (error) {
+      console.error("Validate reset token error:", error);
+      res.status(500).json({ valid: false, message: "Failed to validate token" });
     }
   });
 
@@ -211,6 +246,8 @@ export function registerAuthRoutes(app: Express) {
 
       const user = await storage.getManagedUser(req.params.id);
       if (!user) return res.status(404).json({ message: "User not found" });
+
+      await storage.invalidateUserResetTokens(user.id);
 
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

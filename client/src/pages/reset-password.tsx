@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useRoute } from "wouter";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LayoutDashboard, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { LayoutDashboard, Loader2, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 
 export default function ResetPasswordPage() {
@@ -17,6 +17,20 @@ export default function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [success, setSuccess] = useState(false);
+
+  const tokenValidation = useQuery({
+    queryKey: ["/api/auth/validate-reset-token", token],
+    queryFn: async () => {
+      const res = await fetch(`/api/auth/validate-reset-token/${token}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Invalid or expired reset link");
+      }
+      return data;
+    },
+    enabled: !!token,
+    retry: false,
+  });
 
   const resetMutation = useMutation({
     mutationFn: async (data: { token: string; newPassword: string }) => {
@@ -54,6 +68,12 @@ export default function ResetPasswordPage() {
     resetMutation.mutate({ token, newPassword });
   }
 
+  const tokenInvalid = tokenValidation.isError;
+  const tokenLoading = tokenValidation.isLoading;
+  const tokenErrorMessage = tokenValidation.error instanceof Error
+    ? tokenValidation.error.message
+    : "Invalid or expired reset link";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -63,17 +83,44 @@ export default function ResetPasswordPage() {
           </div>
           <div>
             <CardTitle className="text-2xl">
-              {success ? "Password Reset" : "Set New Password"}
+              {tokenInvalid ? "Invalid Link" : success ? "Password Reset" : "Set New Password"}
             </CardTitle>
             <CardDescription>
-              {success
+              {tokenInvalid
+                ? tokenErrorMessage
+                : success
                 ? "Your password has been changed successfully"
                 : "Enter your new password below"}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {success ? (
+          {tokenLoading ? (
+            <div className="flex flex-col items-center gap-3 py-4" data-testid="status-token-loading">
+              <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Validating reset link...</p>
+            </div>
+          ) : tokenInvalid ? (
+            <div className="space-y-4" data-testid="status-token-invalid">
+              <div className="flex flex-col items-center gap-3 py-4">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+                <p className="text-sm text-muted-foreground text-center">
+                  This reset link is no longer valid. Please request a new one.
+                </p>
+              </div>
+              <Link href="/forgot-password">
+                <Button className="w-full" data-testid="button-request-new-link">
+                  Request New Reset Link
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="ghost" className="w-full" data-testid="button-back-login">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to login
+                </Button>
+              </Link>
+            </div>
+          ) : success ? (
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-3 py-4">
                 <CheckCircle className="h-12 w-12 text-green-500" />

@@ -42,7 +42,7 @@ import {
   ssoAuditLogs, type SsoAuditLog, type InsertSsoAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, desc, and, ilike, or, asc, inArray } from "drizzle-orm";
+import { eq, sql, desc, and, ilike, or, asc, inArray, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Managed users CRUD
@@ -58,6 +58,8 @@ export interface IStorage {
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<void>;
+  invalidateUserResetTokens(userId: string): Promise<void>;
+  destroyUserSessions(userId: string): Promise<number>;
 
   // SSO tokens
   createSsoToken(token: string, userId: string, expiresAt: Date): Promise<SsoToken>;
@@ -363,6 +365,19 @@ export class DatabaseStorage implements IStorage {
 
   async markPasswordResetTokenUsed(token: string): Promise<void> {
     await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.token, token));
+  }
+
+  async invalidateUserResetTokens(userId: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(passwordResetTokens.userId, userId), isNull(passwordResetTokens.usedAt)));
+  }
+
+  async destroyUserSessions(userId: string): Promise<number> {
+    const result = await db.execute(
+      sql`DELETE FROM sessions WHERE sess->>'userId' = ${userId}`
+    );
+    return Number(result.rowCount ?? 0);
   }
 
   async createSsoToken(token: string, userId: string, expiresAt: Date): Promise<SsoToken> {
