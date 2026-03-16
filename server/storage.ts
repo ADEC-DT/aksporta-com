@@ -579,10 +579,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTicket(ticketData: InsertTicket): Promise<Ticket> {
-    const [seqRow] = await db.select({
-      nextNum: sql<number>`nextval('ticket_tracking_seq')`
-    }).from(sql`generate_series(1,1)` as any);
-    const trackingId = `DT${seqRow.nextNum}`;
+    const [{ next_num }] = await db.select({
+      next_num: sql<string>`nextval('ticket_tracking_seq')`,
+    }).from(sql`(SELECT 1) AS _dummy`);
+    const trackingId = `DT${next_num}`;
 
     const [ticket] = await db.insert(tickets).values({
       ...ticketData,

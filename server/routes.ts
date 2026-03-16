@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema, itSupportSubcategories, digitalTransformationSubcategories } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, type Ticket, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema, itSupportSubcategories, digitalTransformationSubcategories } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1638,7 +1638,7 @@ export async function registerRoutes(
         }
       }
 
-      const updateData: any = { ...parsed.data };
+      const updateData: Partial<Ticket> & typeof parsed.data = { ...parsed.data };
       
       if (parsed.data.status === "resolved" && ticket.status !== "resolved") {
         updateData.resolvedAt = new Date();
