@@ -24,6 +24,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   Ticket, 
   Clock, 
@@ -39,7 +50,8 @@ import {
   ChevronRight,
   Monitor,
   Zap,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import type { Ticket as TicketType, TicketComment } from "@shared/schema";
@@ -79,7 +91,7 @@ export default function AdminTicketsPage() {
   });
 
   const updateTicketMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string; severity?: string; category?: string; subject?: string; description?: string } }) => {
       return apiRequest("PATCH", `/api/admin/tickets/${id}`, data);
     },
     onSuccess: () => {
@@ -107,6 +119,21 @@ export default function AdminTicketsPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to add comment", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteTicketMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/admin/tickets/${id}`);
+    },
+    onSuccess: () => {
+      setSelectedTicket(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets/stats"] });
+      toast({ title: "Ticket deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to delete ticket", description: error.message, variant: "destructive" });
     },
   });
 
@@ -329,6 +356,78 @@ export default function AdminTicketsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Severity</Label>
+                  <Select
+                    value={selectedTicket.severity}
+                    onValueChange={(v) => {
+                      updateTicketMutation.mutate({ id: selectedTicket.id, data: { severity: v } });
+                      setSelectedTicket({ ...selectedTicket, severity: v });
+                    }}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-admin-severity">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Category</Label>
+                  <Select
+                    value={selectedTicket.category}
+                    onValueChange={(v) => {
+                      updateTicketMutation.mutate({ id: selectedTicket.id, data: { category: v } });
+                      setSelectedTicket({ ...selectedTicket, category: v });
+                    }}
+                    disabled={updateTicketMutation.isPending}
+                  >
+                    <SelectTrigger data-testid="select-admin-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="it_support">IT Support</SelectItem>
+                      <SelectItem value="digital_transformation">Digital Transformation</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="w-full" data-testid="button-delete-ticket">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Ticket
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete ticket {selectedTicket.trackingId}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. The ticket and all its comments will be permanently deleted.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteTicketMutation.mutate(selectedTicket.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        data-testid="button-confirm-delete-ticket"
+                      >
+                        {deleteTicketMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
                 <Separator />
 

@@ -105,6 +105,7 @@ export interface IStorage {
   getTicketsByUser(userId: string): Promise<Ticket[]>;
   getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number; userId?: string }): Promise<{ tickets: Ticket[]; total: number }>;
   updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | undefined>;
+  deleteTicket(id: string): Promise<boolean>;
   
   // Ticket comments
   createTicketComment(comment: InsertTicketComment): Promise<TicketComment>;
@@ -561,16 +562,27 @@ export class DatabaseStorage implements IStorage {
 
   // Ticket methods
   async createTicket(ticketData: InsertTicket): Promise<Ticket> {
-    // Generate tracking ID (DT + number format)
-    const existingTickets = await db.select().from(tickets);
-    const ticketNumber = existingTickets.length + 1;
-    const trackingId = `DT${ticketNumber}`;
-    
-    const [ticket] = await db.insert(tickets).values({
-      ...ticketData,
-      trackingId,
-    }).returning();
-    return ticket;
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(42)`);
+
+      const [maxRow] = await tx.execute(sql`
+        SELECT COALESCE(MAX(
+          CASE WHEN tracking_id ~ '^DT[0-9]+$'
+            THEN CAST(SUBSTRING(tracking_id FROM 3) AS INTEGER)
+            ELSE 0
+          END
+        ), 0) + 1 AS next_num
+        FROM tickets
+      `);
+      const trackingId = `DT${maxRow.next_num}`;
+
+      const [ticket] = await tx.insert(tickets).values({
+        ...ticketData,
+        trackingId,
+      }).returning();
+      return ticket;
+    });
+    return result;
   }
 
   async getTicket(id: string): Promise<Ticket | undefined> {
@@ -626,6 +638,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(tickets.id, id))
       .returning();
     return ticket;
+  }
+
+  async deleteTicket(id: string): Promise<boolean> {
+    const result = await db.delete(tickets).where(eq(tickets.id, id)).returning();
+    return result.length > 0;
   }
 
   // Ticket comment methods

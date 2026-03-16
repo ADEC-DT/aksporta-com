@@ -207,7 +207,7 @@ export default function IntranetPage() {
   });
 
   const updateTicketMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; assignedTo?: string; assignedToName?: string; severity?: string; category?: string; subject?: string; description?: string } }) => {
       return apiRequest("PATCH", `/api/admin/tickets/${id}`, data);
     },
     onSuccess: () => {

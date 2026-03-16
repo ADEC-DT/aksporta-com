@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema, itSupportSubcategories, digitalTransformationSubcategories } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -1350,6 +1350,15 @@ export async function registerRoutes(
     category: z.enum(["it_support", "digital_transformation", "other"]),
     subcategory: z.string().optional(),
     severity: z.enum(["low", "medium", "high", "critical"]),
+  }).superRefine((data, ctx) => {
+    if (data.subcategory) {
+      if (data.category === "it_support" && !(itSupportSubcategories as readonly string[]).includes(data.subcategory)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid subcategory for IT Support`, path: ["subcategory"] });
+      }
+      if (data.category === "digital_transformation" && !(digitalTransformationSubcategories as readonly string[]).includes(data.subcategory)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid subcategory for Digital Transformation`, path: ["subcategory"] });
+      }
+    }
   });
 
   app.post("/api/tickets", isAuthenticated, async (req, res) => {
@@ -1562,7 +1571,7 @@ export async function registerRoutes(
 
   // ===== ADMIN TICKET MANAGEMENT =====
 
-  app.get("/api/admin/tickets", isAuthenticated, isAdminOrAuthenticated, async (req, res) => {
+  app.get("/api/admin/tickets", isAuthenticated, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
       const isAdmin = user.role === "admin" || user.role === "superadmin";
@@ -1582,14 +1591,18 @@ export async function registerRoutes(
     }
   });
 
-  // Update ticket status (admin only)
+  // Update ticket (admin: status/assignee/severity/category; user: subject/description when status=new)
   const updateTicketSchema = z.object({
     status: z.enum(["new", "in_progress", "under_review", "resolved", "closed"]).optional(),
     assignedTo: z.string().optional(),
     assignedToName: z.string().optional(),
+    severity: z.enum(["low", "medium", "high", "critical"]).optional(),
+    category: z.enum(["it_support", "digital_transformation", "other"]).optional(),
+    subject: z.string().min(5, "Subject must be at least 5 characters").optional(),
+    description: z.string().min(10, "Description must be at least 10 characters").optional(),
   });
 
-  app.patch("/api/admin/tickets/:id", isAuthenticated, isAdminOrAuthenticated, async (req, res) => {
+  app.patch("/api/admin/tickets/:id", isAuthenticated, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
       const isAdmin = user.role === "admin" || user.role === "superadmin";
@@ -1603,28 +1616,23 @@ export async function registerRoutes(
         return res.status(403).json({ message: "You can only update your own tickets" });
       }
 
-      if (!isAdmin && (req.body.status || req.body.assignedTo !== undefined || req.body.assignedToName !== undefined)) {
-        return res.status(403).json({ message: "Only admins can change ticket status or assignment" });
-      }
-
       const parsed = updateTicketSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
 
-      const statusOrder: Record<string, number> = {
-        new: 0,
-        in_progress: 1,
-        under_review: 2,
-        resolved: 3,
-        closed: 4,
-      };
-      
+      if (!isAdmin) {
+        const adminOnlyFields = ['status', 'assignedTo', 'assignedToName', 'severity', 'category'] as const;
+        const hasAdminField = adminOnlyFields.some(f => parsed.data[f] !== undefined);
+        if (hasAdminField) {
+          return res.status(403).json({ message: "Only admins can change status, assignment, severity, or category" });
+        }
+        if ((parsed.data.subject || parsed.data.description) && ticket.status !== "new") {
+          return res.status(403).json({ message: "You can only edit subject/description while the ticket is in 'new' status" });
+        }
+      }
+
       if (parsed.data.status) {
-        const currentOrder = statusOrder[ticket.status];
-        const newOrder = statusOrder[parsed.data.status];
-        
-        // Allow reopening from resolved to in_progress, but not from closed
         if (ticket.status === "closed" && parsed.data.status !== "closed") {
           return res.status(400).json({ message: "Cannot reopen a closed ticket" });
         }
@@ -1632,7 +1640,6 @@ export async function registerRoutes(
 
       const updateData: any = { ...parsed.data };
       
-      // Set resolved/closed timestamps
       if (parsed.data.status === "resolved" && ticket.status !== "resolved") {
         updateData.resolvedAt = new Date();
       }
@@ -1657,6 +1664,36 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating ticket:", error);
       res.status(500).json({ message: "Failed to update ticket" });
+    }
+  });
+
+  // Delete ticket (admin only)
+  app.delete("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      await storage.deleteTicket(req.params.id);
+
+      await storage.createAuditLog({
+        action: "ticket_deleted",
+        category: "support",
+        userId: user.id,
+        userEmail: user.email,
+        details: { ticketId: ticket.id, trackingId: ticket.trackingId, subject: ticket.subject },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+        status: "success",
+      });
+
+      res.json({ message: "Ticket deleted" });
+    } catch (error) {
+      console.error("Error deleting ticket:", error);
+      res.status(500).json({ message: "Failed to delete ticket" });
     }
   });
 
