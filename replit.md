@@ -153,8 +153,8 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **express-session**: Session middleware
 - **bcryptjs**: Password hashing
 - **Custom auth**: Username/password authentication with role-based access control (Superadmin, Admin, Finance, Procurement, Others). Only Superadmin can import data (Excel imports). Admin and Superadmin have full admin panel access.
-- **Password Reset**: `password_reset_tokens` table stores tokens with expiry. Endpoints: `POST /api/auth/forgot-password` (generates token, sends email via SMTP), `POST /api/auth/reset-password` (validates token, sets new password), `POST /api/admin/users/:id/reset-password-link` (admin generates reset link for a user). Frontend pages: `/forgot-password`, `/reset-password/:token`. In development mode only, if SMTP fails, the token is returned in the API response as fallback.
-- **Email (SMTP)**: Configured via Nodemailer in `server/email.ts`. Uses Outlook SMTP (`smtp.office365.com:587`). Environment variables: `SMTP_HOST`, `SMTP_PORT` (shared env), `SMTP_USER`, `SMTP_PASS` (secrets). `SMTP_FROM` optional (defaults to `SMTP_USER`). Used for password reset and confirmation emails.
+- **Password Reset**: `password_reset_tokens` table stores tokens with expiry. Endpoints: `POST /api/auth/forgot-password` (generates token, sends email via SendGrid), `POST /api/auth/reset-password` (validates token, sets new password), `POST /api/admin/users/:id/reset-password-link` (admin generates reset link for a user). Frontend pages: `/forgot-password`, `/reset-password/:token`. In development mode only, if SendGrid fails, the token is returned in the API response as fallback.
+- **Email (SendGrid)**: Configured via `@sendgrid/mail` SDK in `server/email.ts`. Uses `SENDGRID_API_KEY` secret. From address: `SMTP_FROM` or `SMTP_USER` env var (defaults to dt.office@adec.ae). Used for password reset and confirmation emails.
 
 ### Access Control System
 - **Roles**: `superadmin`, `admin`, `finance`, `procurement`, `others`

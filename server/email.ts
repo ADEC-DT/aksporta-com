@@ -1,30 +1,19 @@
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 
-let transporter: nodemailer.Transporter | null = null;
+let initialized = false;
 
-function getTransporter() {
-  if (transporter) return transporter;
+function initSendGrid() {
+  if (initialized) return;
 
-  const host = process.env.SMTP_HOST || "smtp.office365.com";
-  const port = parseInt(process.env.SMTP_PORT || "587", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!user || !pass) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
     throw new Error(
-      "SMTP not configured. Set SMTP_USER and SMTP_PASS environment variables."
+      "SendGrid not configured. Set SENDGRID_API_KEY environment variable."
     );
   }
 
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-    requireTLS: true,
-  });
-
-  return transporter;
+  sgMail.setApiKey(apiKey);
+  initialized = true;
 }
 
 export async function sendEmail(options: {
@@ -32,12 +21,12 @@ export async function sendEmail(options: {
   subject: string;
   html: string;
 }) {
-  const transport = getTransporter();
-  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER!;
+  initSendGrid();
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@aksportal.com";
 
-  await transport.sendMail({
-    from: fromEmail,
+  await sgMail.send({
     to: options.to,
+    from: fromEmail,
     subject: options.subject,
     html: options.html,
   });
