@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
 import { storage } from "./storage";
+import { passwordSchema } from "@shared/schema";
 
 declare module "express-session" {
   interface SessionData {
@@ -25,7 +26,7 @@ export function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(
     session({
-      secret: process.env.SESSION_SECRET!,
+      secret: process.env.SESSION_SECRET as string,
       store: sessionStore,
       resave: false,
       saveUninitialized: false,
@@ -178,12 +179,6 @@ export function registerAuthRoutes(app: Express) {
 
   app.post("/api/auth/reset-password", async (req, res) => {
     try {
-      const passwordSchema = z.string()
-        .min(8, "Password must be at least 8 characters")
-        .regex(/[A-Z]/, "Must contain an uppercase letter")
-        .regex(/[0-9]/, "Must contain a number")
-        .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Must contain a special character");
-
       const parsed = z.object({ token: z.string(), newPassword: passwordSchema }).safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
 
@@ -298,6 +293,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 };
 
 // Seed default admin user
+function generateSecurePassword(): string {
+  return crypto.randomBytes(24).toString("base64url");
+}
+
 export async function seedAdminUser() {
   try {
     const existingAdmin = await storage.getManagedUserByUsername("admin");
@@ -309,7 +308,8 @@ export async function seedAdminUser() {
         console.log("Admin user already exists");
       }
     } else {
-      const hashedPassword = await bcrypt.hash("admin", 10);
+      const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || generateSecurePassword();
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
       await storage.createManagedUser({
         email: "admin@example.com",
         username: "admin",
@@ -320,12 +320,17 @@ export async function seedAdminUser() {
         isActive: true,
         lastActiveAt: null,
       });
-      console.log("Default admin user created (username: admin, password: admin)");
+      if (process.env.ADMIN_DEFAULT_PASSWORD) {
+        console.log("Default admin user created (username: admin, password from ADMIN_DEFAULT_PASSWORD env var)");
+      } else {
+        console.log(`Default admin user created (username: admin, generated password: ${adminPassword}). Change immediately or set ADMIN_DEFAULT_PASSWORD env var.`);
+      }
     }
 
     const existingSystemAdmin = await storage.getManagedUserByUsername("systemadmin");
     if (!existingSystemAdmin) {
-      const hashedPassword = await bcrypt.hash("systemadmin", 10);
+      const systemAdminPassword = process.env.SYSTEMADMIN_DEFAULT_PASSWORD || generateSecurePassword();
+      const hashedPassword = await bcrypt.hash(systemAdminPassword, 10);
       await storage.createManagedUser({
         email: "systemadmin@example.com",
         username: "systemadmin",
@@ -336,7 +341,11 @@ export async function seedAdminUser() {
         isActive: true,
         lastActiveAt: null,
       });
-      console.log("Systemadmin user created (username: systemadmin, password: systemadmin)");
+      if (process.env.SYSTEMADMIN_DEFAULT_PASSWORD) {
+        console.log("Systemadmin user created (username: systemadmin, password from SYSTEMADMIN_DEFAULT_PASSWORD env var)");
+      } else {
+        console.log(`Systemadmin user created (username: systemadmin, generated password: ${systemAdminPassword}). Change immediately or set SYSTEMADMIN_DEFAULT_PASSWORD env var.`);
+      }
     } else {
       console.log("Systemadmin user already exists");
     }

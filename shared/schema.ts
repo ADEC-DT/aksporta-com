@@ -1068,3 +1068,9 @@ export const smInvoiceLines = pgTable("sm_invoice_lines", {
 export const insertSmInvoiceLineSchema = createInsertSchema(smInvoiceLines).omit({ id: true, createdAt: true });
 export type InsertSmInvoiceLine = z.infer<typeof insertSmInvoiceLineSchema>;
 export type SmInvoiceLine = typeof smInvoiceLines.$inferSelect;
+
+export const passwordSchema = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character (!@#$%^&*-_)");

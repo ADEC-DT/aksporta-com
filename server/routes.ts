@@ -4,19 +4,13 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, type Ticket, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema, itSupportSubcategories, digitalTransformationSubcategories } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, type Ticket, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema, itSupportSubcategories, digitalTransformationSubcategories, passwordSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
 import multer from "multer";
 import ExcelJS from "exceljs";
-
-const passwordSchema = z.string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-  .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character (!@#$%^&*-_)");
 
 // Middleware to check if user is admin or superadmin
 const isAdmin: RequestHandler = async (req, res, next) => {
@@ -1883,7 +1877,21 @@ export async function registerRoutes(
   });
 
   // Import customers from Excel file - two-step flow
-  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  const allowedSpreadsheetMimes = [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/csv",
+  ];
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (allowedSpreadsheetMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only Excel (.xlsx) and CSV files are accepted"));
+      }
+    },
+  });
 
   function parseCsvBuffer(buffer: Buffer): Record<string, string>[] {
     const text = buffer.toString("utf-8");
@@ -2015,7 +2023,7 @@ export async function registerRoutes(
   }
 
   function validateFileExtension(filename: string) {
-    const allowedExtensions = [".xlsx", ".xls", ".csv"];
+    const allowedExtensions = [".xlsx", ".csv"];
     const lower = filename?.toLowerCase() || "";
     return allowedExtensions.some(ext => lower.endsWith(ext));
   }
@@ -2025,7 +2033,7 @@ export async function registerRoutes(
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
-        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx or .csv" });
       }
 
       const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
@@ -2405,7 +2413,17 @@ export async function registerRoutes(
     }
   });
 
-  const dsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  const dsUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (allowedSpreadsheetMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only Excel (.xlsx) and CSV files are accepted"));
+      }
+    },
+  });
 
   app.post("/api/data-sources/:slug/import/preview", isAuthenticated, isSuperAdmin, dsUpload.single("file"), async (req, res) => {
     try {
@@ -2414,8 +2432,8 @@ export async function registerRoutes(
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
       const ext = req.file.originalname?.toLowerCase() || "";
-      if (![".xlsx", ".xls", ".csv"].some(e => ext.endsWith(e))) {
-        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+      if (![".xlsx", ".csv"].some(e => ext.endsWith(e))) {
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx or .csv" });
       }
 
       const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
@@ -3800,7 +3818,7 @@ export async function registerRoutes(
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
-        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx or .csv" });
       }
       const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
       const columns = Object.keys(rows[0]);
@@ -3967,7 +3985,7 @@ export async function registerRoutes(
     try {
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
       if (!validateFileExtension(req.file.originalname)) {
-        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx, .xls, or .csv" });
+        return res.status(400).json({ message: "Invalid file type. Please upload .xlsx or .csv" });
       }
       const rows = await parseExcelFile(req.file.buffer, req.file.originalname);
       const columns = Object.keys(rows[0]);
@@ -4078,10 +4096,11 @@ export async function registerRoutes(
   });
   app.post("/api/sm/billing-elements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      if (req.body.transactionDate && !req.body.billingMonth) {
-        req.body.billingMonth = req.body.transactionDate.substring(0, 7);
+      const body = { ...req.body };
+      if (body.transactionDate && !body.billingMonth) {
+        body.billingMonth = body.transactionDate.substring(0, 7);
       }
-      const parsed = insertSmBillingElementSchema.parse(req.body);
+      const parsed = insertSmBillingElementSchema.parse(body);
       res.json(await storage.createSmBillingElement(parsed));
     } catch (e: any) {
       if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });

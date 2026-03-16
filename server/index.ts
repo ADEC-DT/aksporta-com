@@ -17,7 +17,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       fontSrc: ["'self'", "data:"],
@@ -54,17 +54,36 @@ const resetPasswordLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { message: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/", apiLimiter);
 app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth/forgot-password", forgotPasswordLimiter);
 app.use("/api/auth/reset-password", resetPasswordLimiter);
 
+const largeJsonParser = express.json({ limit: "50mb" });
+const importRoutes = [
+  "/api/customers/import",
+  "/api/data-sources/:slug/import",
+  "/api/sm/horses/import",
+  "/api/sm/item-services/import",
+];
+app.post("/api/requisitions", largeJsonParser);
+importRoutes.forEach(route => app.post(route, largeJsonParser));
+
 app.use(
   express.json({
-    limit: "50mb",
+    limit: "5mb",
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+app.use(express.urlencoded({ extended: false, limit: "5mb" }));
 
 let appReady = false;
 
@@ -123,6 +142,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  if (!process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable is required. Set it to a strong random string before starting the server.");
+  }
+
   const port = parseInt(process.env.PORT || "5000", 10);
 
   httpServer.listen(
