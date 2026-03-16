@@ -21,7 +21,7 @@ function getTransporter() {
     port,
     secure: port === 465,
     auth: { user, pass },
-    tls: { ciphers: "SSLv3", rejectUnauthorized: false },
+    requireTLS: true,
   });
 
   return transporter;
