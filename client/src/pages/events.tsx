@@ -32,37 +32,19 @@ import type { PageSectionWithTemplate } from "@shared/schema";
 
 const SERVICE_URL = "/events";
 
-const upcomingEvents = [
-  { id: 1, name: "Annual Gala Dinner", date: "Feb 14, 2026", type: "Corporate", attendees: 250, status: "Confirmed" },
-  { id: 2, name: "Equestrian Championship", date: "Mar 5, 2026", type: "Sports", attendees: 500, status: "Planning" },
-  { id: 3, name: "Mall Grand Opening", date: "Mar 20, 2026", type: "Launch", attendees: 1000, status: "Confirmed" },
-  { id: 4, name: "Kids Summer Camp", date: "Jun 1, 2026", type: "Education", attendees: 80, status: "Planning" },
-];
+const upcomingEvents: { id: number; name: string; date: string; type: string; attendees: number; status: string }[] = [];
 
 const communicationChannels = [
-  { id: "whatsapp", name: "WhatsApp Business", status: "connected", icon: SiWhatsapp, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30", messages: 1250 },
-  { id: "email", name: "Email Campaigns", status: "connected", icon: Mail, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30", messages: 3400 },
+  { id: "whatsapp", name: "WhatsApp Business", status: "pending", icon: SiWhatsapp, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30", messages: 0 },
+  { id: "email", name: "Email Campaigns", status: "pending", icon: Mail, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30", messages: 0 },
   { id: "sms", name: "SMS Gateway", status: "pending", icon: Phone, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30", messages: 0 },
 ];
 
-const messageTemplates = [
-  { id: 1, name: "VIP Gala Invitation", type: "WhatsApp", category: "VIP Hospitality", uses: 45 },
-  { id: 2, name: "Event RSVP Request", type: "Email", category: "General", uses: 120 },
-  { id: 3, name: "Exclusive Preview Invite", type: "WhatsApp", category: "VIP Hospitality", uses: 28 },
-  { id: 4, name: "Event Reminder", type: "Multi-channel", category: "Automated", uses: 340 },
-];
+const messageTemplates: { id: number; name: string; type: string; category: string; uses: number }[] = [];
 
-const recentCampaigns = [
-  { id: 1, name: "Annual Gala VIP Invitations", channel: "WhatsApp", sent: 150, responded: 98, pending: 52, status: "active" },
-  { id: 2, name: "Championship RSVP", channel: "Email", sent: 500, responded: 320, pending: 180, status: "completed" },
-  { id: 3, name: "Mall Opening Teaser", channel: "Multi-channel", sent: 2000, responded: 850, pending: 1150, status: "active" },
-];
+const recentCampaigns: { id: number; name: string; channel: string; sent: number; responded: number; pending: number; status: string }[] = [];
 
-const moderationQueue = [
-  { id: 1, type: "reply", from: "VIP Guest", message: "Confirming attendance for 2", time: "10 min ago" },
-  { id: 2, type: "question", from: "Corporate Client", message: "Is there valet parking available?", time: "25 min ago" },
-  { id: 3, type: "rsvp", from: "Board Member", message: "RSVP Form Submitted", time: "1 hour ago" },
-];
+const moderationQueue: { id: number; type: string; from: string; message: string; time: string }[] = [];
 
 const handleLaunchPlatinumList = () => {
   window.open("https://platinumlist.net", "_blank");
@@ -85,19 +67,19 @@ export default function EventsPage() {
                 <div className="grid gap-6 md:grid-cols-4">
                   <div>
                     <p className="text-purple-100 text-sm">Upcoming Events</p>
-                    <p className="text-3xl font-bold">12</p>
+                    <p className="text-3xl font-bold">0</p>
                   </div>
                   <div>
                     <p className="text-purple-100 text-sm">This Month</p>
-                    <p className="text-3xl font-bold">3</p>
+                    <p className="text-3xl font-bold">0</p>
                   </div>
                   <div>
                     <p className="text-purple-100 text-sm">Total Attendees (YTD)</p>
-                    <p className="text-3xl font-bold">5.2K</p>
+                    <p className="text-3xl font-bold">0</p>
                   </div>
                   <div>
                     <p className="text-purple-100 text-sm">Active Vendors</p>
-                    <p className="text-3xl font-bold">24</p>
+                    <p className="text-3xl font-bold">0</p>
                   </div>
                 </div>
               </CardContent>
@@ -156,6 +138,9 @@ export default function EventsPage() {
       case "Upcoming Events":
         return (
           <div className="space-y-4">
+            {upcomingEvents.length === 0 && (
+              <p className="text-sm text-muted-foreground">No upcoming events to display.</p>
+            )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-center justify-between p-4 rounded-lg border hover-elevate">
                 <div className="flex items-center gap-4">
@@ -196,19 +181,19 @@ export default function EventsPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                   <div>
                     <p className="text-green-100 text-sm">Active Channels</p>
-                    <p className="text-2xl font-bold">3</p>
+                    <p className="text-2xl font-bold">0</p>
                   </div>
                   <div>
                     <p className="text-green-100 text-sm">Messages Sent (MTD)</p>
-                    <p className="text-2xl font-bold">4.6K</p>
+                    <p className="text-2xl font-bold">0</p>
                   </div>
                   <div>
                     <p className="text-green-100 text-sm">Response Rate</p>
-                    <p className="text-2xl font-bold">72%</p>
+                    <p className="text-2xl font-bold">0%</p>
                   </div>
                   <div>
                     <p className="text-green-100 text-sm">Pending Moderation</p>
-                    <p className="text-2xl font-bold">3</p>
+                    <p className="text-2xl font-bold">0</p>
                   </div>
                 </div>
               </CardContent>
@@ -279,6 +264,9 @@ export default function EventsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
+                      {moderationQueue.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No items in moderation queue.</p>
+                      )}
                       {moderationQueue.map((item) => (
                         <div 
                           key={item.id}
@@ -388,6 +376,9 @@ export default function EventsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
+                {messageTemplates.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No message templates to display.</p>
+                )}
                 {messageTemplates.map((template) => (
                   <div 
                     key={template.id}
@@ -427,6 +418,9 @@ export default function EventsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
+                  {recentCampaigns.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No campaigns to display.</p>
+                  )}
                   {recentCampaigns.map((campaign) => (
                     <div 
                       key={campaign.id}

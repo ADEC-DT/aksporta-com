@@ -21,26 +21,22 @@ import type { PageSectionWithTemplate } from "@shared/schema";
 const SERVICE_URL = "/performance-kpi";
 
 const kpiCategories = [
-  { id: "financial", name: "Financial KPIs", count: 12, icon: DollarSign, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
-  { id: "operational", name: "Operational KPIs", count: 18, icon: Activity, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
-  { id: "customer", name: "Customer KPIs", count: 8, icon: Users, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
-  { id: "employee", name: "Employee KPIs", count: 10, icon: Target, iconBg: "bg-orange-100 text-orange-600 dark:bg-orange-900/30" },
+  { id: "financial", name: "Financial KPIs", count: 0, icon: DollarSign, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
+  { id: "operational", name: "Operational KPIs", count: 0, icon: Activity, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
+  { id: "customer", name: "Customer KPIs", count: 0, icon: Users, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
+  { id: "employee", name: "Employee KPIs", count: 0, icon: Target, iconBg: "bg-orange-100 text-orange-600 dark:bg-orange-900/30" },
 ];
 
 const keyMetrics = [
-  { name: "Revenue Growth", value: "+12.5%", target: "10%", status: "above", trend: "up" },
-  { name: "Customer Satisfaction", value: "87%", target: "90%", status: "below", trend: "up" },
-  { name: "Employee Productivity", value: "94%", target: "85%", status: "above", trend: "up" },
-  { name: "Cost Efficiency", value: "-8%", target: "-5%", status: "above", trend: "down" },
-  { name: "On-Time Delivery", value: "96%", target: "95%", status: "above", trend: "up" },
-  { name: "Quality Score", value: "4.6/5", target: "4.5/5", status: "above", trend: "up" },
+  { name: "Revenue Growth", value: "—", target: "—", status: "below", trend: "up" },
+  { name: "Customer Satisfaction", value: "—", target: "—", status: "below", trend: "up" },
+  { name: "Employee Productivity", value: "—", target: "—", status: "below", trend: "up" },
+  { name: "Cost Efficiency", value: "—", target: "—", status: "below", trend: "up" },
+  { name: "On-Time Delivery", value: "—", target: "—", status: "below", trend: "up" },
+  { name: "Quality Score", value: "—", target: "—", status: "below", trend: "up" },
 ];
 
-const performanceAlerts = [
-  { id: 1, title: "Q1 Revenue Target Review", description: "Monthly revenue below 5% of target", priority: "high" },
-  { id: 2, title: "Customer Churn Rate", description: "Churn rate increased by 2% this month", priority: "medium" },
-  { id: 3, title: "Inventory Turnover", description: "Turnover ratio exceeding expectations", priority: "low" },
-];
+const performanceAlerts: { id: number; title: string; description: string; priority: string }[] = [];
 
 const quickReports = [
   { name: "Monthly Dashboard", icon: BarChart3 },
@@ -123,6 +119,9 @@ function renderSection(section: PageSectionWithTemplate) {
     case "Performance Alerts":
       return (
         <div className="space-y-3">
+          {performanceAlerts.length === 0 && (
+            <p className="text-sm text-muted-foreground">No performance alerts.</p>
+          )}
           {performanceAlerts.map((alert) => (
             <div 
               key={alert.id}

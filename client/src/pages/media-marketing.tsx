@@ -63,19 +63,9 @@ const externalServices = [
   },
 ];
 
-const mediaAssets = [
-  { id: 1, type: "Video", name: "Corporate Overview 2026", size: "245 MB", date: "Jan 10, 2026" },
-  { id: 2, type: "Photo", name: "Mall Grand Opening", size: "12 MB", date: "Jan 8, 2026" },
-  { id: 3, type: "Presentation", name: "Q4 Investor Deck", size: "8 MB", date: "Jan 5, 2026" },
-  { id: 4, type: "Video", name: "Equestrian Promo", size: "180 MB", date: "Jan 3, 2026" },
-];
+const mediaAssets: { id: number; type: string; name: string; size: string; date: string }[] = [];
 
-const documents = [
-  { id: "brand-guidelines", name: "Brand Guidelines", type: "PDF", size: "2.4 MB", icon: FileText, iconBg: "bg-red-100 dark:bg-red-900/30 text-red-600" },
-  { id: "logo-pack", name: "Logo Pack", type: "ZIP", size: "15 MB", icon: Image, iconBg: "bg-blue-100 dark:bg-blue-900/30 text-blue-600" },
-  { id: "media-kit", name: "Media Kit 2026", type: "PDF", size: "8.2 MB", icon: File, iconBg: "bg-green-100 dark:bg-green-900/30 text-green-600" },
-  { id: "content-calendar", name: "Content Calendar", type: "XLSX", size: "156 KB", icon: FileSpreadsheet, iconBg: "bg-amber-100 dark:bg-amber-900/30 text-amber-600" },
-];
+const documents: { id: string; name: string; type: string; size: string; icon: typeof FileText; iconBg: string }[] = [];
 
 const reportButtons = [
   { name: "Campaign Performance", icon: Megaphone, testId: "button-report-campaigns" },
@@ -100,7 +90,7 @@ function renderSection(section: PageSectionWithTemplate) {
               </div>
               <h3 className="font-semibold mb-2">Video Library</h3>
               <p className="text-sm text-muted-foreground mb-4">Corporate videos, promos, and training content</p>
-              <Badge variant="secondary">156 Videos</Badge>
+              <Badge variant="secondary">0 Videos</Badge>
             </CardContent>
           </Card>
 
@@ -111,7 +101,7 @@ function renderSection(section: PageSectionWithTemplate) {
               </div>
               <h3 className="font-semibold mb-2">Photo Gallery</h3>
               <p className="text-sm text-muted-foreground mb-4">Event photos, product shots, and brand assets</p>
-              <Badge variant="secondary">2,450 Photos</Badge>
+              <Badge variant="secondary">0 Photos</Badge>
             </CardContent>
           </Card>
 
@@ -122,7 +112,7 @@ function renderSection(section: PageSectionWithTemplate) {
               </div>
               <h3 className="font-semibold mb-2">Presentations</h3>
               <p className="text-sm text-muted-foreground mb-4">Decks, proposals, and corporate templates</p>
-              <Badge variant="secondary">89 Decks</Badge>
+              <Badge variant="secondary">0 Decks</Badge>
             </CardContent>
           </Card>
         </div>
@@ -159,6 +149,9 @@ function renderSection(section: PageSectionWithTemplate) {
     case "Brand Assets":
       return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {documents.length === 0 && (
+            <p className="text-sm text-muted-foreground col-span-full">No brand assets to display.</p>
+          )}
           {documents.map((doc) => {
             const DocIcon = doc.icon;
             return (
@@ -192,6 +185,9 @@ function renderSection(section: PageSectionWithTemplate) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
+                {mediaAssets.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No media assets to display.</p>
+                )}
                 {mediaAssets.map((asset) => (
                   <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg border">
                     <div className="flex items-center gap-3">

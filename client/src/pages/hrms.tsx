@@ -114,19 +114,19 @@ function renderSection(section: PageSectionWithTemplate) {
             <div className="grid gap-6 md:grid-cols-4">
               <div>
                 <p className="text-blue-100 text-sm">Total Employees</p>
-                <p className="text-3xl font-bold">248</p>
+                <p className="text-3xl font-bold">0</p>
               </div>
               <div>
                 <p className="text-blue-100 text-sm">Active Today</p>
-                <p className="text-3xl font-bold">231</p>
+                <p className="text-3xl font-bold">0</p>
               </div>
               <div>
                 <p className="text-blue-100 text-sm">On Leave</p>
-                <p className="text-3xl font-bold">12</p>
+                <p className="text-3xl font-bold">0</p>
               </div>
               <div>
                 <p className="text-blue-100 text-sm">Open Positions</p>
-                <p className="text-3xl font-bold">5</p>
+                <p className="text-3xl font-bold">0</p>
               </div>
             </div>
           </CardContent>
@@ -165,30 +165,7 @@ function renderSection(section: PageSectionWithTemplate) {
     case "Recent Activity":
       return (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-green-500" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">New employee onboarded</p>
-              <p className="text-xs text-muted-foreground">Ahmed Hassan joined IT Department</p>
-            </div>
-            <span className="text-xs text-muted-foreground">2h ago</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-blue-500" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Leave request approved</p>
-              <p className="text-xs text-muted-foreground">Sara Al-Mahmoud - Annual Leave</p>
-            </div>
-            <span className="text-xs text-muted-foreground">4h ago</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-orange-500" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Payroll processed</p>
-              <p className="text-xs text-muted-foreground">January 2026 salaries disbursed</p>
-            </div>
-            <span className="text-xs text-muted-foreground">Yesterday</span>
-          </div>
+          <p className="text-sm text-muted-foreground">No recent activity to display.</p>
         </div>
       );
 

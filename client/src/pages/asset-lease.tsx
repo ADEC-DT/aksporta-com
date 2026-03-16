@@ -17,27 +17,18 @@ import type { PageSectionWithTemplate } from "@shared/schema";
 
 const SERVICE_URL = "/asset-lease";
 
-const shopData = [
-  { id: 1, name: "Luxury Watches", unit: "G-01", tenant: "TimeZone LLC", status: "Occupied", rent: 15000, leaseEnd: "Dec 2026" },
-  { id: 2, name: "Fashion Boutique", unit: "G-02", tenant: "Style Co.", status: "Occupied", rent: 18000, leaseEnd: "Mar 2027" },
-  { id: 3, name: "Jewelry Store", unit: "G-03", tenant: "Diamond Dreams", status: "Occupied", rent: 22000, leaseEnd: "Jun 2026" },
-  { id: 4, name: "Café Corner", unit: "G-04", tenant: "Brew Masters", status: "Occupied", rent: 12000, leaseEnd: "Sep 2026" },
-  { id: 5, name: "Electronics Hub", unit: "G-05", tenant: "TechWorld", status: "Occupied", rent: 16000, leaseEnd: "Jan 2027" },
-  { id: 6, name: "Beauty Salon", unit: "G-06", tenant: "", status: "Vacant", rent: 14000, leaseEnd: "-" },
-  { id: 7, name: "Art Gallery", unit: "F-01", tenant: "ArtSpace", status: "Occupied", rent: 20000, leaseEnd: "Nov 2026" },
-  { id: 8, name: "Sports Store", unit: "F-02", tenant: "FitGear", status: "Occupied", rent: 17000, leaseEnd: "Aug 2026" },
-];
+const shopData: { id: number; name: string; unit: string; tenant: string; status: string; rent: number; leaseEnd: string }[] = [];
 
 const floorSummary = [
-  { floor: "Ground Floor", total: 16, occupied: 15, revenue: 248000 },
-  { floor: "First Floor", total: 12, occupied: 11, revenue: 187000 },
-  { floor: "Second Floor", total: 4, occupied: 3, revenue: 45000 },
+  { floor: "Ground Floor", total: 0, occupied: 0, revenue: 0 },
+  { floor: "First Floor", total: 0, occupied: 0, revenue: 0 },
+  { floor: "Second Floor", total: 0, occupied: 0, revenue: 0 },
 ];
 
-const totalShops = 32;
-const occupiedShops = 29;
-const vacantShops = totalShops - occupiedShops;
-const occupancyRate = Math.round((occupiedShops / totalShops) * 100);
+const totalShops = 0;
+const occupiedShops = 0;
+const vacantShops = 0;
+const occupancyRate = 0;
 
 function renderSection(section: PageSectionWithTemplate) {
   switch (section.title) {
@@ -64,7 +55,7 @@ function renderSection(section: PageSectionWithTemplate) {
               </div>
               <div>
                 <p className="text-pink-100 text-sm">Monthly Revenue</p>
-                <p className="text-3xl font-bold">$480K</p>
+                <p className="text-3xl font-bold">$0</p>
               </div>
             </div>
           </CardContent>
@@ -85,12 +76,12 @@ function renderSection(section: PageSectionWithTemplate) {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Occupancy</span>
-                      <span className="font-medium">{Math.round((floor.occupied / floor.total) * 100)}%</span>
+                      <span className="font-medium">{floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div 
                         className="bg-primary rounded-full h-2" 
-                        style={{ width: `${(floor.occupied / floor.total) * 100}%` }}
+                        style={{ width: `${floor.total > 0 ? (floor.occupied / floor.total) * 100 : 0}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-sm pt-2">
@@ -117,6 +108,9 @@ function renderSection(section: PageSectionWithTemplate) {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {shopData.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-full">No shops to display.</p>
+                )}
                 {shopData.map((shop) => (
                   <Card 
                     key={shop.id} 
@@ -154,32 +148,7 @@ function renderSection(section: PageSectionWithTemplate) {
     case "Lease Renewals":
       return (
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="font-medium">Jewelry Store (G-03)</p>
-                <p className="text-sm text-muted-foreground">Diamond Dreams</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-yellow-700">Expires Jun 2026</p>
-              <Button size="sm" variant="outline" className="mt-1">Renew</Button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-lg border">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">Sports Store (F-02)</p>
-                <p className="text-sm text-muted-foreground">FitGear</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Expires Aug 2026</p>
-              <Button size="sm" variant="outline" className="mt-1">View</Button>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground">No lease renewals to display.</p>
         </div>
       );
 
@@ -215,7 +184,7 @@ export default function AssetLeasePage() {
     <ServicePageLayout
       serviceUrl={SERVICE_URL}
       title="Asset and Lease Management"
-      subtitle="Boutique Mall - 32 retail units management"
+      subtitle="Boutique Mall - retail units management"
       collaborationSection="asset_lease"
       externalLinks={[
         { label: "Launch Power BI", url: "https://app.powerbi.com", icon: BarChart3 },

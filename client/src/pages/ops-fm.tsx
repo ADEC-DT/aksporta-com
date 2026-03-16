@@ -25,31 +25,25 @@ import type { PageSectionWithTemplate } from "@shared/schema";
 const SERVICE_URL = "/ops-fm";
 
 const fmCategories = [
-  { id: "maintenance", name: "Maintenance Requests", count: 24, icon: Wrench, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
-  { id: "inspections", name: "Inspections & Audits", count: 12, icon: ClipboardCheck, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
-  { id: "assets", name: "Asset Management", count: 156, icon: Building, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
-  { id: "safety", name: "Safety & Compliance", count: 8, icon: Shield, iconBg: "bg-orange-100 text-orange-600 dark:bg-orange-900/30" },
+  { id: "maintenance", name: "Maintenance Requests", count: 0, icon: Wrench, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
+  { id: "inspections", name: "Inspections & Audits", count: 0, icon: ClipboardCheck, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
+  { id: "assets", name: "Asset Management", count: 0, icon: Building, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
+  { id: "safety", name: "Safety & Compliance", count: 0, icon: Shield, iconBg: "bg-orange-100 text-orange-600 dark:bg-orange-900/30" },
 ];
 
-const activeWorkOrders = [
-  { id: "WO-2026-001", title: "HVAC Maintenance - Building A", priority: "high", status: "in_progress", assignee: "Ahmed K.", due: "Today" },
-  { id: "WO-2026-002", title: "Electrical Inspection - Floor 3", priority: "medium", status: "pending", assignee: "Sara M.", due: "Tomorrow" },
-  { id: "WO-2026-003", title: "Plumbing Repair - Restroom B2", priority: "high", status: "in_progress", assignee: "Omar H.", due: "Today" },
-  { id: "WO-2026-004", title: "Fire Safety Check - All Floors", priority: "medium", status: "scheduled", assignee: "Team Alpha", due: "Jan 25" },
-  { id: "WO-2026-005", title: "Generator Service", priority: "low", status: "completed", assignee: "External", due: "Completed" },
-];
+const activeWorkOrders: { id: string; title: string; priority: string; status: string; assignee: string; due: string }[] = [];
 
 const facilityStats = [
-  { name: "Open Work Orders", value: "24", icon: Wrench, trend: "-3 from last week" },
-  { name: "Scheduled Maintenance", value: "12", icon: Calendar, trend: "Next 7 days" },
-  { name: "Completed This Month", value: "87", icon: CheckCircle2, trend: "+15% vs last month" },
-  { name: "Overdue Tasks", value: "3", icon: AlertTriangle, trend: "Requires attention" },
+  { name: "Open Work Orders", value: "0", icon: Wrench, trend: "" },
+  { name: "Scheduled Maintenance", value: "0", icon: Calendar, trend: "" },
+  { name: "Completed This Month", value: "0", icon: CheckCircle2, trend: "" },
+  { name: "Overdue Tasks", value: "0", icon: AlertTriangle, trend: "" },
 ];
 
 const utilityMonitoring = [
-  { name: "Electricity", value: "2,450 kWh", status: "normal", icon: Zap },
-  { name: "HVAC System", value: "22°C", status: "normal", icon: Thermometer },
-  { name: "Water Usage", value: "1,200 L", status: "high", icon: Droplets },
+  { name: "Electricity", value: "0 kWh", status: "normal", icon: Zap },
+  { name: "HVAC System", value: "0°C", status: "normal", icon: Thermometer },
+  { name: "Water Usage", value: "0 L", status: "normal", icon: Droplets },
 ];
 
 function getPriorityBadge(priority: string) {
@@ -127,6 +121,9 @@ function renderSection(section: PageSectionWithTemplate) {
     case "Active Work Orders":
       return (
         <div className="space-y-3">
+          {activeWorkOrders.length === 0 && (
+            <p className="text-sm text-muted-foreground">No active work orders.</p>
+          )}
           {activeWorkOrders.map((order) => (
             <div 
               key={order.id}

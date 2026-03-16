@@ -25,43 +25,15 @@ import type { PageSectionWithTemplate } from "@shared/schema";
 const SERVICE_URL = "/legal";
 
 const legalCategories = [
-  { id: "contracts", name: "Contracts & Agreements", count: 24, icon: FileCheck, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
-  { id: "compliance", name: "Compliance & Regulatory", count: 18, icon: Shield, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
-  { id: "corporate", name: "Corporate Governance", count: 12, icon: Building2, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
-  { id: "ip", name: "Intellectual Property", count: 8, icon: ScrollText, iconBg: "bg-orange-100 text-orange-600 dark:bg-orange-900/30" },
+  { id: "contracts", name: "Contracts & Agreements", count: 0, icon: FileCheck, iconBg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
+  { id: "compliance", name: "Compliance & Regulatory", count: 0, icon: Shield, iconBg: "bg-green-100 text-green-600 dark:bg-green-900/30" },
+  { id: "corporate", name: "Corporate Governance", count: 0, icon: Building2, iconBg: "bg-purple-100 text-purple-600 dark:bg-purple-900/30" },
+  { id: "ip", name: "Intellectual Property", count: 0, icon: ScrollText, iconBg: "bg-orange-100 text-orange-600 dark:bg-orange-900/30" },
 ];
 
-const recentDocuments = [
-  { id: 1, name: "Standard Vendor Agreement Template", type: "DOCX", size: "156 KB", date: "Jan 20, 2026", status: "active" },
-  { id: 2, name: "NDA - Mutual Non-Disclosure", type: "PDF", size: "89 KB", date: "Jan 18, 2026", status: "active" },
-  { id: 3, name: "Employment Contract Template v3", type: "DOCX", size: "234 KB", date: "Jan 15, 2026", status: "active" },
-  { id: 4, name: "Data Processing Agreement", type: "PDF", size: "312 KB", date: "Jan 12, 2026", status: "review" },
-  { id: 5, name: "Lease Agreement - Commercial", type: "PDF", size: "445 KB", date: "Jan 10, 2026", status: "active" },
-];
+const recentDocuments: { id: number; name: string; type: string; size: string; date: string; status: string }[] = [];
 
-const complianceAlerts = [
-  { 
-    id: 1, 
-    title: "Annual Privacy Policy Review", 
-    description: "Required annual review due by February 28, 2026",
-    priority: "medium",
-    dueDate: "Feb 28, 2026"
-  },
-  { 
-    id: 2, 
-    title: "Vendor Contract Renewals", 
-    description: "3 vendor contracts expiring in the next 30 days require review",
-    priority: "high",
-    dueDate: "Feb 15, 2026"
-  },
-  { 
-    id: 3, 
-    title: "Employment Law Update", 
-    description: "New labor regulations effective March 1 - policy updates needed",
-    priority: "medium",
-    dueDate: "Mar 01, 2026"
-  },
-];
+const complianceAlerts: { id: number; title: string; description: string; priority: string; dueDate: string }[] = [];
 
 const quickLinks = [
   { name: "Contract Request Form", icon: FileText },
@@ -147,6 +119,9 @@ export default function LegalPage() {
       case "Recent Documents":
         return (
           <div className="space-y-3">
+            {recentDocuments.length === 0 && (
+              <p className="text-sm text-muted-foreground">No documents to display.</p>
+            )}
             {recentDocuments.map((doc) => (
               <div 
                 key={doc.id}
@@ -178,6 +153,9 @@ export default function LegalPage() {
       case "Compliance Alerts":
         return (
           <div className="space-y-4">
+            {complianceAlerts.length === 0 && (
+              <p className="text-sm text-muted-foreground">No compliance alerts.</p>
+            )}
             {complianceAlerts.map((alert) => (
               <div 
                 key={alert.id}

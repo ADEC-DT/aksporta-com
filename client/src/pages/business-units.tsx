@@ -19,9 +19,9 @@ const businessUnits = [
     accentColor: "from-pink-500 to-rose-500",
     status: "Active",
     metrics: [
-      { label: "OCCUPANCY", value: "92%" },
-      { label: "REVENUE", value: "$1.2M" },
-      { label: "FOOTFALL", value: "15k/day" },
+      { label: "OCCUPANCY", value: "0%" },
+      { label: "REVENUE", value: "$0" },
+      { label: "FOOTFALL", value: "0" },
     ],
     url: "/asset-lease",
   },
@@ -34,9 +34,9 @@ const businessUnits = [
     accentColor: "from-emerald-500 to-teal-500",
     status: "Active",
     metrics: [
-      { label: "STABLES", value: "45/50" },
-      { label: "HORSES", value: "42" },
-      { label: "REVENUE", value: "$450k" },
+      { label: "STABLES", value: "0" },
+      { label: "HORSES", value: "0" },
+      { label: "REVENUE", value: "$0" },
     ],
     url: "/equestrian",
   },
@@ -49,9 +49,9 @@ const businessUnits = [
     accentColor: "from-blue-500 to-indigo-500",
     status: "Active",
     metrics: [
-      { label: "EMPLOYEES", value: "250" },
-      { label: "DEPARTMENTS", value: "8" },
-      { label: "PROJECTS", value: "12" },
+      { label: "EMPLOYEES", value: "0" },
+      { label: "DEPARTMENTS", value: "0" },
+      { label: "PROJECTS", value: "0" },
     ],
     url: "/erp",
   },
@@ -99,19 +99,19 @@ function renderSection(section: PageSectionWithTemplate) {
               <h2 className="text-lg font-semibold mb-4 font-outfit">Cross-Unit Analytics</h2>
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <p className="text-3xl font-bold text-primary">$1.65M</p>
+                  <p className="text-3xl font-bold text-primary">$0</p>
                   <p className="text-sm text-muted-foreground">Combined Revenue</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <p className="text-3xl font-bold text-primary">297</p>
+                  <p className="text-3xl font-bold text-primary">0</p>
                   <p className="text-sm text-muted-foreground">Total Employees</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <p className="text-3xl font-bold text-primary">94%</p>
+                  <p className="text-3xl font-bold text-primary">0%</p>
                   <p className="text-sm text-muted-foreground">Avg. Occupancy</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <p className="text-3xl font-bold text-primary">12</p>
+                  <p className="text-3xl font-bold text-primary">0</p>
                   <p className="text-sm text-muted-foreground">Active Projects</p>
                 </div>
               </div>
