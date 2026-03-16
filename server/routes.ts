@@ -1668,9 +1668,13 @@ export async function registerRoutes(
   });
 
   // Delete ticket (admin only)
-  app.delete("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.delete("/api/admin/tickets/:id", isAuthenticated, async (req, res) => {
     try {
       const user = (req as any).managedUser as ManagedUser;
+      if (user.role !== "admin" && user.role !== "superadmin") {
+        return res.status(403).json({ message: "Only admins can delete tickets" });
+      }
+
       const ticket = await storage.getTicket(req.params.id);
       
       if (!ticket) {

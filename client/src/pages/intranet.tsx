@@ -58,7 +58,10 @@ import {
   Eye,
   ChevronRight,
   AlertTriangle,
-  CircleDot
+  CircleDot,
+  Pencil,
+  X,
+  Save
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { Ticket as TicketType, TicketComment, Requisition } from "@shared/schema";
@@ -141,6 +144,9 @@ export default function IntranetPage() {
   const [priority, setPriority] = useState("medium");
   const [category, setCategory] = useState("it_support");
   const [subcategory, setSubcategory] = useState("");
+  const [isEditingTicket, setIsEditingTicket] = useState(false);
+  const [editSubject, setEditSubject] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -334,13 +340,76 @@ export default function IntranetPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-lg">Ticket Details</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Ticket Details</CardTitle>
+                {!isAdmin && selectedTicket.userId === user?.id && selectedTicket.status === "new" && !isEditingTicket && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingTicket(true);
+                      setEditSubject(selectedTicket.subject);
+                      setEditDescription(selectedTicket.description);
+                    }}
+                    data-testid="button-edit-ticket"
+                  >
+                    <Pencil className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {isEditingTicket ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Subject</Label>
+                    <Input
+                      value={editSubject}
+                      onChange={(e) => setEditSubject(e.target.value)}
+                      data-testid="input-edit-subject"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Description</Label>
+                    <Textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      rows={4}
+                      data-testid="input-edit-description"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        updateTicketMutation.mutate({
+                          id: selectedTicket.id,
+                          data: { subject: editSubject, description: editDescription },
+                        });
+                        setSelectedTicket({ ...selectedTicket, subject: editSubject, description: editDescription });
+                        setIsEditingTicket(false);
+                      }}
+                      disabled={updateTicketMutation.isPending || !editSubject.trim() || !editDescription.trim()}
+                      data-testid="button-save-edit"
+                    >
+                      <Save className="h-4 w-4 mr-1" /> Save
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingTicket(false)}
+                      data-testid="button-cancel-edit"
+                    >
+                      <X className="h-4 w-4 mr-1" /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <div>
                 <Label className="text-muted-foreground text-xs">Description</Label>
                 <p className="mt-1 text-sm whitespace-pre-wrap">{selectedTicket.description}</p>
               </div>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>

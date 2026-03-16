@@ -106,6 +106,7 @@ export interface IStorage {
   getAllTickets(options?: { status?: string; category?: string; limit?: number; offset?: number; userId?: string }): Promise<{ tickets: Ticket[]; total: number }>;
   updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | undefined>;
   deleteTicket(id: string): Promise<boolean>;
+  initTicketSequence(): Promise<void>;
   
   // Ticket comments
   createTicketComment(comment: InsertTicketComment): Promise<TicketComment>;
@@ -561,28 +562,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Ticket methods
+  async initTicketSequence(): Promise<void> {
+    await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS ticket_tracking_seq`);
+    const [maxRow] = await db.select({
+      maxNum: sql<number>`COALESCE(MAX(
+        CASE WHEN tracking_id ~ '^DT[0-9]+$'
+          THEN CAST(SUBSTRING(tracking_id FROM 3) AS INTEGER)
+          ELSE 0
+        END
+      ), 0)`
+    }).from(tickets);
+    const maxNum = Number(maxRow.maxNum) || 0;
+    if (maxNum > 0) {
+      await db.execute(sql`SELECT setval('ticket_tracking_seq', ${maxNum})`);
+    }
+  }
+
   async createTicket(ticketData: InsertTicket): Promise<Ticket> {
-    const result = await db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(42)`);
+    const [seqRow] = await db.select({
+      nextNum: sql<number>`nextval('ticket_tracking_seq')`
+    }).from(sql`generate_series(1,1)` as any);
+    const trackingId = `DT${seqRow.nextNum}`;
 
-      const [maxRow] = await tx.execute(sql`
-        SELECT COALESCE(MAX(
-          CASE WHEN tracking_id ~ '^DT[0-9]+$'
-            THEN CAST(SUBSTRING(tracking_id FROM 3) AS INTEGER)
-            ELSE 0
-          END
-        ), 0) + 1 AS next_num
-        FROM tickets
-      `);
-      const trackingId = `DT${maxRow.next_num}`;
-
-      const [ticket] = await tx.insert(tickets).values({
-        ...ticketData,
-        trackingId,
-      }).returning();
-      return ticket;
-    });
-    return result;
+    const [ticket] = await db.insert(tickets).values({
+      ...ticketData,
+      trackingId,
+    }).returning();
+    return ticket;
   }
 
   async getTicket(id: string): Promise<Ticket | undefined> {

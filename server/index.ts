@@ -148,6 +148,7 @@ app.use((req, res, next) => {
   await seedSpacesAndProjects();
   await seedStableMasterData();
   await seedDataSources();
+  await storage.initTicketSequence();
   
   await registerRoutes(httpServer, app);
 
