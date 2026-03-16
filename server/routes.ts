@@ -33,14 +33,6 @@ const isAdmin: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const isAdminOrAuthenticated: RequestHandler = async (req, res, next) => {
-  const managedUser = (req as any).managedUser as ManagedUser;
-  if (!managedUser) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  next();
-};
-
 // Middleware to check if user is superadmin
 const isSuperAdmin: RequestHandler = async (req, res, next) => {
   const managedUser = (req as any).managedUser as ManagedUser;
@@ -1639,7 +1631,11 @@ export async function registerRoutes(
       }
 
       const updateData: Partial<Ticket> & typeof parsed.data = { ...parsed.data };
-      
+
+      if (parsed.data.category && parsed.data.category !== ticket.category) {
+        updateData.subcategory = null;
+      }
+
       if (parsed.data.status === "resolved" && ticket.status !== "resolved") {
         updateData.resolvedAt = new Date();
       }
