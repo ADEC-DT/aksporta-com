@@ -44,7 +44,19 @@ client/           # React frontend application
     lib/          # Utilities: queryClient, ticket-config (shared status/severity/category), project-config (shared project types/config)
 server/           # Express backend
   index.ts        # Server entry point
-  routes.ts       # API route definitions
+  routes.ts       # Thin delegator to routes/index.ts
+  routes/         # Domain-specific route modules
+    index.ts      # Orchestrator that registers all domain routes
+    helpers.ts    # Shared middleware (isAdmin, isSuperAdmin, etc.) and utilities
+    admin.ts      # User management, settings, MFA, services, audit logs
+    tickets.ts    # Tickets, comments, help center
+    customers.ts  # Customer CRUD, import, merge, duplicates
+    data-sources.ts # Dynamic data sources, import, records
+    projects.ts   # Blueprints, spaces, project groups, projects, assignments, comments, templates
+    requisitions.ts # Procurement requisitions
+    equestrian.ts # Stable Master (stables, boxes, horses, customers, billing, invoices)
+    erp-dashboards.ts # ERP dashboard data (NetSuite, HR, Livery) with isPlaceholder:true
+    sso.ts        # SSO token generation/verification, data cleanup
   storage.ts      # Data access layer
 shared/           # Shared code between client/server
   schema.ts       # Database schema and types
