@@ -4267,48 +4267,87 @@ export async function registerRoutes(
   const ssoVerifyLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
-    message: { message: "Too many verification attempts, please try again later" },
     standardHeaders: true,
     legacyHeaders: false,
+    handler: async (req: any, res: any) => {
+      const clientIp = req.ip || req.socket?.remoteAddress || "unknown";
+      try { await storage.createSsoAuditLog({ userId: "unknown", ip: clientIp, action: "verify-token", success: false, details: "Rate limited" }); } catch {}
+      res.status(429).json({ message: "Too many verification attempts, please try again later" });
+    },
   });
 
   // SSO token endpoints
-  app.post("/api/sso/generate-token", isAuthenticated, async (req: any, res) => {
+  const ssoGenerateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    keyGenerator: (req: any) => req.session?.userId || "anonymous",
+    message: { message: "Too many token generation attempts, please try again later" },
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false, trustProxy: false },
+    handler: async (req: any, res: any) => {
+      const clientIp = req.ip || req.socket?.remoteAddress || "unknown";
+      try { await storage.createSsoAuditLog({ userId: req.session?.userId || "unknown", ip: clientIp, action: "generate-token", success: false, details: "Rate limited" }); } catch {}
+      res.status(429).json({ message: "Too many token generation attempts, please try again later" });
+    },
+  });
+
+  app.post("/api/sso/generate-token", isAuthenticated, ssoGenerateLimiter, async (req: any, res) => {
+    const clientIp = req.ip || req.socket?.remoteAddress || "unknown";
     try {
       const user = req.managedUser;
-      if (!user) return res.status(401).json({ message: "User not found" });
+      if (!user) {
+        await storage.createSsoAuditLog({ userId: req.session?.userId || "unknown", ip: clientIp, action: "generate-token", success: false, details: "User not found" });
+        return res.status(401).json({ message: "User not found" });
+      }
       const isSuperOrAdmin = user.role === "superadmin" || user.role === "admin";
       if (!isSuperOrAdmin) {
         const allowed = user.allowedSubmodules as Record<string, string[]> | null;
         const hasAccess = allowed && allowed["equestrian"] && (
           allowed["equestrian"].includes("stable-master") || allowed["equestrian"].includes("stable-assets")
         );
-        if (!hasAccess) return res.status(403).json({ message: "No access to equestrian module" });
+        if (!hasAccess) {
+          await storage.createSsoAuditLog({ userId: req.session.userId, ip: clientIp, action: "generate-token", success: false, details: "No access to equestrian module" });
+          return res.status(403).json({ message: "No access to equestrian module" });
+        }
       }
       const crypto = await import("crypto");
       const token = crypto.randomBytes(64).toString("hex");
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
       await storage.createSsoToken(token, req.session.userId, expiresAt);
-      const url = `https://stable-master.replit.app/sso?token=${token}`;
-      res.json({ token, url });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+      const stableMasterUrl = (process.env.STABLE_MASTER_URL || "https://stable-master.replit.app").replace(/\/+$/, "");
+      const url = `${stableMasterUrl}/sso?token=${token}`;
+      await storage.createSsoAuditLog({ userId: req.session.userId, ip: clientIp, action: "generate-token", success: true });
+      res.json({ url });
+    } catch (e: any) {
+      try { await storage.createSsoAuditLog({ userId: req.session?.userId || "unknown", ip: clientIp, action: "generate-token", success: false, details: e.message }); } catch {}
+      res.status(500).json({ message: e.message });
+    }
   });
 
   app.options("/api/sso/verify-token", ssoVerifyCors);
   app.post("/api/sso/verify-token", ssoVerifyCors, ssoVerifyLimiter, async (req, res) => {
+    const clientIp = req.ip || req.socket?.remoteAddress || "unknown";
     try {
       const { token } = req.body;
       if (!token || typeof token !== "string") {
+        await storage.createSsoAuditLog({ userId: "unknown", ip: clientIp, action: "verify-token", success: false, details: "Token is required or invalid type" });
         return res.status(400).json({ message: "Token is required" });
       }
       const result = await storage.validateAndConsumeSsoToken(token);
       if (!result) {
+        await storage.createSsoAuditLog({ userId: "unknown", ip: clientIp, action: "verify-token", success: false, details: "Invalid, expired, or already used token" });
         return res.status(401).json({ message: "Invalid, expired, or already used token" });
       }
       const user = await storage.getManagedUser(result.userId);
       if (!user || !user.isActive) {
+        await storage.createSsoAuditLog({ userId: result.userId, ip: clientIp, action: "verify-token", success: false, details: "User not found or inactive" });
         return res.status(401).json({ message: "User not found or inactive" });
       }
+      await storage.createSsoAuditLog({ userId: result.userId, ip: clientIp, action: "verify-token", success: true });
+      // NOTE for Stable Master consumer: After successful verification, call
+      // history.replaceState(null, '', '/') to strip the SSO token from the
+      // browser URL bar and prevent it from leaking via history or Referer header.
       res.json({
         id: user.id,
         email: user.email,
@@ -4317,7 +4356,10 @@ export async function registerRoutes(
         lastName: user.lastName,
         role: user.role,
       });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      try { await storage.createSsoAuditLog({ userId: "unknown", ip: clientIp, action: "verify-token", success: false, details: e.message }); } catch {}
+      res.status(500).json({ message: e.message });
+    }
   });
 
   return httpServer;

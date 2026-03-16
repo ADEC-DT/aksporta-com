@@ -112,6 +112,23 @@ export const insertSsoTokenSchema = createInsertSchema(ssoTokens).omit({ id: tru
 export type InsertSsoToken = z.infer<typeof insertSsoTokenSchema>;
 export type SsoToken = typeof ssoTokens.$inferSelect;
 
+export const ssoAuditLogs = pgTable("sso_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  ip: varchar("ip").notNull(),
+  action: varchar("action").notNull(),
+  success: boolean("success").notNull(),
+  details: varchar("details"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("sso_audit_logs_user_idx").on(table.userId),
+  actionIdx: index("sso_audit_logs_action_idx").on(table.action),
+}));
+
+export const insertSsoAuditLogSchema = createInsertSchema(ssoAuditLogs).omit({ id: true, createdAt: true });
+export type InsertSsoAuditLog = z.infer<typeof insertSsoAuditLogSchema>;
+export type SsoAuditLog = typeof ssoAuditLogs.$inferSelect;
+
 export const insertManagedUserSchema = createInsertSchema(managedUsers).omit({
   id: true,
   createdAt: true,

@@ -39,6 +39,7 @@ import {
   smInvoiceLines, type SmInvoiceLine, type InsertSmInvoiceLine,
   passwordResetTokens, type PasswordResetToken,
   ssoTokens, type SsoToken,
+  ssoAuditLogs, type SsoAuditLog, type InsertSsoAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc, inArray } from "drizzle-orm";
@@ -61,7 +62,11 @@ export interface IStorage {
   // SSO tokens
   createSsoToken(token: string, userId: string, expiresAt: Date): Promise<SsoToken>;
   validateAndConsumeSsoToken(token: string): Promise<{ userId: string } | null>;
+  invalidateUserSsoTokens(userId: string): Promise<number>;
   cleanupExpiredTokens(): Promise<number>;
+
+  // SSO audit logs
+  createSsoAuditLog(log: InsertSsoAuditLog): Promise<SsoAuditLog>;
 
   // Stats
   getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }>;
@@ -373,6 +378,19 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!consumed) return null;
     return { userId: consumed.userId };
+  }
+
+  async invalidateUserSsoTokens(userId: string): Promise<number> {
+    const invalidated = await db.update(ssoTokens)
+      .set({ used: true })
+      .where(and(eq(ssoTokens.userId, userId), eq(ssoTokens.used, false)))
+      .returning();
+    return invalidated.length;
+  }
+
+  async createSsoAuditLog(log: InsertSsoAuditLog): Promise<SsoAuditLog> {
+    const [created] = await db.insert(ssoAuditLogs).values(log).returning();
+    return created;
   }
 
   async cleanupExpiredTokens(): Promise<number> {

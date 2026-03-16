@@ -23,6 +23,7 @@ import {
   Package,
   CreditCard,
   Fence,
+  Loader2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +47,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ExternalService, AllowedSubmodules } from "@shared/schema";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 const secondaryNavItems = [
   {
@@ -65,6 +68,8 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
   const { isPinned, togglePinned, state } = useSidebar();
+  const { toast } = useToast();
+  const [ssoLoading, setSsoLoading] = useState(false);
 
   const { data: enabledServices } = useQuery<ExternalService[]>({
     queryKey: ["/api/services/enabled"],
@@ -226,22 +231,30 @@ export function AppSidebar() {
                               <SidebarMenuSubButton
                                 data-testid="nav-sub-equestrian-stable-master-v1"
                                 onClick={async () => {
+                                  if (ssoLoading) return;
+                                  setSsoLoading(true);
                                   try {
                                     const res = await fetch("/api/sso/generate-token", { method: "POST", headers: { "Content-Type": "application/json" } });
-                                    if (res.ok) {
-                                      const data = await res.json();
-                                      window.open(data.url, "_blank");
-                                    } else {
-                                      window.open("https://stable-master.replit.app/", "_blank");
+                                    if (!res.ok) {
+                                      const errorData = await res.json().catch(() => ({ message: "Failed to generate SSO token" }));
+                                      toast({ title: "SSO Error", description: errorData.message || "Could not generate access token. Please try again.", variant: "destructive" });
+                                      return;
+                                    }
+                                    const data = await res.json();
+                                    const popup = window.open(data.url, "_blank");
+                                    if (!popup || popup.closed) {
+                                      toast({ title: "Popup Blocked", description: "Your browser blocked the popup. Please allow popups for this site and try again.", variant: "destructive" });
                                     }
                                   } catch {
-                                    window.open("https://stable-master.replit.app/", "_blank");
+                                    toast({ title: "Connection Error", description: "Could not connect to the server. Please check your connection and try again.", variant: "destructive" });
+                                  } finally {
+                                    setSsoLoading(false);
                                   }
                                 }}
                                 className="cursor-pointer"
                               >
-                                <Fence className="h-3.5 w-3.5" />
-                                <span>Stable Master MVP</span>
+                                {ssoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Fence className="h-3.5 w-3.5" />}
+                                <span>{ssoLoading ? "Loading..." : "Stable Master MVP"}</span>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                             )}

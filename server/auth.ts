@@ -89,7 +89,16 @@ export function registerAuthRoutes(app: Express) {
   });
 
   // Logout endpoint
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", async (req, res) => {
+    const userId = req.session.userId;
+    if (userId) {
+      try {
+        await storage.invalidateUserSsoTokens(userId);
+      } catch (err) {
+        console.error("Failed to invalidate SSO tokens on logout:", err);
+        return res.status(500).json({ message: "Logout failed: could not invalidate active tokens" });
+      }
+    }
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
