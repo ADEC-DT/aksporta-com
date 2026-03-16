@@ -50,6 +50,8 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.
 
 [userenv.shared]
 APP_URL = "https://aksportal.com"
+SMTP_HOST = "smtp.office365.com"
+SMTP_PORT = "587"
 
 [postMerge]
 path = "scripts/post-merge.sh"

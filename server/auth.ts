@@ -150,23 +150,21 @@ export function registerAuthRoutes(app: Express) {
       const resetUrl = `${baseUrl}/reset-password/${token}`;
       let emailSent = false;
       try {
-        const { getUncachableSendGridClient } = await import("./sendgrid");
-        const { client, fromEmail } = await getUncachableSendGridClient();
-        await client.send({
+        const { sendEmail } = await import("./email");
+        await sendEmail({
           to: user.email,
-          from: fromEmail,
           subject: "Password Reset — Unified Portal",
           html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to reset your password</a></p><p>This link expires in 1 hour.</p><p>If you didn't request this, you can ignore this email.</p>`,
         });
         emailSent = true;
         console.log(`Password reset email sent to ${user.email}`);
       } catch (emailErr: any) {
-        const errMsg = emailErr?.response?.body?.errors?.[0]?.message || emailErr?.message || "Unknown error";
+        const errMsg = emailErr?.message || "Unknown error";
         console.error(`[WARN] Failed to send password reset email to ${user.email}: ${errMsg}`);
       }
 
       if (!emailSent) {
-        console.warn(`[WARN] Password reset requested for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
+        console.warn(`[WARN] Password reset requested for ${user.email} but email was NOT delivered. Check SMTP configuration.`);
       }
 
       const showDevToken = process.env.NODE_ENV === "development" && process.env.DEV_SHOW_RESET_TOKEN === "true";
@@ -202,17 +200,15 @@ export function registerAuthRoutes(app: Express) {
       const user = await storage.getManagedUser(resetToken.userId);
       if (user) {
         try {
-          const { getUncachableSendGridClient } = await import("./sendgrid");
-          const { client, fromEmail } = await getUncachableSendGridClient();
-          await client.send({
+          const { sendEmail } = await import("./email");
+          await sendEmail({
             to: user.email,
-            from: fromEmail,
             subject: "Password Changed — Unified Portal",
             html: `<p>Your password was successfully changed.</p><p>If you did not make this change, please contact support immediately.</p>`,
           });
           console.log(`Password change confirmation email sent to ${user.email}`);
         } catch (emailErr: any) {
-          const errMsg = emailErr?.response?.body?.errors?.[0]?.message || emailErr?.message || "Unknown error";
+          const errMsg = emailErr?.message || "Unknown error";
           console.error(`[WARN] Failed to send password change confirmation to ${user.email}: ${errMsg}`);
         }
       }
@@ -258,23 +254,21 @@ export function registerAuthRoutes(app: Express) {
 
       let emailSent = false;
       try {
-        const { getUncachableSendGridClient } = await import("./sendgrid");
-        const { client, fromEmail } = await getUncachableSendGridClient();
-        await client.send({
+        const { sendEmail } = await import("./email");
+        await sendEmail({
           to: user.email,
-          from: fromEmail,
           subject: "Password Reset — Unified Portal",
           html: `<p>An administrator has initiated a password reset for your account.</p><p><a href="${resetUrl}">Click here to set your new password</a></p><p>This link expires in 24 hours.</p>`,
         });
         emailSent = true;
         console.log(`Admin-initiated password reset email sent to ${user.email}`);
       } catch (emailErr: any) {
-        const errMsg = emailErr?.response?.body?.errors?.[0]?.message || emailErr?.message || "Unknown error";
+        const errMsg = emailErr?.message || "Unknown error";
         console.error(`[WARN] Failed to send admin reset email to ${user.email}: ${errMsg}`);
       }
 
       if (!emailSent) {
-        console.warn(`[WARN] Admin reset link generated for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
+        console.warn(`[WARN] Admin reset link generated for ${user.email} but email was NOT delivered. Check SMTP configuration.`);
       }
 
       res.json({ resetUrl, emailSent });
