@@ -22,7 +22,7 @@ export async function sendEmail(options: {
   html: string;
 }) {
   initSendGrid();
-  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@aksportal.com";
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "dt.office@adec.ae";
 
   await sgMail.send({
     to: options.to,

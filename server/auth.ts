@@ -164,7 +164,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       if (!emailSent) {
-        console.warn(`[WARN] Password reset requested for ${user.email} but email was NOT delivered. Check SMTP configuration.`);
+        console.warn(`[WARN] Password reset requested for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
       }
 
       const showDevToken = process.env.NODE_ENV === "development" && process.env.DEV_SHOW_RESET_TOKEN === "true";
@@ -268,7 +268,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       if (!emailSent) {
-        console.warn(`[WARN] Admin reset link generated for ${user.email} but email was NOT delivered. Check SMTP configuration.`);
+        console.warn(`[WARN] Admin reset link generated for ${user.email} but email was NOT delivered. Check SendGrid configuration.`);
       }
 
       res.json({ resetUrl, emailSent });
