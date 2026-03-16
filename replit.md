@@ -40,8 +40,8 @@ client/           # React frontend application
     components/   # Reusable UI components
     components/ui # shadcn/ui primitives
     pages/        # Route-level page components
-    hooks/        # Custom React hooks
-    lib/          # Utilities and query client
+    hooks/        # Custom React hooks (use-auth, use-toast, use-debounce)
+    lib/          # Utilities: queryClient, ticket-config (shared status/severity/category), project-config (shared project types/config)
 server/           # Express backend
   index.ts        # Server entry point
   routes.ts       # API route definitions

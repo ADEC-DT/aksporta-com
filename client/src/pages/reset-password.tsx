@@ -35,14 +35,20 @@ export default function ResetPasswordPage() {
     },
   });
 
+  const hasMinLength = newPassword.length >= 8;
+  const hasUppercase = /[A-Z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
+  const passwordValid = hasMinLength && hasUppercase && hasNumber && hasSpecial;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       toast({ title: "Passwords do not match", variant: "destructive" });
       return;
     }
-    if (newPassword.length < 8) {
-      toast({ title: "Password must be at least 8 characters", variant: "destructive" });
+    if (!passwordValid) {
+      toast({ title: "Password does not meet all requirements", variant: "destructive" });
       return;
     }
     resetMutation.mutate({ token, newPassword });
@@ -105,9 +111,27 @@ export default function ResetPasswordPage() {
                   data-testid="input-reset-confirm-password"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Password must be at least 8 characters with uppercase, number, and special character.
-              </p>
+              {newPassword.length > 0 && (
+                <div className="space-y-1 text-xs">
+                  <p className={hasMinLength ? "text-green-600" : "text-muted-foreground"}>
+                    {hasMinLength ? "\u2713" : "\u2022"} At least 8 characters
+                  </p>
+                  <p className={hasUppercase ? "text-green-600" : "text-muted-foreground"}>
+                    {hasUppercase ? "\u2713" : "\u2022"} One uppercase letter
+                  </p>
+                  <p className={hasNumber ? "text-green-600" : "text-muted-foreground"}>
+                    {hasNumber ? "\u2713" : "\u2022"} One number
+                  </p>
+                  <p className={hasSpecial ? "text-green-600" : "text-muted-foreground"}>
+                    {hasSpecial ? "\u2713" : "\u2022"} One special character
+                  </p>
+                </div>
+              )}
+              {newPassword.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Password must be at least 8 characters with uppercase, number, and special character.
+                </p>
+              )}
               <Button
                 type="submit"
                 className="w-full"

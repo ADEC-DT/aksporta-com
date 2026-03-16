@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { DetailPanel } from "@/components/detail-panel";
 import { 
@@ -15,53 +17,6 @@ import {
   Calendar,
   ExternalLink
 } from "lucide-react";
-
-const businessApplications = [
-  {
-    id: "netsuite",
-    name: "NetSuite",
-    description: "Financial management, procurement, and inventory control.",
-    category: "Finance",
-    status: "Operational",
-    statusColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-    iconBg: "bg-blue-600",
-    iconText: "N",
-    url: "/erp",
-  },
-  {
-    id: "kayan",
-    name: "Kayan HRMS",
-    description: "Employee directory, payroll, leaves, and performance.",
-    category: "Human Resources",
-    status: "New",
-    statusColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    iconBg: "bg-teal-500",
-    iconText: "K",
-    url: "/hr",
-  },
-  {
-    id: "powerbi",
-    name: "Power BI",
-    description: "Centralized business intelligence and reporting dashboards.",
-    category: "Analytics",
-    status: "Operational",
-    statusColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-    iconBg: "bg-yellow-500",
-    iconText: "P",
-    url: "/erp",
-  },
-  {
-    id: "lease",
-    name: "Asset & Lease",
-    description: "Asset tracking and lease agreement management.",
-    category: "Real Estate",
-    status: "Beta",
-    statusColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-    iconBg: "bg-indigo-500",
-    iconText: "A",
-    url: "/asset-lease",
-  },
-];
 
 interface IntranetItem {
   id: number;
@@ -81,11 +36,20 @@ const quickLinks = [
   { title: "Requisition ARF", icon: FileText, url: "/intranet/requisitions" },
 ];
 
+const serviceColors = [
+  "bg-blue-600", "bg-teal-500", "bg-yellow-500", "bg-indigo-500",
+  "bg-rose-500", "bg-emerald-500", "bg-violet-500", "bg-orange-500",
+];
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [selectedUpdate, setSelectedUpdate] = useState<IntranetItem | null>(null);
   
   const firstName = user?.firstName || user?.username || "User";
+
+  const { data: enabledServices = [], isLoading: servicesLoading } = useQuery<any[]>({
+    queryKey: ["/api/services/enabled"],
+  });
 
   return (
     <div className="flex flex-col min-h-full">
@@ -135,22 +99,28 @@ export default function Dashboard() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {businessApplications.map((app) => (
-                  <Link key={app.id} href={app.url}>
-                    <Card className="hover-elevate cursor-pointer" data-testid={`app-card-${app.id}`}>
+                {servicesLoading ? (
+                  <>
+                    {[1,2,3,4].map(i => (
+                      <Card key={i}><CardContent className="p-4"><Skeleton className="h-12 w-full" /></CardContent></Card>
+                    ))}
+                  </>
+                ) : enabledServices.map((svc: any, idx: number) => (
+                  <Link key={svc.id} href={svc.url || "#"}>
+                    <Card className="hover-elevate cursor-pointer" data-testid={`app-card-${svc.id}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          <div className={`flex h-9 w-9 items-center justify-center rounded-md ${app.iconBg} text-white text-sm font-bold flex-shrink-0`}>
-                            {app.iconText}
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-md ${serviceColors[idx % serviceColors.length]} text-white text-sm font-bold flex-shrink-0`}>
+                            {svc.name?.charAt(0) || "?"}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <h4 className="text-sm font-semibold">{app.name}</h4>
-                              <Badge variant="outline" className={`text-[10px] ${app.statusColor} border-0`}>
-                                {app.status}
+                              <h4 className="text-sm font-semibold">{svc.name}</h4>
+                              <Badge variant="outline" className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                                Active
                               </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{app.description}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{svc.description || svc.category || "Business module"}</p>
                           </div>
                         </div>
                       </CardContent>

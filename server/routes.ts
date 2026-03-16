@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, desc, asc } from "drizzle-orm";
 import { isAuthenticated } from "./auth";
-import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry } from "@shared/schema";
+import { type NetSuiteData, type HRData, type LiveryData, type ManagedUser, type InsertCustomer, insertCustomerSchema, insertCustomerProfileSchema, insertBlueprintSchema, insertSpaceSchema, insertProjectGroupSchema, insertProjectSchema, insertProjectAssignmentSchema, insertProjectCommentSchema, insertSectionTemplateSchema, insertPageSectionSchema, insertRequisitionSchema, importLogs, managedUsers, customers, tickets, dataSources, dsRecords, pageRegistry, insertSmStableSchema, insertSmBoxSchema, insertSmHorseSchema, insertSmCustomerSchema, insertSmItemServiceSchema, insertSmBillingElementSchema, insertSmLiveryPackageSchema, insertSmLiveryAgreementSchema, insertSmInvoiceSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSecret, verify, generateURI } from "otplib";
@@ -3657,14 +3657,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmStables()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/stables", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmStable(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmStableSchema.parse(req.body);
+      res.json(await storage.createSmStable(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/stables/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmStable(req.params.id, req.body);
+      const parsed = insertSmStableSchema.partial().parse(req.body);
+      const r = await storage.updateSmStable(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/stables/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -3679,14 +3689,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmBoxes(req.query.stableId as string | undefined)); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/boxes", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmBox(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmBoxSchema.parse(req.body);
+      res.json(await storage.createSmBox(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/boxes/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmBox(req.params.id, req.body);
+      const parsed = insertSmBoxSchema.partial().parse(req.body);
+      const r = await storage.updateSmBox(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/boxes/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -3712,14 +3732,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmHorses()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/horses", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmHorse(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmHorseSchema.parse(req.body);
+      res.json(await storage.createSmHorse(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/horses/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmHorse(req.params.id, req.body);
+      const parsed = insertSmHorseSchema.partial().parse(req.body);
+      const r = await storage.updateSmHorse(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/horses/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -3837,14 +3867,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmCustomers()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/customers", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmCustomer(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmCustomerSchema.parse(req.body);
+      res.json(await storage.createSmCustomer(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/customers/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmCustomer(req.params.id, req.body);
+      const parsed = insertSmCustomerSchema.partial().parse(req.body);
+      const r = await storage.updateSmCustomer(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/customers/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -3859,14 +3899,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmItemServices()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/item-services", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmItemService(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmItemServiceSchema.parse(req.body);
+      res.json(await storage.createSmItemService(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/item-services/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmItemService(req.params.id, req.body);
+      const parsed = insertSmItemServiceSchema.partial().parse(req.body);
+      const r = await storage.updateSmItemService(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/item-services/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -3994,26 +4044,23 @@ export async function registerRoutes(
       if (req.body.transactionDate && !req.body.billingMonth) {
         req.body.billingMonth = req.body.transactionDate.substring(0, 7);
       }
-      const { unitPrice, quantity, transactionDate } = req.body;
-      if (unitPrice !== undefined && (typeof unitPrice !== "number" || unitPrice < 0)) {
-        return res.status(400).json({ message: "unitPrice must be a non-negative number" });
-      }
-      if (quantity !== undefined) {
-        const q = typeof quantity === "string" ? parseFloat(quantity) : quantity;
-        if (isNaN(q) || q <= 0) return res.status(400).json({ message: "quantity must be a positive number" });
-      }
-      if (transactionDate && !/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) {
-        return res.status(400).json({ message: "transactionDate must be YYYY-MM-DD format" });
-      }
-      res.json(await storage.createSmBillingElement(req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+      const parsed = insertSmBillingElementSchema.parse(req.body);
+      res.json(await storage.createSmBillingElement(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/billing-elements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmBillingElement(req.params.id, req.body);
+      const parsed = insertSmBillingElementSchema.partial().parse(req.body);
+      const r = await storage.updateSmBillingElement(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/billing-elements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -4045,14 +4092,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmLiveryPackages()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/livery-packages", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmLiveryPackage(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmLiveryPackageSchema.parse(req.body);
+      res.json(await storage.createSmLiveryPackage(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/livery-packages/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmLiveryPackage(req.params.id, req.body);
+      const parsed = insertSmLiveryPackageSchema.partial().parse(req.body);
+      const r = await storage.updateSmLiveryPackage(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/livery-packages/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -4067,14 +4124,24 @@ export async function registerRoutes(
     try { res.json(await storage.getSmLiveryAgreements()); } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/sm/livery-agreements", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
-    try { res.json(await storage.createSmLiveryAgreement(req.body)); } catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const parsed = insertSmLiveryAgreementSchema.parse(req.body);
+      res.json(await storage.createSmLiveryAgreement(parsed));
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.patch("/api/sm/livery-agreements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
-      const r = await storage.updateSmLiveryAgreement(req.params.id, req.body);
+      const parsed = insertSmLiveryAgreementSchema.partial().parse(req.body);
+      const r = await storage.updateSmLiveryAgreement(req.params.id, parsed);
       if (!r) return res.status(404).json({ message: "Not found" });
       res.json(r);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/livery-agreements/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
@@ -4091,15 +4158,21 @@ export async function registerRoutes(
   app.post("/api/sm/invoices", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {
       const { invoice, lines, billingElementIds } = req.body;
-      const created = await storage.createSmInvoice(invoice);
+      const parsedInvoice = insertSmInvoiceSchema.parse(invoice);
+      const created = await storage.createSmInvoice(parsedInvoice);
       for (const line of lines) {
         await storage.createSmInvoiceLine({ ...line, invoiceId: created.id });
       }
-      for (const beId of billingElementIds) {
-        await storage.updateSmBillingElement(beId, { billed: true, invoiceId: created.id });
+      if (Array.isArray(billingElementIds)) {
+        for (const beId of billingElementIds) {
+          await storage.updateSmBillingElement(beId, { billed: true, invoiceId: created.id });
+        }
       }
       res.json(created);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: "Validation failed", errors: e.errors });
+      res.status(500).json({ message: e.message });
+    }
   });
   app.delete("/api/sm/invoices/:id", isAuthenticated, checkSubmoduleAccess("equestrian", "stable-assets"), async (req, res) => {
     try {

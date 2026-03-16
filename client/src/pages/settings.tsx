@@ -522,7 +522,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="font-medium">Password</p>
                   <p className="text-sm text-muted-foreground">
-                    Last changed: Unknown
+                    Last changed: {authUser?.updatedAt ? new Date(authUser.updatedAt).toLocaleDateString() : "Unknown"}
                   </p>
                 </div>
                 <Button 
