@@ -1,4 +1,4 @@
-import { Express, RequestHandler } from "express";
+import { Express, Request, RequestHandler } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
@@ -11,6 +11,27 @@ declare module "express-session" {
   interface SessionData {
     userId: string;
   }
+}
+
+const ALLOWED_HOSTS = new Set(
+  [process.env.APP_URL, process.env.REPLIT_DEV_DOMAIN && `https://${process.env.REPLIT_DEV_DOMAIN}`]
+    .filter(Boolean)
+    .map(u => new URL(u!).host.toLowerCase())
+);
+
+function getResetBaseUrl(req: Request): string {
+  const requestHost = (req.get("host") || "").toLowerCase();
+
+  if (process.env.APP_URL) {
+    const appHost = new URL(process.env.APP_URL).host.toLowerCase();
+    if (requestHost === appHost || ALLOWED_HOSTS.has(requestHost)) {
+      return `${req.protocol}://${req.get("host")}`.replace(/\/+$/, "");
+    }
+    console.warn(`[Reset] Untrusted Host header "${requestHost}", using APP_URL instead`);
+    return process.env.APP_URL.replace(/\/+$/, "");
+  }
+
+  return `${req.protocol}://${req.get("host")}`.replace(/\/+$/, "");
 }
 
 export function setupAuth(app: Express) {
@@ -148,8 +169,9 @@ export function registerAuthRoutes(app: Express) {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const baseUrl = (process.env.APP_URL || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
+      const baseUrl = getResetBaseUrl(req);
       const resetUrl = `${baseUrl}/reset-password/${token}`;
+      console.log(`[Reset] Built reset URL for ${user.email}: ${baseUrl}/reset-password/***`);
       let emailSent = false;
       try {
         const { sendEmail } = await import("./email");
@@ -218,10 +240,22 @@ export function registerAuthRoutes(app: Express) {
 
   app.get("/api/auth/validate-reset-token/:token", async (req, res) => {
     try {
+      const tokenPrefix = req.params.token.substring(0, 8);
       const resetToken = await storage.getPasswordResetToken(req.params.token);
-      if (!resetToken) return res.status(400).json({ valid: false, message: "Invalid or expired reset link" });
-      if (resetToken.usedAt) return res.status(400).json({ valid: false, message: "This reset link has already been used" });
-      if (resetToken.expiresAt < new Date()) return res.status(400).json({ valid: false, message: "This reset link has expired" });
+      if (!resetToken) {
+        console.warn(`[Reset] Token ${tokenPrefix}… not found in database`);
+        return res.status(400).json({ valid: false, message: "Invalid or expired reset link" });
+      }
+      if (resetToken.usedAt) {
+        console.warn(`[Reset] Token ${tokenPrefix}… already used at ${resetToken.usedAt.toISOString()}`);
+        return res.status(400).json({ valid: false, message: "This reset link has already been used" });
+      }
+      const now = new Date();
+      if (resetToken.expiresAt.getTime() < now.getTime()) {
+        console.warn(`[Reset] Token ${tokenPrefix}… expired at ${resetToken.expiresAt.toISOString()}, now is ${now.toISOString()}`);
+        return res.status(400).json({ valid: false, message: "This reset link has expired" });
+      }
+      console.log(`[Reset] Token ${tokenPrefix}… validated successfully, expires ${resetToken.expiresAt.toISOString()}`);
       res.json({ valid: true });
     } catch (error) {
       console.error("Validate reset token error:", error);
@@ -245,8 +279,9 @@ export function registerAuthRoutes(app: Express) {
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const baseUrl = (process.env.APP_URL || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
+      const baseUrl = getResetBaseUrl(req);
       const resetUrl = `${baseUrl}/reset-password/${token}`;
+      console.log(`[Reset] Admin reset URL for ${user.email}: ${baseUrl}/reset-password/***`);
 
       let emailSent = false;
       try {

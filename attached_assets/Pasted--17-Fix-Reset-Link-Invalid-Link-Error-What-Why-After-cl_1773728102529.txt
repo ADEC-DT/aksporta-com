@@ -1,0 +1,22 @@
+#17 - Fix Reset Link "Invalid Link" Error
+What & Why
+After clicking the password reset link from the email, the page shows "Invalid Link" even though the token was just generated. The root cause is that the link URL in the email is built using APP_URL (or req.protocol + req.get("host")), which may point to the production deployment while the token is stored in the development database. The production app can't find the token, so it returns "Invalid or expired reset link".
+
+A secondary potential cause is a timezone mismatch: the expires_at column is timestamp without time zone, so if the PostgreSQL server timezone differs from the Node.js UTC clock, the expiry check may incorrectly mark a valid token as expired.
+
+Done looks like
+User receives the reset email and clicking the link opens the reset-password page with the form (not "Invalid Link")
+Password is successfully changed and the user can log in with the new password
+Server logs show a clear error if the token lookup fails for any reason (not a silent 400)
+Out of scope
+Redesigning the reset-password or forgot-password UI
+Changing token expiry duration
+Any email types beyond password reset
+Tasks
+Check and fix APP_URL usage — In server/auth.ts, add a log statement that prints the constructed resetUrl (without the token for security) so it is visible in the server logs. If APP_URL is set, verify it matches the environment where the database is accessible. If it points to a different environment (e.g., production), remove or correct APP_URL so the URL is always built from the actual request host.
+
+Add trust proxy for correct protocol detection — Ensure app.set("trust proxy", 1) is set in server/index.ts or server/routes.ts so that req.protocol returns https (not http) when the app runs behind Replit's reverse proxy. This prevents links with http:// that might not match the actual app URL.
+
+Fix expires_at timezone handling — Change the expiresAt comparison in getPasswordResetToken and the reset endpoint to explicitly cast the stored timestamp to UTC when comparing, or switch the schema column to timestamp("expires_at", { withTimezone: true }) so PostgreSQL stores and returns the value in UTC consistently.
+
+Add debug logging to the validate endpoint — In /api/auth/validate-reset-token/:token, log whether the token was found and the reason for failure (not found / used / expired) so failures are visible in server logs without needing to inspect the database manually.

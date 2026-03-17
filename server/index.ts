@@ -128,9 +128,16 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      const sensitiveRoutes = ["/api/sso/generate-token", "/api/sso/verify-token", "/api/auth/login"];
-      if (capturedJsonResponse && !sensitiveRoutes.includes(path)) {
+      let sanitizedPath = path;
+      if (path.startsWith("/api/auth/validate-reset-token/")) {
+        sanitizedPath = "/api/auth/validate-reset-token/***";
+      } else if (path.startsWith("/api/auth/reset-password/")) {
+        sanitizedPath = "/api/auth/reset-password/***";
+      }
+      let logLine = `${req.method} ${sanitizedPath} ${res.statusCode} in ${duration}ms`;
+      const sensitiveRoutes = ["/api/sso/generate-token", "/api/sso/verify-token", "/api/auth/login", "/api/auth/reset-password", "/api/auth/forgot-password"];
+      const isSensitive = sensitiveRoutes.some(r => path.startsWith(r));
+      if (capturedJsonResponse && !isSensitive) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
