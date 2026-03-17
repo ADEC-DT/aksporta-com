@@ -671,6 +671,8 @@ const DATA_SOURCE_COLUMNS: Record<string, { key: string; label: string; type: st
     { key: "cost_center", label: "Cost Center", type: "text" },
     { key: "cost_center_account_number", label: "Cost Center - Account Number", type: "number" },
     { key: "account", label: "Account", type: "boolean" },
+    { key: "direct_manager_code", label: "Direct Manager - Code", type: "text" },
+    { key: "direct_manager_full_name", label: "Direct Manager - Full Name", type: "text" },
   ],
 };
 
