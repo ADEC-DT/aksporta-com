@@ -1,30 +1,14 @@
-import sgMail from "@sendgrid/mail";
-
-let initialized = false;
-
-function initSendGrid() {
-  if (initialized) return;
-
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "SendGrid not configured. Set SENDGRID_API_KEY environment variable."
-    );
-  }
-
-  sgMail.setApiKey(apiKey);
-  initialized = true;
-}
+import { getUncachableSendGridClient } from "./sendgrid";
 
 export async function sendEmail(options: {
   to: string;
   subject: string;
   html: string;
 }) {
-  initSendGrid();
-  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "dt.office@adec.ae";
+  const { client, fromEmail: integrationFromEmail } = await getUncachableSendGridClient();
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || integrationFromEmail;
 
-  await sgMail.send({
+  await client.send({
     to: options.to,
     from: fromEmail,
     subject: options.subject,
@@ -33,5 +17,5 @@ export async function sendEmail(options: {
 }
 
 export function getFromEmail(): string {
-  return process.env.SMTP_FROM || process.env.SMTP_USER || "";
+  return process.env.SENDGRID_FROM_EMAIL || "";
 }
