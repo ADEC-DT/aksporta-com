@@ -382,6 +382,26 @@ export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit
 export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;
 export type TicketComment = typeof ticketComments.$inferSelect;
 
+// Ticket attachments table
+export const ticketAttachments = pgTable("ticket_attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").notNull().references(() => tickets.id, { onDelete: "cascade" }),
+  filename: varchar("filename").notNull(),
+  fileType: varchar("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileData: text("file_data").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+}, (table) => ({
+  ticketIdx: index("ticket_attachments_ticket_idx").on(table.ticketId),
+}));
+
+export const insertTicketAttachmentSchema = createInsertSchema(ticketAttachments).omit({
+  id: true,
+  uploadedAt: true,
+});
+export type InsertTicketAttachment = z.infer<typeof insertTicketAttachmentSchema>;
+export type TicketAttachment = typeof ticketAttachments.$inferSelect;
+
 // FAQ entries table
 export const faqEntries = pgTable("faq_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

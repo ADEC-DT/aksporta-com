@@ -51,10 +51,14 @@ import {
   Monitor,
   Zap,
   HelpCircle,
-  Trash2
+  Trash2,
+  Paperclip,
+  Download,
+  File,
+  Image
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import type { Ticket as TicketType, TicketComment } from "@shared/schema";
+import type { Ticket as TicketType, TicketComment, TicketAttachment } from "@shared/schema";
 import { format, formatDistanceToNow } from "date-fns";
 import { ShieldAlert } from "lucide-react";
 import { statusConfig, severityConfig, categoryConfig } from "@/lib/ticket-config";
@@ -83,6 +87,11 @@ export default function AdminTicketsPage() {
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery<TicketComment[]>({
     queryKey: ["/api/tickets", selectedTicket?.id, "comments"],
+    enabled: !!selectedTicket,
+  });
+
+  const { data: ticketAttachments = [], isLoading: attachmentsLoading } = useQuery<Omit<TicketAttachment, "fileData">[]>({
+    queryKey: ["/api/tickets", selectedTicket?.id, "attachments"],
     enabled: !!selectedTicket,
   });
 
@@ -151,6 +160,12 @@ export default function AdminTicketsPage() {
     if (selectedTicket?.id === ticketId) {
       setSelectedTicket({ ...selectedTicket, assignedTo: userId, assignedToName: name });
     }
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   function handleAddComment(e: React.FormEvent) {
@@ -242,6 +257,49 @@ export default function AdminTicketsPage() {
                   <Label className="text-muted-foreground text-xs">Assigned To</Label>
                   <p className="mt-1 text-sm">{selectedTicket.assignedToName || "Unassigned"}</p>
                 </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  <h3 className="font-semibold text-sm">Attachments ({ticketAttachments.length})</h3>
+                </div>
+                {attachmentsLoading ? (
+                  <div className="flex justify-center py-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : ticketAttachments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">No attachments</p>
+                ) : (
+                  <div className="space-y-2">
+                    {ticketAttachments.map((att) => (
+                      <div key={att.id} className="flex items-center justify-between rounded-lg border p-2" data-testid={`admin-attachment-${att.id}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {att.fileType.startsWith("image/") ? (
+                            <Image className="h-4 w-4 text-blue-500 shrink-0" />
+                          ) : (
+                            <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{att.filename}</p>
+                            <p className="text-[10px] text-muted-foreground">{formatFileSize(att.fileSize)}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={() => window.open(`/api/ticket-attachments/${att.id}/download`, "_blank")}
+                          data-testid={`button-admin-download-${att.id}`}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Separator />

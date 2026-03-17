@@ -75,6 +75,7 @@ const importRoutes = [
   "/api/sm/item-services/import",
 ];
 app.post("/api/requisitions", largeJsonParser);
+app.post("/api/tickets/:id/attachments", largeJsonParser);
 importRoutes.forEach(route => app.post(route, largeJsonParser));
 
 app.use(

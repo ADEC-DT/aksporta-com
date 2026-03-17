@@ -6,6 +6,7 @@ import {
   auditLogs, type AuditLog, type InsertAuditLog,
   tickets, type Ticket, type InsertTicket,
   ticketComments, type TicketComment, type InsertTicketComment,
+  ticketAttachments, type TicketAttachment, type InsertTicketAttachment,
   faqEntries, type FaqEntry, type InsertFaqEntry,
   userManuals, type UserManual, type InsertUserManual,
   customers, type Customer, type InsertCustomer,
@@ -112,6 +113,12 @@ export interface IStorage {
   // Ticket comments
   createTicketComment(comment: InsertTicketComment): Promise<TicketComment>;
   getTicketComments(ticketId: string): Promise<TicketComment[]>;
+
+  // Ticket attachments
+  getTicketAttachments(ticketId: string): Promise<TicketAttachment[]>;
+  getTicketAttachmentById(id: string): Promise<TicketAttachment | undefined>;
+  createTicketAttachment(a: InsertTicketAttachment): Promise<TicketAttachment>;
+  deleteTicketAttachment(id: string): Promise<boolean>;
   
   // FAQ entries
   getAllFaqEntries(): Promise<FaqEntry[]>;
@@ -664,6 +671,28 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(ticketComments)
       .where(eq(ticketComments.ticketId, ticketId))
       .orderBy(asc(ticketComments.createdAt));
+  }
+
+  // Ticket attachment methods
+  async getTicketAttachments(ticketId: string): Promise<TicketAttachment[]> {
+    return await db.select().from(ticketAttachments)
+      .where(eq(ticketAttachments.ticketId, ticketId))
+      .orderBy(asc(ticketAttachments.uploadedAt));
+  }
+
+  async getTicketAttachmentById(id: string): Promise<TicketAttachment | undefined> {
+    const [att] = await db.select().from(ticketAttachments).where(eq(ticketAttachments.id, id));
+    return att;
+  }
+
+  async createTicketAttachment(a: InsertTicketAttachment): Promise<TicketAttachment> {
+    const [created] = await db.insert(ticketAttachments).values(a).returning();
+    return created;
+  }
+
+  async deleteTicketAttachment(id: string): Promise<boolean> {
+    const r = await db.delete(ticketAttachments).where(eq(ticketAttachments.id, id)).returning();
+    return r.length > 0;
   }
 
   // FAQ methods

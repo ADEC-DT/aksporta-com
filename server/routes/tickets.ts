@@ -418,6 +418,126 @@ export async function registerTicketRoutes(app: Express, _httpServer: Server) {
     }
   });
 
+  // ===== TICKET ATTACHMENTS =====
+
+  app.get("/api/tickets/:id/attachments", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const attachments = await storage.getTicketAttachments(req.params.id);
+      res.json(attachments.map(a => ({ id: a.id, ticketId: a.ticketId, filename: a.filename, fileType: a.fileType, fileSize: a.fileSize, uploadedAt: a.uploadedAt })));
+    } catch (error) {
+      console.error("Error fetching ticket attachments:", error);
+      res.status(500).json({ message: "Failed to fetch attachments" });
+    }
+  });
+
+  const uploadAttachmentSchema = z.object({
+    attachments: z.array(z.object({
+      filename: z.string().min(1),
+      fileType: z.string().min(1),
+      fileSize: z.number().max(10 * 1024 * 1024, "File too large (max 10MB)"),
+      fileData: z.string().min(1),
+    })).min(1).max(5),
+  });
+
+  app.post("/api/tickets/:id/attachments", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const parsed = uploadAttachmentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/plain", "text/csv"];
+
+      const existingAttachments = await storage.getTicketAttachments(req.params.id);
+      const maxPerTicket = 10;
+      if (existingAttachments.length + parsed.data.attachments.length > maxPerTicket) {
+        return res.status(400).json({ message: `Maximum ${maxPerTicket} attachments per ticket. Currently ${existingAttachments.length} attached.` });
+      }
+
+      const maxFileBytes = 10 * 1024 * 1024;
+      const created = [];
+      for (const att of parsed.data.attachments) {
+        if (!allowedTypes.includes(att.fileType)) {
+          return res.status(400).json({ message: `File type not allowed: ${att.fileType}` });
+        }
+        const base64Part = att.fileData.includes(",") ? att.fileData.split(",")[1] : att.fileData;
+        const actualBytes = Buffer.from(base64Part, "base64").length;
+        if (actualBytes > maxFileBytes) {
+          return res.status(400).json({ message: `File "${att.filename}" exceeds 10MB limit (actual size: ${(actualBytes / (1024 * 1024)).toFixed(1)}MB)` });
+        }
+        const attachment = await storage.createTicketAttachment({
+          ticketId: req.params.id,
+          filename: att.filename,
+          fileType: att.fileType,
+          fileSize: actualBytes,
+          fileData: att.fileData,
+        });
+        created.push({ id: attachment.id, ticketId: attachment.ticketId, filename: attachment.filename, fileType: attachment.fileType, fileSize: attachment.fileSize, uploadedAt: attachment.uploadedAt });
+      }
+      res.status(201).json(created);
+    } catch (error) {
+      console.error("Error uploading ticket attachments:", error);
+      res.status(500).json({ message: "Failed to upload attachments" });
+    }
+  });
+
+  app.get("/api/ticket-attachments/:id/download", isAuthenticated, async (req, res) => {
+    try {
+      const att = await storage.getTicketAttachmentById(req.params.id);
+      if (!att) return res.status(404).json({ message: "Attachment not found" });
+
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(att.ticketId);
+      if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const base64Data = att.fileData.includes(",") ? att.fileData.split(",")[1] : att.fileData;
+      const buffer = Buffer.from(base64Data, "base64");
+      res.setHeader("Content-Type", att.fileType);
+      res.setHeader("Content-Disposition", `attachment; filename="${att.filename}"`);
+      res.setHeader("Content-Length", buffer.length.toString());
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error downloading ticket attachment:", error);
+      res.status(500).json({ message: "Failed to download attachment" });
+    }
+  });
+
+  app.delete("/api/ticket-attachments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const att = await storage.getTicketAttachmentById(req.params.id);
+      if (!att) return res.status(404).json({ message: "Attachment not found" });
+
+      const user = (req as any).managedUser as ManagedUser;
+      const ticket = await storage.getTicket(att.ticketId);
+      if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+      if (ticket.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteTicketAttachment(req.params.id);
+      res.json({ message: "Attachment deleted" });
+    } catch (error) {
+      console.error("Error deleting ticket attachment:", error);
+      res.status(500).json({ message: "Failed to delete attachment" });
+    }
+  });
+
   // Delete ticket (admin only)
   app.delete("/api/admin/tickets/:id", isAuthenticated, async (req, res) => {
     try {

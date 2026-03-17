@@ -58,13 +58,18 @@ import {
   Eye,
   ChevronRight,
   AlertTriangle,
+  Paperclip,
+  Download,
+  Trash2,
+  File,
+  Image,
   CircleDot,
   Pencil,
   X,
   Save
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import type { Ticket as TicketType, TicketComment, Requisition } from "@shared/schema";
+import type { Ticket as TicketType, TicketComment, TicketAttachment, Requisition } from "@shared/schema";
 import { format, formatDistanceToNow } from "date-fns";
 import { statusConfig, severityConfig, categoryConfig } from "@/lib/ticket-config";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -147,6 +152,7 @@ export default function IntranetPage() {
   const [isEditingTicket, setIsEditingTicket] = useState(false);
   const [editSubject, setEditSubject] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<{ file: globalThis.File; preview?: string }[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -183,6 +189,11 @@ export default function IntranetPage() {
     enabled: !!selectedTicket,
   });
 
+  const { data: ticketAttachments = [], isLoading: attachmentsLoading } = useQuery<Omit<TicketAttachment, "fileData">[]>({
+    queryKey: ["/api/tickets", selectedTicket?.id, "attachments"],
+    enabled: !!selectedTicket,
+  });
+
   const { data: usersList = [] } = useQuery<{ id: string; username: string; firstName: string; lastName: string }[]>({
     queryKey: ["/api/users/list"],
   });
@@ -198,7 +209,21 @@ export default function IntranetPage() {
 
   const createTicketMutation = useMutation({
     mutationFn: async (data: { subject: string; description: string; severity: string; category: string; subcategory?: string }) => {
-      return apiRequest("POST", "/api/tickets", data);
+      const res = await apiRequest("POST", "/api/tickets", data);
+      const ticket = await res.json();
+      if (pendingFiles.length > 0) {
+        const fileDataPromises = pendingFiles.map(({ file }) => {
+          return new Promise<{ filename: string; fileType: string; fileSize: number; fileData: string }>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ filename: file.name, fileType: file.type, fileSize: file.size, fileData: reader.result as string });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        });
+        const attachments = await Promise.all(fileDataPromises);
+        await apiRequest("POST", `/api/tickets/${ticket.id}/attachments`, { attachments });
+      }
+      return ticket;
     },
     onSuccess: () => {
       toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
@@ -250,6 +275,41 @@ export default function IntranetPage() {
     setPriority("medium");
     setCategory("it_support");
     setSubcategory("");
+    setPendingFiles([]);
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    const maxSize = 10 * 1024 * 1024;
+    const newFiles: { file: globalThis.File; preview?: string }[] = [];
+    for (const file of files) {
+      if (file.size > maxSize) {
+        toast({ title: "File too large", description: `${file.name} exceeds 10MB limit`, variant: "destructive" });
+        continue;
+      }
+      const entry: { file: globalThis.File; preview?: string } = { file };
+      if (file.type.startsWith("image/")) {
+        entry.preview = URL.createObjectURL(file);
+      }
+      newFiles.push(entry);
+    }
+    setPendingFiles(prev => [...prev, ...newFiles].slice(0, 5));
+    e.target.value = "";
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles(prev => {
+      const updated = [...prev];
+      if (updated[index]?.preview) URL.revokeObjectURL(updated[index].preview!);
+      updated.splice(index, 1);
+      return updated;
+    });
   }
 
   function handleSubmitTicket() {
@@ -428,6 +488,49 @@ export default function IntranetPage() {
                       : "Unknown"}
                   </p>
                 </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  <h3 className="font-semibold text-sm">Attachments ({ticketAttachments.length})</h3>
+                </div>
+                {attachmentsLoading ? (
+                  <div className="flex justify-center py-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : ticketAttachments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">No attachments</p>
+                ) : (
+                  <div className="space-y-2">
+                    {ticketAttachments.map((att) => (
+                      <div key={att.id} className="flex items-center justify-between rounded-lg border p-2" data-testid={`attachment-${att.id}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {att.fileType.startsWith("image/") ? (
+                            <Image className="h-4 w-4 text-blue-500 shrink-0" />
+                          ) : (
+                            <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{att.filename}</p>
+                            <p className="text-[10px] text-muted-foreground">{formatFileSize(att.fileSize)}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={() => window.open(`/api/ticket-attachments/${att.id}/download`, "_blank")}
+                          data-testid={`button-download-attachment-${att.id}`}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Separator />
@@ -1274,6 +1377,59 @@ export default function IntranetPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 data-testid="input-description"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Attachments</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById("ticket-file-input")?.click()}
+                  disabled={pendingFiles.length >= 5}
+                  data-testid="button-attach-file"
+                >
+                  <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+                  Attach Files
+                </Button>
+                <span className="text-[10px] text-muted-foreground">
+                  {pendingFiles.length}/5 files (max 10MB each)
+                </span>
+              </div>
+              <input
+                id="ticket-file-input"
+                type="file"
+                multiple
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                onChange={handleFileSelect}
+              />
+              {pendingFiles.length > 0 && (
+                <div className="space-y-1.5 mt-2">
+                  {pendingFiles.map((pf, idx) => (
+                    <div key={idx} className="flex items-center gap-2 rounded border p-1.5 text-xs" data-testid={`pending-file-${idx}`}>
+                      {pf.preview ? (
+                        <img src={pf.preview} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
+                      ) : (
+                        <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate flex-1">{pf.file.name}</span>
+                      <span className="text-muted-foreground shrink-0">{formatFileSize(pf.file.size)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => removePendingFile(idx)}
+                        data-testid={`button-remove-file-${idx}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
