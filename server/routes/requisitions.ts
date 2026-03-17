@@ -11,22 +11,34 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   app.get("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const search = req.query.search as string | undefined;
       const status = req.query.status as string | undefined;
-      res.json(await storage.getAllRequisitions({ search, status }));
+      res.json(await storage.getAllRequisitions({
+        search,
+        status,
+        userId: isAdmin ? undefined : String(managedUser.id),
+      }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const r = await storage.getRequisition(req.params.id);
       if (!r) return res.status(404).json({ message: "Not found" });
+      if (!isAdmin && r.userId !== String(managedUser.id)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
       const { attachments, ...data } = req.body;
       const parsed = insertRequisitionSchema.safeParse(data);
       if (!parsed.success) return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
@@ -40,7 +52,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         }
       }
 
-      const requisition = await storage.createRequisition(parsed.data);
+      const requisition = await storage.createRequisition({ ...parsed.data, userId: String(managedUser.id) });
       if (attachments && Array.isArray(attachments)) {
         for (const att of attachments) {
           await storage.createRequisitionAttachment({
@@ -82,6 +94,13 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   app.delete("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      if (!isAdmin) {
+        const r = await storage.getRequisition(req.params.id);
+        if (!r) return res.status(404).json({ message: "Not found" });
+        if (r.userId !== String(managedUser.id)) return res.status(403).json({ message: "Access denied" });
+      }
       const ok = await storage.deleteRequisition(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
@@ -90,14 +109,26 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   app.get("/api/requisitions/:id/attachments", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      if (!isAdmin) {
+        const r = await storage.getRequisition(req.params.id);
+        if (!r || r.userId !== String(managedUser.id)) return res.status(403).json({ message: "Access denied" });
+      }
       res.json(await storage.getRequisitionAttachments(req.params.id));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/requisition-attachments/:id/download", isAuthenticated, async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const att = await storage.getRequisitionAttachmentById(req.params.id);
       if (!att) return res.status(404).json({ message: "Not found" });
+      if (!isAdmin) {
+        const r = await storage.getRequisition(att.requisitionId);
+        if (!r || r.userId !== String(managedUser.id)) return res.status(403).json({ message: "Access denied" });
+      }
       const base64Data = att.fileData.includes(",") ? att.fileData.split(",")[1] : att.fileData;
       const buffer = Buffer.from(base64Data, "base64");
       res.setHeader("Content-Type", att.fileType);
@@ -109,6 +140,12 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   app.get("/api/requisitions/:id/comments", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      if (!isAdmin) {
+        const r = await storage.getRequisition(req.params.id);
+        if (!r || r.userId !== String(managedUser.id)) return res.status(403).json({ message: "Access denied" });
+      }
       res.json(await storage.getRequisitionComments(req.params.id));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

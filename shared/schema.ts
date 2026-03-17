@@ -881,12 +881,16 @@ export const requisitions = pgTable("requisitions", {
   requiredByDate: varchar("required_by_date").notNull(),
   projectStartDate: varchar("project_start_date"),
   status: varchar("status").notNull().default("Submitted"),
+  userId: varchar("user_id").references(() => managedUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userIdx: index("requisitions_user_idx").on(table.userId),
+}));
 
 export const insertRequisitionSchema = createInsertSchema(requisitions).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });

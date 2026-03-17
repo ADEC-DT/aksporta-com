@@ -257,9 +257,9 @@ export interface IStorage {
   deleteIcon(id: string): Promise<boolean>;
 
   // Requisitions
-  getAllRequisitions(options?: { search?: string; status?: string }): Promise<Requisition[]>;
+  getAllRequisitions(options?: { search?: string; status?: string; userId?: string }): Promise<Requisition[]>;
   getRequisition(id: string): Promise<Requisition | undefined>;
-  createRequisition(r: InsertRequisition): Promise<Requisition>;
+  createRequisition(r: InsertRequisition & { userId?: string }): Promise<Requisition>;
   updateRequisition(id: string, d: Partial<InsertRequisition>): Promise<Requisition | undefined>;
   deleteRequisition(id: string): Promise<boolean>;
   getRequisitionAttachments(requisitionId: string): Promise<RequisitionAttachment[]>;
@@ -1472,8 +1472,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Requisitions implementations
-  async getAllRequisitions(options?: { search?: string; status?: string }): Promise<Requisition[]> {
+  async getAllRequisitions(options?: { search?: string; status?: string; userId?: string }): Promise<Requisition[]> {
     const conditions = [];
+    if (options?.userId) {
+      conditions.push(eq(requisitions.userId, options.userId));
+    }
     if (options?.status) {
       conditions.push(eq(requisitions.status, options.status));
     }
@@ -1494,7 +1497,7 @@ export class DatabaseStorage implements IStorage {
     const [r] = await db.select().from(requisitions).where(eq(requisitions.id, id));
     return r;
   }
-  async createRequisition(r: InsertRequisition): Promise<Requisition> {
+  async createRequisition(r: InsertRequisition & { userId?: string }): Promise<Requisition> {
     const [created] = await db.insert(requisitions).values(r).returning();
     return created;
   }
