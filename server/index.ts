@@ -17,12 +17,12 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://*.powerbi.com", "https://*.msecnd.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://*.powerbi.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      fontSrc: ["'self'", "data:"],
+      fontSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https:", "wss:", ...(isDev ? ["ws:"] : [])],
-      frameSrc: ["'self'", "https://view.monday.com", "https://app.powerbi.com", "https://login.microsoftonline.com", "https://aadcdn.msauth.net", "https://aadcdn.msftauth.net"],
+      frameSrc: ["'self'", "https://view.monday.com", "https://*.powerbi.com", "https://*.microsoft.com", "https://*.microsoftonline.com", "https://*.msftauth.net", "https://*.msauth.net", "https://*.live.com", "https://*.office.com", "https://*.sharepoint.com"],
       frameAncestors: ["'self'"],
     },
   },
