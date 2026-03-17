@@ -206,6 +206,7 @@ export default function FinanceDashboard() {
                   className="w-full border-0"
                   style={{ height: "600px" }}
                   allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
                   data-testid="powerbi-embed"
                 />
               </CardContent>
@@ -250,6 +251,7 @@ export default function FinanceDashboard() {
                   className="w-full border-0"
                   style={{ height: "600px" }}
                   allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
                   data-testid="powerbi-vendors-embed"
                 />
               </CardContent>
