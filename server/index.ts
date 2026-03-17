@@ -22,7 +22,7 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       fontSrc: ["'self'", "data:"],
       connectSrc: ["'self'", "https:", "wss:", ...(isDev ? ["ws:"] : [])],
-      frameSrc: ["'self'", "https://view.monday.com"],
+      frameSrc: ["'self'", "https://view.monday.com", "https://app.powerbi.com"],
       frameAncestors: ["'self'"],
     },
   },
