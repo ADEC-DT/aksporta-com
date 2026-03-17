@@ -197,7 +197,18 @@ export default function FinanceDashboard() {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-lg font-semibold font-outfit mb-4">Power BI Dashboard</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold font-outfit">Power BI Dashboard</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="powerbi-open-new-tab"
+                onClick={() => window.open("https://app.powerbi.com/reportEmbed?reportId=b37a6c8c-cbe6-4635-84e2-1d26d0af47c7&appId=fcee7e5c-5747-4076-ae52-06342581e3ef&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3", "_blank")}
+              >
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Open in New Tab
+              </Button>
+            </div>
             <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <iframe
@@ -206,7 +217,6 @@ export default function FinanceDashboard() {
                   className="w-full border-0"
                   style={{ height: "600px" }}
                   allowFullScreen
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
                   data-testid="powerbi-embed"
                 />
               </CardContent>
@@ -242,7 +252,18 @@ export default function FinanceDashboard() {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-lg font-semibold font-outfit mb-4">Vendors BI Dashboard</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold font-outfit">Vendors BI Dashboard</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="powerbi-vendors-open-new-tab"
+                onClick={() => window.open("https://app.powerbi.com/reportEmbed?reportId=b0352db6-6036-4026-9f2f-4c5648bedaa7&autoAuth=true&ctid=0f3ed57e-4b52-4eda-87b3-26744d95f8e3", "_blank")}
+              >
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Open in New Tab
+              </Button>
+            </div>
             <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <iframe
@@ -251,7 +272,6 @@ export default function FinanceDashboard() {
                   className="w-full border-0"
                   style={{ height: "600px" }}
                   allowFullScreen
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
                   data-testid="powerbi-vendors-embed"
                 />
               </CardContent>
