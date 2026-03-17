@@ -207,13 +207,13 @@ export default function IntranetPage() {
     },
   });
 
-  const [attachmentUploadFailed, setAttachmentUploadFailed] = useState(false);
+  type CreateTicketResult = { ticket: TicketType; attachmentsFailed: boolean };
 
-  const createTicketMutation = useMutation({
-    mutationFn: async (data: { subject: string; description: string; severity: string; category: string; subcategory?: string }) => {
-      setAttachmentUploadFailed(false);
+  const createTicketMutation = useMutation<CreateTicketResult, Error, { subject: string; description: string; severity: string; category: string; subcategory?: string }>({
+    mutationFn: async (data) => {
       const res = await apiRequest("POST", "/api/tickets", data);
-      const ticket = await res.json();
+      const ticket: TicketType = await res.json();
+      let attachmentsFailed = false;
       if (pendingFiles.length > 0) {
         const fileDataPromises = pendingFiles.map(({ file }) => {
           return new Promise<{ filename: string; fileType: string; fileSize: number; fileData: string }>((resolve, reject) => {
@@ -227,13 +227,13 @@ export default function IntranetPage() {
         try {
           await apiRequest("POST", `/api/tickets/${ticket.id}/attachments`, { attachments });
         } catch {
-          setAttachmentUploadFailed(true);
+          attachmentsFailed = true;
         }
       }
-      return ticket;
+      return { ticket, attachmentsFailed };
     },
-    onSuccess: () => {
-      if (attachmentUploadFailed) {
+    onSuccess: ({ attachmentsFailed }) => {
+      if (attachmentsFailed) {
         toast({ title: "Ticket Created", description: "Ticket submitted but some attachments failed to upload. You can try adding them later.", variant: "destructive" });
       } else {
         toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
