@@ -207,8 +207,11 @@ export default function IntranetPage() {
     },
   });
 
+  const [attachmentUploadFailed, setAttachmentUploadFailed] = useState(false);
+
   const createTicketMutation = useMutation({
     mutationFn: async (data: { subject: string; description: string; severity: string; category: string; subcategory?: string }) => {
+      setAttachmentUploadFailed(false);
       const res = await apiRequest("POST", "/api/tickets", data);
       const ticket = await res.json();
       if (pendingFiles.length > 0) {
@@ -224,13 +227,13 @@ export default function IntranetPage() {
         try {
           await apiRequest("POST", `/api/tickets/${ticket.id}/attachments`, { attachments });
         } catch {
-          return { ...ticket, _attachmentError: true };
+          setAttachmentUploadFailed(true);
         }
       }
       return ticket;
     },
-    onSuccess: (ticket: any) => {
-      if (ticket?._attachmentError) {
+    onSuccess: () => {
+      if (attachmentUploadFailed) {
         toast({ title: "Ticket Created", description: "Ticket submitted but some attachments failed to upload. You can try adding them later.", variant: "destructive" });
       } else {
         toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
