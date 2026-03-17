@@ -221,12 +221,20 @@ export default function IntranetPage() {
           });
         });
         const attachments = await Promise.all(fileDataPromises);
-        await apiRequest("POST", `/api/tickets/${ticket.id}/attachments`, { attachments });
+        try {
+          await apiRequest("POST", `/api/tickets/${ticket.id}/attachments`, { attachments });
+        } catch {
+          return { ...ticket, _attachmentError: true };
+        }
       }
       return ticket;
     },
-    onSuccess: () => {
-      toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
+    onSuccess: (ticket: any) => {
+      if (ticket?._attachmentError) {
+        toast({ title: "Ticket Created", description: "Ticket submitted but some attachments failed to upload. You can try adding them later.", variant: "destructive" });
+      } else {
+        toast({ title: "Ticket Created", description: "Your support ticket has been submitted successfully." });
+      }
       resetForm();
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/tickets"] });
