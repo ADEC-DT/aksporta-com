@@ -13,24 +13,10 @@ declare module "express-session" {
   }
 }
 
-const ALLOWED_HOSTS = new Set(
-  [process.env.APP_URL, process.env.REPLIT_DEV_DOMAIN && `https://${process.env.REPLIT_DEV_DOMAIN}`]
-    .filter(Boolean)
-    .map(u => new URL(u!).host.toLowerCase())
-);
-
 function getResetBaseUrl(req: Request): string {
-  const requestHost = (req.get("host") || "").toLowerCase();
-
   if (process.env.APP_URL) {
-    const appHost = new URL(process.env.APP_URL).host.toLowerCase();
-    if (requestHost === appHost || ALLOWED_HOSTS.has(requestHost)) {
-      return `${req.protocol}://${req.get("host")}`.replace(/\/+$/, "");
-    }
-    console.warn(`[Reset] Untrusted Host header "${requestHost}", using APP_URL instead`);
     return process.env.APP_URL.replace(/\/+$/, "");
   }
-
   return `${req.protocol}://${req.get("host")}`.replace(/\/+$/, "");
 }
 
