@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { checkSubmoduleAccess } from "./helpers";
-import { type ManagedUser, insertRequisitionSchema } from "@shared/schema";
+import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRequisitionRoutes(app: Express, _httpServer: Server) {
@@ -58,10 +58,12 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   const updateRequisitionSchema = z.object({
     status: z.enum(["Submitted", "Awaiting Approval", "PO Created", "Rejected"]).optional(),
-    requestTitle: z.string().optional(),
-    department: z.string().optional(),
-    description: z.string().optional(),
-    justification: z.string().optional(),
+    vendorName: z.string().nullable().optional(),
+    estimatedCostAed: z.number().optional(),
+    budgetLineAccountCode: z.string().nullable().optional(),
+    isBudgeted: z.boolean().optional(),
+    requiredByDate: z.string().optional(),
+    projectStartDate: z.string().nullable().optional(),
   });
 
   app.patch("/api/requisitions/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
@@ -102,6 +104,33 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       res.setHeader("Content-Disposition", `attachment; filename="${att.filename}"`);
       res.setHeader("Content-Length", buffer.length.toString());
       res.send(buffer);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/requisitions/:id/comments", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      res.json(await storage.getRequisitionComments(req.params.id));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/requisitions/:id/comments", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "admin" && managedUser.role !== "superadmin") {
+        return res.status(403).json({ message: "Only administrators can post comments" });
+      }
+      const parsed = insertRequisitionCommentSchema.pick({ body: true }).extend({ body: z.string().trim().min(1) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Comment body is required" });
+      const requisition = await storage.getRequisition(req.params.id);
+      if (!requisition) return res.status(404).json({ message: "Requisition not found" });
+      const authorName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+      const comment = await storage.createRequisitionComment({
+        requisitionId: req.params.id,
+        authorId: String(managedUser.id),
+        authorName,
+        body: parsed.data.body,
+      });
+      res.json(comment);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 }

@@ -27,6 +27,7 @@ import {
   iconLibrary, type IconLibraryEntry, type InsertIconLibrary,
   requisitions, type Requisition, type InsertRequisition,
   requisitionAttachments, type RequisitionAttachment, type InsertRequisitionAttachment,
+  requisitionComments, type RequisitionComment, type InsertRequisitionComment,
   smStables, type SmStable, type InsertSmStable,
   smBoxes, type SmBox, type InsertSmBox,
   smHorses, type SmHorse, type InsertSmHorse,
@@ -258,6 +259,8 @@ export interface IStorage {
   getRequisitionAttachmentById(id: string): Promise<RequisitionAttachment | undefined>;
   createRequisitionAttachment(a: InsertRequisitionAttachment): Promise<RequisitionAttachment>;
   deleteRequisitionAttachment(id: string): Promise<boolean>;
+  getRequisitionComments(requisitionId: string): Promise<RequisitionComment[]>;
+  createRequisitionComment(c: InsertRequisitionComment): Promise<RequisitionComment>;
 
   // StableMaster - Stables
   getSmStables(): Promise<SmStable[]>;
@@ -1488,6 +1491,13 @@ export class DatabaseStorage implements IStorage {
   async deleteRequisitionAttachment(id: string): Promise<boolean> {
     const r = await db.delete(requisitionAttachments).where(eq(requisitionAttachments.id, id)).returning();
     return r.length > 0;
+  }
+  async getRequisitionComments(requisitionId: string): Promise<RequisitionComment[]> {
+    return await db.select().from(requisitionComments).where(eq(requisitionComments.requisitionId, requisitionId)).orderBy(requisitionComments.createdAt);
+  }
+  async createRequisitionComment(c: InsertRequisitionComment): Promise<RequisitionComment> {
+    const [created] = await db.insert(requisitionComments).values(c).returning();
+    return created;
   }
 
   // StableMaster implementations

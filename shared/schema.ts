@@ -890,6 +890,22 @@ export const insertRequisitionAttachmentSchema = createInsertSchema(requisitionA
 export type InsertRequisitionAttachment = z.infer<typeof insertRequisitionAttachmentSchema>;
 export type RequisitionAttachment = typeof requisitionAttachments.$inferSelect;
 
+export const requisitionComments = pgTable("requisition_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requisitionId: varchar("requisition_id").notNull().references(() => requisitions.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull(),
+  authorName: varchar("author_name").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertRequisitionCommentSchema = createInsertSchema(requisitionComments).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRequisitionComment = z.infer<typeof insertRequisitionCommentSchema>;
+export type RequisitionComment = typeof requisitionComments.$inferSelect;
+
 // ========== StableMaster Tables (2-level: Stables → Boxes) ==========
 
 export const smStables = pgTable("sm_stables", {

@@ -4,13 +4,18 @@ import { useLocation, useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign } from "lucide-react";
-import type { Requisition, RequisitionAttachment } from "@shared/schema";
+import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign, Pencil, X, Send, MessageSquare } from "lucide-react";
+import type { Requisition, RequisitionAttachment, RequisitionComment } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
 
 const statusOptions = ["Submitted", "Awaiting Approval", "PO Created", "Rejected"];
 
@@ -34,6 +39,20 @@ function formatFileSize(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+function formatRelativeTime(dateStr: string) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function RequisitionDetailPage() {
   const [location, navigate] = useLocation();
   const [, erpParams] = useRoute("/erp/procurement/requisitions/:id");
@@ -45,6 +64,17 @@ export default function RequisitionDetailPage() {
   const id = params?.id;
   const isIntranet = location.startsWith("/intranet");
   const listPath = isIntranet ? "/intranet/requisitions" : "/erp/procurement/requisitions";
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFields, setEditFields] = useState({
+    vendorName: "",
+    estimatedCostAed: 0,
+    budgetLineAccountCode: "",
+    isBudgeted: false,
+    requiredByDate: "",
+    projectStartDate: "",
+  });
+  const [commentBody, setCommentBody] = useState("");
 
   const { data: requisition, isLoading } = useQuery<Requisition>({
     queryKey: ["/api/requisitions", id],
@@ -58,6 +88,12 @@ export default function RequisitionDetailPage() {
     enabled: !!id,
   });
 
+  const { data: comments = [], isLoading: commentsLoading } = useQuery<RequisitionComment[]>({
+    queryKey: ["/api/requisitions", id, "comments"],
+    queryFn: () => fetch(`/api/requisitions/${id}/comments`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!id,
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
       await apiRequest("PATCH", `/api/requisitions/${id}`, { status });
@@ -67,6 +103,54 @@ export default function RequisitionDetailPage() {
       toast({ title: "Status updated" });
     },
   });
+
+  const updateDetailsMutation = useMutation({
+    mutationFn: async (data: typeof editFields) => {
+      await apiRequest("PATCH", `/api/requisitions/${id}`, {
+        vendorName: data.vendorName || null,
+        estimatedCostAed: data.estimatedCostAed,
+        budgetLineAccountCode: data.budgetLineAccountCode || null,
+        isBudgeted: data.isBudgeted,
+        requiredByDate: data.requiredByDate,
+        projectStartDate: data.projectStartDate || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
+      setIsEditing(false);
+      toast({ title: "Details updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update details", variant: "destructive" });
+    },
+  });
+
+  const postCommentMutation = useMutation({
+    mutationFn: async (body: string) => {
+      await apiRequest("POST", `/api/requisitions/${id}/comments`, { body });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "comments"] });
+      setCommentBody("");
+      toast({ title: "Comment posted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to post comment", variant: "destructive" });
+    },
+  });
+
+  function startEditing() {
+    if (!requisition) return;
+    setEditFields({
+      vendorName: requisition.vendorName || "",
+      estimatedCostAed: requisition.estimatedCostAed,
+      budgetLineAccountCode: requisition.budgetLineAccountCode || "",
+      isBudgeted: requisition.isBudgeted,
+      requiredByDate: requisition.requiredByDate,
+      projectStartDate: requisition.projectStartDate || "",
+    });
+    setIsEditing(true);
+  }
 
   if (isLoading) {
     return (
@@ -187,46 +271,146 @@ export default function RequisitionDetailPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">Budget Details</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Estimated Cost (AED)</p>
-              <p className="text-sm font-medium">{formatCost(requisition.estimatedCostAed)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Budget Line / Account Code</p>
-              <p className="text-sm">{requisition.budgetLineAccountCode || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Is this budgeted?</p>
-              <Badge className={requisition.isBudgeted ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"}>
-                {requisition.isBudgeted ? "Yes" : "No"}
-              </Badge>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Vendor Name</p>
-              <p className="text-sm">{requisition.vendorName || "—"}</p>
-            </div>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Budget Details</CardTitle>
+            {isAdmin && !isEditing && (
+              <Button variant="outline" size="sm" onClick={startEditing} data-testid="button-edit-details">
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit Details
+              </Button>
+            )}
           </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isEditing ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-estimated-cost">Estimated Cost (AED) — in fils</Label>
+                  <Input
+                    id="edit-estimated-cost"
+                    type="number"
+                    value={editFields.estimatedCostAed}
+                    onChange={(e) => setEditFields({ ...editFields, estimatedCostAed: parseInt(e.target.value) || 0 })}
+                    data-testid="input-edit-estimated-cost"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-budget-line">Budget Line / Account Code</Label>
+                  <Input
+                    id="edit-budget-line"
+                    value={editFields.budgetLineAccountCode}
+                    onChange={(e) => setEditFields({ ...editFields, budgetLineAccountCode: e.target.value })}
+                    data-testid="input-edit-budget-line"
+                  />
+                </div>
+                <div className="flex items-center gap-3 py-2">
+                  <Switch
+                    id="edit-is-budgeted"
+                    checked={editFields.isBudgeted}
+                    onCheckedChange={(checked) => setEditFields({ ...editFields, isBudgeted: checked })}
+                    data-testid="switch-edit-is-budgeted"
+                  />
+                  <Label htmlFor="edit-is-budgeted">Is this budgeted?</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-vendor-name">Vendor Name</Label>
+                  <Input
+                    id="edit-vendor-name"
+                    value={editFields.vendorName}
+                    onChange={(e) => setEditFields({ ...editFields, vendorName: e.target.value })}
+                    data-testid="input-edit-vendor-name"
+                  />
+                </div>
+              </div>
+              <div className="border-t pt-4 mt-2">
+                <p className="text-sm font-medium mb-3">Timeline</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-required-by">Required By Date</Label>
+                    <Input
+                      id="edit-required-by"
+                      type="date"
+                      value={editFields.requiredByDate}
+                      onChange={(e) => setEditFields({ ...editFields, requiredByDate: e.target.value })}
+                      data-testid="input-edit-required-by"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-project-start">Project / Activity Start Date</Label>
+                    <Input
+                      id="edit-project-start"
+                      type="date"
+                      value={editFields.projectStartDate}
+                      onChange={(e) => setEditFields({ ...editFields, projectStartDate: e.target.value })}
+                      data-testid="input-edit-project-start"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  size="sm"
+                  onClick={() => updateDetailsMutation.mutate(editFields)}
+                  disabled={updateDetailsMutation.isPending}
+                  data-testid="button-save-details"
+                >
+                  {updateDetailsMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(false)}
+                  data-testid="button-cancel-edit"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Estimated Cost (AED)</p>
+                <p className="text-sm font-medium">{formatCost(requisition.estimatedCostAed)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Budget Line / Account Code</p>
+                <p className="text-sm">{requisition.budgetLineAccountCode || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Is this budgeted?</p>
+                <Badge className={requisition.isBudgeted ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"}>
+                  {requisition.isBudgeted ? "Yes" : "No"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Vendor Name</p>
+                <p className="text-sm">{requisition.vendorName || "—"}</p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Timeline</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Required By Date</p>
-              <p className="text-sm font-medium">{requisition.requiredByDate}</p>
+      {!isEditing && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Timeline</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Required By Date</p>
+                <p className="text-sm font-medium">{requisition.requiredByDate}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Project / Activity Start Date</p>
+                <p className="text-sm">{requisition.projectStartDate || "—"}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Project / Activity Start Date</p>
-              <p className="text-sm">{requisition.projectStartDate || "—"}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {attachments.length > 0 && (
         <Card>
@@ -257,6 +441,67 @@ export default function RequisitionDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Comments {comments.length > 0 && `(${comments.length})`}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {commentsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : comments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-comments">No comments yet</p>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((comment) => (
+                <div key={comment.id} className="p-3 rounded-lg border bg-muted/20" data-testid={`comment-${comment.id}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium" data-testid={`comment-author-${comment.id}`}>{comment.authorName}</p>
+                    <p className="text-xs text-muted-foreground" data-testid={`comment-time-${comment.id}`}>
+                      {comment.createdAt ? formatRelativeTime(String(comment.createdAt)) : ""}
+                    </p>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap" data-testid={`comment-body-${comment.id}`}>{comment.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="border-t pt-4 space-y-2">
+              <Textarea
+                placeholder="Write a comment..."
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                rows={3}
+                data-testid="textarea-comment"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (commentBody.trim()) {
+                      postCommentMutation.mutate(commentBody.trim());
+                    }
+                  }}
+                  disabled={!commentBody.trim() || postCommentMutation.isPending}
+                  data-testid="button-post-comment"
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  {postCommentMutation.isPending ? "Posting..." : "Post Comment"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <OtherModulesSection />
     </div>
   );
