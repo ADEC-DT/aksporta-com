@@ -706,11 +706,23 @@ export async function seedDataSources() {
       }
     }
 
-    for (const [slug, cols] of Object.entries(DATA_SOURCE_COLUMNS)) {
-      const source = (existing.length > 0 ? existing : await db.select().from(dataSources)).find(s => s.slug === slug);
-      if (source && (!source.columns || (source.columns as any[]).length === 0)) {
-        await db.update(dataSources).set({ columns: cols }).where(eq(dataSources.slug, slug));
-        console.log(`Updated columns for ${slug} (${cols.length} columns)`);
+    const allSources = existing.length > 0 ? existing : await db.select().from(dataSources);
+    for (const [slug, expectedCols] of Object.entries(DATA_SOURCE_COLUMNS)) {
+      const source = allSources.find(s => s.slug === slug);
+      if (!source) continue;
+
+      const currentCols = (source.columns as { key: string; label: string; type: string }[]) || [];
+      if (currentCols.length === 0) {
+        await db.update(dataSources).set({ columns: expectedCols }).where(eq(dataSources.slug, slug));
+        console.log(`Updated columns for ${slug} (${expectedCols.length} columns)`);
+      } else {
+        const existingKeys = new Set(currentCols.map(c => c.key));
+        const newCols = expectedCols.filter(c => !existingKeys.has(c.key));
+        if (newCols.length > 0) {
+          const merged = [...currentCols, ...newCols];
+          await db.update(dataSources).set({ columns: merged }).where(eq(dataSources.slug, slug));
+          console.log(`Added ${newCols.length} new column(s) to ${slug}: ${newCols.map(c => c.label).join(", ")}`);
+        }
       }
     }
   } catch (error) {
