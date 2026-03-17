@@ -1,0 +1,26 @@
+#23 - Ticket Attachments
+What & Why
+Add file attachment support to the AKS Request Center ticket creation flow. Users should be able to attach files (images, PDFs, documents) when creating a support ticket, and view/download those attachments later. The project already has a working attachment pattern for Requisitions (Base64 stored in DB with download endpoint) — follow the same approach for consistency.
+
+Done looks like
+Users can attach one or more files when creating a ticket in the AKS Request Center
+Attached files are visible on the ticket detail view and in the admin ticket view
+Files can be downloaded by clicking on them
+Common file types are accepted (images, PDFs, Office documents, text files)
+File size is validated (reasonable limit, e.g. 5MB per file)
+Existing tickets without attachments continue to work normally
+Out of scope
+Adding attachments to ticket comments/replies
+Drag-and-drop upload UI
+Image preview/thumbnails
+Editing attachments after ticket creation
+Tasks
+Create ticket_attachments database table — Add a new ticket_attachments table following the same pattern as requisition_attachments (id, ticketId, filename, fileType, fileSize, fileData as Base64 text, uploadedAt). Add the insert schema and types. Push schema to DB.
+
+Add storage methods — Add CRUD methods to the storage interface and implementation: create attachment, get attachments by ticket ID, get single attachment by ID, delete attachment.
+
+Add API endpoints — Create POST endpoint for uploading attachments (accepting Base64-encoded files in JSON body, attached to a ticket ID), GET endpoint to list attachments for a ticket, and GET download endpoint that streams the file back with proper Content-Type and Content-Disposition headers. Follow the same pattern as the requisition attachment routes.
+
+Update ticket creation form UI — Add a file picker to the ticket creation dialog in intranet.tsx. Convert selected files to Base64 on the client side and submit them along with the ticket data (either in the same request or as a follow-up request after ticket creation). Show file names and sizes in the form before submission with the ability to remove files.
+
+Display attachments on ticket views — Show attached files on the ticket detail/expanded view in both the user-facing intranet page and the admin tickets page. Each attachment should show filename, size, and a download link/button.
