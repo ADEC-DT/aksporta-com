@@ -61,7 +61,7 @@ interface UserFormData {
   password: string;
   firstName: string;
   lastName: string;
-  role: "superadmin" | "admin" | "finance" | "procurement" | "others";
+  role: "superadmin" | "admin" | "finance" | "procurement" | "livery" | "others";
 }
 
 function UserServicesCell({ userId, enabledServices }: { userId: string; enabledServices: ExternalService[] }) {
@@ -398,7 +398,7 @@ function AdminDashboard() {
       password: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
-      role: (user.role as "superadmin" | "admin" | "finance" | "procurement" | "others") || "others",
+      role: (user.role as "superadmin" | "admin" | "finance" | "procurement" | "livery" | "others") || "others",
     });
     setFormMode("edit");
     setDialogOpen(true);
@@ -462,6 +462,7 @@ function AdminDashboard() {
         return "default";
       case "finance":
       case "procurement":
+      case "livery":
         return "secondary";
       default:
         return "outline";
@@ -734,7 +735,7 @@ function AdminDashboard() {
               <Select
                 value={formData.role}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, role: value as "superadmin" | "admin" | "finance" | "procurement" | "others" })
+                  setFormData({ ...formData, role: value as "superadmin" | "admin" | "finance" | "procurement" | "livery" | "others" })
                 }
               >
                 <SelectTrigger data-testid="select-user-role">
@@ -745,6 +746,7 @@ function AdminDashboard() {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="finance">Finance</SelectItem>
                   <SelectItem value="procurement">Procurement</SelectItem>
+                  <SelectItem value="livery">Livery</SelectItem>
                   <SelectItem value="others">Others</SelectItem>
                 </SelectContent>
               </Select>

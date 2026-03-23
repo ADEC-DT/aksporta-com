@@ -133,6 +133,7 @@ export function AppSidebar() {
       admin: "Administrator",
       finance: "Finance",
       procurement: "Procurement",
+      livery: "Livery",
       others: "User",
     };
     return roleLabels[user?.role || ""] || user?.role || "User";

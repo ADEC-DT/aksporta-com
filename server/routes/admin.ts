@@ -133,7 +133,7 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
     password: passwordSchema,
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
-    role: z.enum(["superadmin", "admin", "finance", "procurement", "others"]).default("others"),
+    role: z.enum(["superadmin", "admin", "finance", "procurement", "livery", "others"]).default("others"),
   });
 
   app.post("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
@@ -184,7 +184,7 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
     password: passwordSchema.optional(),
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
-    role: z.enum(["superadmin", "admin", "finance", "procurement", "others"]).optional(),
+    role: z.enum(["superadmin", "admin", "finance", "procurement", "livery", "others"]).optional(),
     isActive: z.boolean().optional(),
   });
 
