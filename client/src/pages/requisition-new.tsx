@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Upload, X, FileText, Image, Loader2 } from "lucide-react";
 
 interface AttachmentFile {
@@ -98,6 +98,7 @@ export default function RequisitionNewPage() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions"] });
       toast({ title: "Request submitted", description: "Your approval request form has been submitted successfully." });
       navigate(returnTo);
     },
