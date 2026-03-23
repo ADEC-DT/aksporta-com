@@ -7,6 +7,7 @@ import { isAuthenticated } from "../auth";
 import { isAdmin } from "./helpers";
 import { type ManagedUser, type Ticket, tickets, itSupportSubcategories, digitalTransformationSubcategories } from "@shared/schema";
 import { z } from "zod";
+import { sendTicketCreatedNotification, sendTicketStatusChangedNotification, sendTicketCommentNotification } from "../email";
 
 export async function registerTicketRoutes(app: Express, _httpServer: Server) {
   // ===== HELP CENTER & TICKETS =====
@@ -135,6 +136,8 @@ export async function registerTicketRoutes(app: Express, _httpServer: Server) {
         userAgent: req.headers["user-agent"],
         status: "success",
       });
+
+      sendTicketCreatedNotification(ticket);
 
       res.status(201).json(ticket);
     } catch (error) {
@@ -300,14 +303,17 @@ export async function registerTicketRoutes(app: Express, _httpServer: Server) {
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
 
+      const commentUserName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
       const comment = await storage.createTicketComment({
         ticketId: req.params.id,
         userId: user.id,
         userEmail: user.email,
-        userName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+        userName: commentUserName,
         isAdmin: user.role === "admin" || user.role === "superadmin",
         message: parsed.data.message,
       });
+
+      sendTicketCommentNotification(ticket, commentUserName, parsed.data.message);
 
       res.status(201).json(comment);
     } catch (error) {
@@ -410,6 +416,11 @@ export async function registerTicketRoutes(app: Express, _httpServer: Server) {
         userAgent: req.headers["user-agent"],
         status: "success",
       });
+
+      if (parsed.data.status && parsed.data.status !== ticket.status) {
+        const changedByName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
+        sendTicketStatusChangedNotification(ticket, ticket.status, parsed.data.status, changedByName);
+      }
 
       res.json(updated);
     } catch (error) {
