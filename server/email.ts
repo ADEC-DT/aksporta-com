@@ -20,7 +20,7 @@ function initSendGrid() {
 }
 
 export async function sendEmail(options: {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
 }) {
@@ -125,11 +125,9 @@ function sendToRecipients(subject: string, html: string, creatorEmail: string) {
   if (creatorEmail && creatorEmail !== ADMIN_EMAIL) {
     recipients.push(creatorEmail);
   }
-  for (const to of recipients) {
-    sendEmail({ to, subject, html }).catch((err) => {
-      console.error(`Failed to send ticket notification to ${to}:`, err);
-    });
-  }
+  sendEmail({ to: recipients, subject, html }).catch((err) => {
+    console.error(`Failed to send ticket notification to ${recipients.join(", ")}:`, err);
+  });
 }
 
 export function sendTicketCreatedNotification(ticket: TicketInfo) {
