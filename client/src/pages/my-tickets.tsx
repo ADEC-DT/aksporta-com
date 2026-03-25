@@ -1,5 +1,5 @@
 import { OtherModulesSection } from "@/components/other-modules-section";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -44,6 +44,7 @@ import {
   Database,
   Zap,
   HelpCircle,
+  ChevronLeft,
   ChevronRight,
   FileText,
   Bell,
@@ -83,6 +84,8 @@ export default function MyTicketsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   const [newTicket, setNewTicket] = useState({
     subject: "",
     description: "",
@@ -160,6 +163,12 @@ export default function MyTicketsPage() {
     
     return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedTickets = filteredTickets.slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, statusFilter]);
 
   const ticketsByCategory = Object.keys(categoryConfig).reduce((acc, key) => {
     acc[key] = tickets.filter(t => t.category === key).length;
@@ -471,7 +480,7 @@ export default function MyTicketsPage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {filteredTickets.map((ticket) => {
+                {paginatedTickets.map((ticket) => {
                   const status = statusConfig[ticket.status] || statusConfig.new;
                   const severity = severityConfig[ticket.severity] || severityConfig.low;
                   const category = categoryConfig[ticket.category] || categoryConfig.other;
@@ -513,6 +522,22 @@ export default function MyTicketsPage() {
                     </Card>
                   );
                 })}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-2 py-3">
+                    <span className="text-sm text-muted-foreground">
+                      Showing {(safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredTickets.length)} of {filteredTickets.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" disabled={safeCurrentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} data-testid="button-prev-page">
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm font-medium">Page {safeCurrentPage} of {totalPages}</span>
+                      <Button variant="outline" size="sm" disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} data-testid="button-next-page">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

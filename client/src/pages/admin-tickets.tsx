@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,7 @@ import {
   RefreshCw,
   Eye,
   Search,
+  ChevronLeft,
   ChevronRight,
   Monitor,
   Zap,
@@ -72,6 +73,8 @@ export default function AdminTicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [newComment, setNewComment] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   const { data: ticketsData, isLoading } = useQuery<{ tickets: TicketType[]; total: number }>({
     queryKey: ["/api/admin/tickets", statusFilter, categoryFilter],
@@ -182,6 +185,12 @@ export default function AdminTicketsPage() {
         t.userEmail.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : allTickets;
+
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedTickets = filteredTickets.slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, categoryFilter]);
 
   if (authLoading) {
     return (
@@ -601,6 +610,7 @@ export default function AdminTicketsPage() {
               </p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -615,7 +625,7 @@ export default function AdminTicketsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.map((ticket) => {
+                {paginatedTickets.map((ticket) => {
                   const status = statusConfig[ticket.status] || statusConfig.new;
                   const severity = severityConfig[ticket.severity] || severityConfig.low;
                   const cat = categoryConfig[ticket.category] || categoryConfig.other;
@@ -663,6 +673,23 @@ export default function AdminTicketsPage() {
                 })}
               </TableBody>
             </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <span className="text-sm text-muted-foreground">
+                  Showing {(safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredTickets.length)} of {filteredTickets.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={safeCurrentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} data-testid="button-prev-page">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium">Page {safeCurrentPage} of {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} data-testid="button-next-page">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>

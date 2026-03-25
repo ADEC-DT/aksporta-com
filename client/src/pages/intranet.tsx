@@ -56,6 +56,7 @@ import {
   Timer,
   Users,
   Eye,
+  ChevronLeft,
   ChevronRight,
   AlertTriangle,
   Paperclip,
@@ -143,6 +144,8 @@ export default function IntranetPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
@@ -378,6 +381,15 @@ export default function IntranetPage() {
           )
         : requisitions)
     : [];
+
+  const allItems = [...filteredTickets, ...(activeTab === "all" ? filteredRequisitions : [])];
+  const totalPages = Math.max(1, Math.ceil(allItems.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedItems = allItems.slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE);
+  const paginatedTickets = paginatedItems.filter(item => 'trackingId' in item) as typeof filteredTickets;
+  const paginatedRequisitions = paginatedItems.filter(item => 'requestTitle' in item) as typeof filteredRequisitions;
+
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, statusFilter, categoryFilter, activeTab]);
 
   if (selectedTicket) {
     const status = statusConfig[selectedTicket.status] || statusConfig.new;
@@ -1180,7 +1192,7 @@ export default function IntranetPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTickets.map((ticket) => {
+                      {paginatedTickets.map((ticket) => {
                         const st = statusConfig[ticket.status] || statusConfig.new;
                         const sev = severityConfig[ticket.severity] || severityConfig.low;
                         const cat = categoryConfig[ticket.category] || categoryConfig.other;
@@ -1245,7 +1257,7 @@ export default function IntranetPage() {
                           </TableRow>
                         );
                       })}
-                      {activeTab === "all" && filteredRequisitions.map((req) => (
+                      {activeTab === "all" && paginatedRequisitions.map((req) => (
                         <TableRow
                           key={`arf-${req.id}`}
                           className="cursor-pointer"
@@ -1297,6 +1309,22 @@ export default function IntranetPage() {
                       ))}
                     </TableBody>
                   </Table>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t">
+                      <span className="text-sm text-muted-foreground">
+                        Showing {(safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safeCurrentPage * ITEMS_PER_PAGE, allItems.length)} of {allItems.length}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" disabled={safeCurrentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} data-testid="button-prev-page">
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-medium">Page {safeCurrentPage} of {totalPages}</span>
+                        <Button variant="outline" size="sm" disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} data-testid="button-next-page">
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
