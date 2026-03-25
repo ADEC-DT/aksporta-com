@@ -344,7 +344,7 @@ export async function seedAdminUser() {
       if (process.env.ADMIN_DEFAULT_PASSWORD) {
         console.log("Default admin user created (username: admin, password from ADMIN_DEFAULT_PASSWORD env var)");
       } else {
-        console.log(`Default admin user created (username: admin, generated password: ${adminPassword}). Change immediately or set ADMIN_DEFAULT_PASSWORD env var.`);
+        console.log("Default admin user created (username: admin). Set ADMIN_DEFAULT_PASSWORD env var or change the password immediately.");
       }
     }
 
