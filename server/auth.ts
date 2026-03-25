@@ -365,7 +365,7 @@ export async function seedAdminUser() {
       if (process.env.SYSTEMADMIN_DEFAULT_PASSWORD) {
         console.log("Systemadmin user created (username: systemadmin, password from SYSTEMADMIN_DEFAULT_PASSWORD env var)");
       } else {
-        console.log(`Systemadmin user created (username: systemadmin, generated password: ${systemAdminPassword}). Change immediately or set SYSTEMADMIN_DEFAULT_PASSWORD env var.`);
+        console.log("Systemadmin user created (username: systemadmin, password auto-generated). Change immediately or set SYSTEMADMIN_DEFAULT_PASSWORD env var.");
       }
     } else {
       console.log("Systemadmin user already exists");
