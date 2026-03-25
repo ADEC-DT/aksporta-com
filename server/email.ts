@@ -3,6 +3,12 @@ import sgMail from "@sendgrid/mail";
 let initialized = false;
 
 const ADMIN_EMAIL = "dt.office@adec.ae";
+
+const CATEGORY_EMAILS: Record<string, string> = {
+  it_support: "areeb@adec.ae",
+  digital_transformation: "radhakrishnan@adec.ae",
+  requisition_arf: "anas.aliyar@adec.ae",
+};
 const APP_URL = process.env.APP_URL || "https://aksportal.com";
 
 function initSendGrid() {
@@ -149,7 +155,18 @@ ${ticket.description ? `<div style="background:#f9fafb;border-radius:6px;border:
 </div>` : ""}
 ${actionButton("View Ticket in Portal", `${APP_URL}/intranet`)}`;
 
-  sendToRecipients(subjectLine, emailLayout("New Ticket Created", body), ticket.userEmail);
+  const html = emailLayout("New Ticket Created", body);
+
+  sendEmail({ to: ticket.userEmail, subject: subjectLine, html }).catch((err) => {
+    console.error(`Failed to send ticket creation confirmation to ${ticket.userEmail}:`, err);
+  });
+
+  const categoryEmail = CATEGORY_EMAILS[ticket.category];
+  if (categoryEmail && categoryEmail !== ticket.userEmail) {
+    sendEmail({ to: categoryEmail, subject: subjectLine, html }).catch((err) => {
+      console.error(`Failed to send ticket notification to category owner ${categoryEmail}:`, err);
+    });
+  }
 }
 
 export function sendTicketStatusChangedNotification(
