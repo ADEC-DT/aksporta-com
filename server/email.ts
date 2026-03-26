@@ -33,12 +33,14 @@ export async function sendEmail(options: {
   initSendGrid();
   const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_USER || ADMIN_EMAIL;
 
+  const recipients = Array.isArray(options.to) ? options.to.join(", ") : options.to;
   await sgMail.send({
     to: options.to,
     from: fromEmail,
     subject: options.subject,
     html: options.html,
   });
+  console.log(`Email sent to ${recipients}: ${options.subject}`);
 }
 
 export function getFromEmail(): string {
@@ -124,13 +126,21 @@ interface TicketInfo {
   status: string;
   userEmail: string;
   userName: string;
+  assignedToEmail?: string | null;
 }
 
-function sendToRecipients(subject: string, html: string, creatorEmail: string) {
-  const recipients = [ADMIN_EMAIL];
-  if (creatorEmail && creatorEmail !== ADMIN_EMAIL) {
-    recipients.push(creatorEmail);
-  }
+function collectRecipients(ticket: TicketInfo): string[] {
+  const set = new Set<string>();
+  set.add(ADMIN_EMAIL);
+  if (ticket.userEmail) set.add(ticket.userEmail);
+  const categoryEmail = CATEGORY_EMAILS[ticket.category];
+  if (categoryEmail) set.add(categoryEmail);
+  if (ticket.assignedToEmail) set.add(ticket.assignedToEmail);
+  return Array.from(set);
+}
+
+function sendToRecipients(subject: string, html: string, ticket: TicketInfo) {
+  const recipients = collectRecipients(ticket);
   sendEmail({ to: recipients, subject, html }).catch((err) => {
     console.error(`Failed to send ticket notification to ${recipients.join(", ")}:`, err);
   });
@@ -156,17 +166,11 @@ ${ticket.description ? `<div style="background:#f9fafb;border-radius:6px;border:
 ${actionButton("View Ticket in Portal", `${APP_URL}/intranet`)}`;
 
   const html = emailLayout("New Ticket Created", body);
+  const recipients = collectRecipients(ticket);
 
-  sendEmail({ to: ticket.userEmail, subject: subjectLine, html }).catch((err) => {
-    console.error(`Failed to send ticket creation confirmation to ${ticket.userEmail}:`, err);
+  sendEmail({ to: recipients, subject: subjectLine, html }).catch((err) => {
+    console.error(`Failed to send ticket creation notification to ${recipients.join(", ")}:`, err);
   });
-
-  const categoryEmail = CATEGORY_EMAILS[ticket.category];
-  if (categoryEmail && categoryEmail !== ticket.userEmail) {
-    sendEmail({ to: categoryEmail, subject: subjectLine, html }).catch((err) => {
-      console.error(`Failed to send ticket notification to category owner ${categoryEmail}:`, err);
-    });
-  }
 }
 
 export function sendTicketStatusChangedNotification(
@@ -187,7 +191,7 @@ ${infoRow("Changed By", escapeHtml(changedByName))}
 </table>
 ${actionButton("View Ticket in Portal", `${APP_URL}/intranet`)}`;
 
-  sendToRecipients(subjectLine, emailLayout("Ticket Status Updated", body), ticket.userEmail);
+  sendToRecipients(subjectLine, emailLayout("Ticket Status Updated", body), ticket);
 }
 
 export function sendTicketCommentNotification(
@@ -209,5 +213,5 @@ ${infoRow("Comment By", escapeHtml(commentAuthor))}
 </div>
 ${actionButton("View Ticket in Portal", `${APP_URL}/intranet`)}`;
 
-  sendToRecipients(subjectLine, emailLayout("New Comment on Ticket", body), ticket.userEmail);
+  sendToRecipients(subjectLine, emailLayout("New Comment on Ticket", body), ticket);
 }

@@ -9,6 +9,12 @@ import { type ManagedUser, type Ticket, tickets, itSupportSubcategories, digital
 import { z } from "zod";
 import { sendTicketCreatedNotification, sendTicketStatusChangedNotification, sendTicketCommentNotification } from "../email";
 
+async function resolveAssignedEmail(assignedTo: string | null | undefined): Promise<string | null> {
+  if (!assignedTo) return null;
+  const user = await storage.getManagedUser(assignedTo);
+  return user?.email || null;
+}
+
 export async function registerTicketRoutes(app: Express, _httpServer: Server) {
   // ===== HELP CENTER & TICKETS =====
 
@@ -313,7 +319,8 @@ export async function registerTicketRoutes(app: Express, _httpServer: Server) {
         message: parsed.data.message,
       });
 
-      sendTicketCommentNotification(ticket, commentUserName, parsed.data.message);
+      const assignedToEmail = await resolveAssignedEmail(ticket.assignedTo);
+      sendTicketCommentNotification({ ...ticket, assignedToEmail }, commentUserName, parsed.data.message);
 
       res.status(201).json(comment);
     } catch (error) {
@@ -419,7 +426,13 @@ export async function registerTicketRoutes(app: Express, _httpServer: Server) {
 
       if (parsed.data.status && parsed.data.status !== ticket.status) {
         const changedByName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
-        sendTicketStatusChangedNotification(ticket, ticket.status, parsed.data.status, changedByName);
+        const assignedEmail = await resolveAssignedEmail(updated.assignedTo);
+        sendTicketStatusChangedNotification({
+          ...updated,
+          userEmail: ticket.userEmail,
+          userName: ticket.userName,
+          assignedToEmail: assignedEmail,
+        }, ticket.status, parsed.data.status, changedByName);
       }
 
       res.json(updated);
