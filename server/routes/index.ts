@@ -10,6 +10,7 @@ import { registerProjectRoutes } from "./projects";
 import { registerRequisitionRoutes } from "./requisitions";
 import { registerEquestrianRoutes } from "./equestrian";
 import { registerSsoRoutes } from "./sso";
+import { registerDepartmentRoutes } from "./departments";
 
 export async function registerAllRoutes(app: Express, httpServer: Server): Promise<void> {
   registerErpDashboardRoutes(app, httpServer);
@@ -21,4 +22,5 @@ export async function registerAllRoutes(app: Express, httpServer: Server): Promi
   await registerRequisitionRoutes(app, httpServer);
   await registerEquestrianRoutes(app, httpServer);
   await registerSsoRoutes(app, httpServer);
+  await registerDepartmentRoutes(app, httpServer);
 }

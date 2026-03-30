@@ -42,6 +42,7 @@ import {
   passwordResetTokens, type PasswordResetToken,
   ssoTokens, type SsoToken,
   ssoAuditLogs, type SsoAuditLog, type InsertSsoAuditLog,
+  departments, type Department,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc, inArray, isNull } from "drizzle-orm";
@@ -324,6 +325,9 @@ export interface IStorage {
   deleteSmInvoice(id: string): Promise<boolean>;
   getSmInvoiceLines(invoiceId: string): Promise<SmInvoiceLine[]>;
   createSmInvoiceLine(line: InsertSmInvoiceLine): Promise<SmInvoiceLine>;
+
+  getAllDepartments(): Promise<Department[]>;
+  getDepartment(internalId: number): Promise<Department | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1838,6 +1842,15 @@ export class DatabaseStorage implements IStorage {
   async createSmInvoiceLine(line: InsertSmInvoiceLine): Promise<SmInvoiceLine> {
     const [r] = await db.insert(smInvoiceLines).values(line).returning();
     return r;
+  }
+
+  async getAllDepartments(): Promise<Department[]> {
+    return await db.select().from(departments).orderBy(departments.internalId);
+  }
+
+  async getDepartment(internalId: number): Promise<Department | undefined> {
+    const [dept] = await db.select().from(departments).where(eq(departments.internalId, internalId));
+    return dept;
   }
 }
 
