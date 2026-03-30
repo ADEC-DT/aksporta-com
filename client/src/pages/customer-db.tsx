@@ -22,13 +22,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Search, Download, FileText, Users, Loader2, Upload, AlertCircle,
   ScanSearch, Merge, Trash2, ChevronLeft, ChevronRight, Clock,
-  Tent, Phone, Home, GraduationCap, Heart, Database,
+  Tent, Phone, Home, GraduationCap, Heart, Database, Building2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import type { DataSource, DsRecord } from "@shared/schema";
+import type { DataSource, DsRecord, Department } from "@shared/schema";
 
 const iconMap: Record<string, any> = {
   Tent, Phone, Home, GraduationCap, Heart, FileText, Users, Database,
@@ -89,8 +89,16 @@ export default function CustomerDBPage() {
   const [scanDone, setScanDone] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
+  const [deptSearch, setDeptSearch] = useState("");
+  const [deptPage, setDeptPage] = useState(1);
+  const deptPageSize = 25;
+
   const { data: sources = [], isLoading: sourcesLoading } = useQuery<DataSource[]>({
     queryKey: ["/api/data-sources"],
+  });
+
+  const { data: allDepartments = [], isLoading: deptsLoading } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
   });
 
   const currentSource = sources.find(s => s.slug === activeSource);
@@ -400,6 +408,8 @@ export default function CustomerDBPage() {
     setDuplicateGroups([]);
     setConfirmClearAll(false);
     setScanFields([]);
+    setDeptSearch("");
+    setDeptPage(1);
   };
 
   return (
@@ -409,7 +419,7 @@ export default function CustomerDBPage() {
           <h1 className="text-2xl font-semibold" data-testid="text-page-title">Master Customer Database</h1>
           <p className="text-muted-foreground">Multi-source customer data management</p>
         </div>
-        {activeSource && (
+        {activeSource && activeSource !== "__departments" && (
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -468,40 +478,62 @@ export default function CustomerDBPage() {
             <Card key={i}><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
           ))
         ) : (
-          sources.map((source) => {
-            const isActive = activeSource === source.slug;
-            const Icon = iconMap[source.icon] || Database;
-            return (
-              <Card
-                key={source.id}
-                className={`cursor-pointer transition-all hover:shadow-md ${isActive ? 'ring-2 ring-primary shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
-                onClick={() => handleSourceSelect(source.slug)}
-                data-testid={`card-source-${source.slug}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-lg shrink-0"
-                      style={{ backgroundColor: `${source.color}20` }}
-                    >
-                      <Icon className="h-5 w-5" style={{ color: source.color }} />
+          <>
+            {sources.map((source) => {
+              const isActive = activeSource === source.slug;
+              const Icon = iconMap[source.icon] || Database;
+              return (
+                <Card
+                  key={source.id}
+                  className={`cursor-pointer transition-all hover:shadow-md ${isActive ? 'ring-2 ring-primary shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+                  onClick={() => handleSourceSelect(source.slug)}
+                  data-testid={`card-source-${source.slug}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-10 w-10 items-center justify-center rounded-lg shrink-0"
+                        style={{ backgroundColor: `${source.color}20` }}
+                      >
+                        <Icon className="h-5 w-5" style={{ color: source.color }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{source.name}</p>
+                        <p className="text-xl font-bold" data-testid={`text-count-${source.slug}`}>
+                          {(source as any).recordCount ?? source.recordCount ?? 0}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{source.name}</p>
-                      <p className="text-xl font-bold" data-testid={`text-count-${source.slug}`}>
-                        {(source as any).recordCount ?? source.recordCount ?? 0}
+                    {source.lastImportAt && (
+                      <p className="text-[10px] text-muted-foreground mt-2 truncate">
+                        Last import: {format(new Date(source.lastImportAt), "MMM d, yyyy")}
                       </p>
-                    </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+            <Card
+              className={`cursor-pointer transition-all hover:shadow-md ${activeSource === "__departments" ? 'ring-2 ring-primary shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+              onClick={() => handleSourceSelect("__departments")}
+              data-testid="card-source-departments"
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg shrink-0 bg-blue-500/10">
+                    <Building2 className="h-5 w-5 text-blue-600" />
                   </div>
-                  {source.lastImportAt && (
-                    <p className="text-[10px] text-muted-foreground mt-2 truncate">
-                      Last import: {format(new Date(source.lastImportAt), "MMM d, yyyy")}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">Departments</p>
+                    <p className="text-xl font-bold" data-testid="text-count-departments">
+                      {deptsLoading ? "..." : allDepartments.length}
                     </p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2 truncate">NetSuite org structure</p>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 
@@ -515,7 +547,19 @@ export default function CustomerDBPage() {
         </Card>
       )}
 
-      {activeSource && (
+      {activeSource === "__departments" && (
+        <DepartmentsTable
+          departments={allDepartments}
+          isLoading={deptsLoading}
+          search={deptSearch}
+          onSearchChange={(v) => { setDeptSearch(v); setDeptPage(1); }}
+          page={deptPage}
+          pageSize={deptPageSize}
+          onPageChange={setDeptPage}
+        />
+      )}
+
+      {activeSource && activeSource !== "__departments" && (
         <>
           <div className="flex gap-1 border-b">
             <button
@@ -1024,5 +1068,144 @@ export default function CustomerDBPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function DepartmentsTable({
+  departments,
+  isLoading,
+  search,
+  onSearchChange,
+  page,
+  pageSize,
+  onPageChange,
+}: {
+  departments: Department[];
+  isLoading: boolean;
+  search: string;
+  onSearchChange: (v: string) => void;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+}) {
+  const deptMap = new Map(departments.map(d => [d.internalId, d]));
+
+  const getParentName = (parentId: number | null): string => {
+    if (!parentId) return "";
+    return deptMap.get(parentId)?.name || "";
+  };
+
+  const filtered = departments.filter(d => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return d.name.toLowerCase().includes(q) ||
+      d.externalId.toLowerCase().includes(q) ||
+      String(d.internalId).includes(q) ||
+      getParentName(d.parentId).toLowerCase().includes(q);
+  });
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const activeCount = departments.filter(d => !d.inactive).length;
+  const inactiveCount = departments.filter(d => d.inactive).length;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            Departments
+            <Badge variant="secondary">{filtered.length}</Badge>
+            <Badge variant="outline" className="text-green-600">{activeCount} active</Badge>
+            {inactiveCount > 0 && <Badge variant="outline" className="text-red-500">{inactiveCount} inactive</Badge>}
+          </CardTitle>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search departments..."
+              className="w-[260px] pl-9"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              data-testid="input-search-departments"
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Internal ID</TableHead>
+                    <TableHead className="whitespace-nowrap">External ID</TableHead>
+                    <TableHead className="whitespace-nowrap">Name</TableHead>
+                    <TableHead className="whitespace-nowrap">Parent Department</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginated.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        {search ? "No departments match your search" : "No departments found"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginated.map((dept) => (
+                      <TableRow key={dept.internalId} data-testid={`row-dept-${dept.internalId}`}>
+                        <TableCell className="font-mono text-sm">{dept.internalId}</TableCell>
+                        <TableCell className="font-mono text-sm">{dept.externalId}</TableCell>
+                        <TableCell className="font-medium">{dept.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{getParentName(dept.parentId)}</TableCell>
+                        <TableCell>
+                          <Badge variant={dept.inactive ? "destructive" : "default"} className={dept.inactive ? "" : "bg-green-600"}>
+                            {dept.inactive ? "Inactive" : "Active"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => onPageChange(page - 1)}
+                    data-testid="button-dept-prev"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">{page} / {totalPages}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => onPageChange(page + 1)}
+                    data-testid="button-dept-next"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
