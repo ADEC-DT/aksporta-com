@@ -1088,7 +1088,120 @@ function DepartmentsTable({
   pageSize: number;
   onPageChange: (p: number) => void;
 }) {
+  const { toast } = useToast();
   const deptMap = new Map(departments.map(d => [d.internalId, d]));
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [csvTotalRows, setCsvTotalRows] = useState(0);
+  const [colMapping, setColMapping] = useState<Record<string, string>>({
+    internalId: "", externalId: "", name: "", inactive: "", budgetOwnerId: "", parentId: "",
+  });
+  const [importResult, setImportResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const deptFields = [
+    { key: "internalId", label: "Internal ID", required: true },
+    { key: "externalId", label: "External ID", required: false },
+    { key: "name", label: "Name", required: true },
+    { key: "inactive", label: "Inactive", required: false },
+    { key: "budgetOwnerId", label: "Budget Owner ID", required: false },
+    { key: "parentId", label: "Parent ID", required: false },
+  ];
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".csv")) {
+      toast({ title: "Invalid file", description: "Please upload a CSV file", variant: "destructive" });
+      return;
+    }
+    setCsvFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split("\n").filter(l => l.trim());
+      if (lines.length < 2) {
+        toast({ title: "Empty file", description: "CSV must have a header row and at least one data row", variant: "destructive" });
+        return;
+      }
+      const parseCSVLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') { inQuotes = !inQuotes; }
+          else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ""; }
+          else { current += char; }
+        }
+        result.push(current.trim());
+        return result;
+      };
+      const headers = parseCSVLine(lines[0]);
+      setCsvHeaders(headers);
+      setCsvTotalRows(lines.length - 1);
+      const preview: Record<string, string>[] = [];
+      for (let i = 1; i < Math.min(lines.length, 4); i++) {
+        const vals = parseCSVLine(lines[i]);
+        const row: Record<string, string> = {};
+        headers.forEach((h, idx) => { row[h] = vals[idx] || ""; });
+        preview.push(row);
+      }
+      setCsvPreview(preview);
+      const autoMap: Record<string, string> = { internalId: "", externalId: "", name: "", inactive: "", budgetOwnerId: "", parentId: "" };
+      const lowerHeaders = headers.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+      headers.forEach((h, idx) => {
+        const lh = lowerHeaders[idx];
+        if (lh.includes("internalid") || lh === "id") autoMap.internalId = h;
+        else if (lh.includes("externalid")) autoMap.externalId = h;
+        else if (lh === "name" || lh === "departmentname" || lh === "deptname") autoMap.name = h;
+        else if (lh.includes("inactive") || lh === "status") autoMap.inactive = h;
+        else if (lh.includes("budgetowner")) autoMap.budgetOwnerId = h;
+        else if (lh.includes("parent") || lh === "parentid") autoMap.parentId = h;
+      });
+      setColMapping(autoMap);
+      setImportStep("mapping");
+    };
+    reader.readAsText(file);
+  };
+
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      const formData = new FormData();
+      formData.append("file", csvFile!);
+      formData.append("mapping", JSON.stringify(colMapping));
+      const res = await fetch("/api/departments/import", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Import failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setImportResult(data);
+      setImportStep("result");
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      toast({ title: "Import complete", description: `${data.imported} new, ${data.updated} updated, ${data.skipped} skipped` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const resetImport = () => {
+    setImportStep("upload");
+    setCsvFile(null);
+    setCsvHeaders([]);
+    setCsvPreview([]);
+    setCsvTotalRows(0);
+    setColMapping({ internalId: "", externalId: "", name: "", inactive: "", budgetOwnerId: "", parentId: "" });
+    setImportResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const getParentName = (parentId: number | null): string => {
     if (!parentId) return "";
@@ -1111,6 +1224,7 @@ function DepartmentsTable({
   const inactiveCount = departments.filter(d => d.inactive).length;
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1120,15 +1234,21 @@ function DepartmentsTable({
             <Badge variant="outline" className="text-green-600">{activeCount} active</Badge>
             {inactiveCount > 0 && <Badge variant="outline" className="text-red-500">{inactiveCount} inactive</Badge>}
           </CardTitle>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search departments..."
-              className="w-[260px] pl-9"
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              data-testid="input-search-departments"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search departments..."
+                className="w-[260px] pl-9"
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                data-testid="input-search-departments"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => { resetImport(); setImportOpen(true); }} data-testid="button-import-departments">
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -1207,5 +1327,150 @@ function DepartmentsTable({
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={importOpen} onOpenChange={(v) => { if (!v) { setImportOpen(false); resetImport(); } else setImportOpen(true); }}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Departments from CSV</DialogTitle>
+          <DialogDescription>
+            Upload a CSV file with department data. Required columns: Internal ID, Name.
+          </DialogDescription>
+        </DialogHeader>
+
+        {importStep === "upload" && (
+          <div className="space-y-4">
+            <div
+              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="dept-csv-dropzone"
+            >
+              <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm font-medium">Click to upload CSV file</p>
+              <p className="text-xs text-muted-foreground mt-1">Max 5MB, .csv format</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleFileSelect}
+              data-testid="input-dept-csv-file"
+            />
+          </div>
+        )}
+
+        {importStep === "mapping" && (
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-sm font-medium">File: {csvFile?.name}</p>
+              <p className="text-xs text-muted-foreground">{csvTotalRows} data rows detected, {csvHeaders.length} columns</p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Map CSV columns to department fields:</p>
+              {deptFields.map((field) => (
+                <div key={field.key} className="flex items-center gap-3">
+                  <Label className="w-36 text-sm flex items-center gap-1">
+                    {field.label}
+                    {field.required && <span className="text-red-500">*</span>}
+                  </Label>
+                  <Select
+                    value={colMapping[field.key] || "__none"}
+                    onValueChange={(v) => setColMapping(prev => ({ ...prev, [field.key]: v === "__none" ? "" : v }))}
+                  >
+                    <SelectTrigger className="flex-1" data-testid={`select-map-${field.key}`}>
+                      <SelectValue placeholder="Select column..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">-- Skip --</SelectItem>
+                      {csvHeaders.map((h) => (
+                        <SelectItem key={h} value={h}>{h}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+
+            {csvPreview.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Preview (first {csvPreview.length} rows):</p>
+                <div className="border rounded-lg overflow-auto max-h-40">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {csvHeaders.map(h => <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>)}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {csvPreview.map((row, i) => (
+                        <TableRow key={i}>
+                          {csvHeaders.map(h => <TableCell key={h} className="text-xs py-1">{row[h]}</TableCell>)}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {importStep === "result" && importResult && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <p className="text-2xl font-bold text-green-700 dark:text-green-400">{importResult.imported}</p>
+                <p className="text-xs text-muted-foreground">New</p>
+              </div>
+              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{importResult.updated}</p>
+                <p className="text-xs text-muted-foreground">Updated</p>
+              </div>
+              <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{importResult.skipped}</p>
+                <p className="text-xs text-muted-foreground">Skipped</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 dark:bg-gray-800/40 rounded-lg">
+                <p className="text-2xl font-bold">{importResult.totalRows}</p>
+                <p className="text-xs text-muted-foreground">Total Rows</p>
+              </div>
+            </div>
+            {importResult.skipDetails && importResult.skipDetails.length > 0 && (
+              <div className="border rounded-lg p-3 space-y-2">
+                <p className="text-sm font-medium">Skipped rows:</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {importResult.skipDetails.map((s: any, i: number) => (
+                    <p key={i} className="text-xs text-muted-foreground">Row {s.row}: {s.reason}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          {importStep === "mapping" && (
+            <>
+              <Button variant="outline" onClick={() => { resetImport(); }} data-testid="button-dept-import-back">Back</Button>
+              <Button
+                onClick={() => importMutation.mutate()}
+                disabled={!colMapping.internalId || !colMapping.name || importMutation.isPending}
+                data-testid="button-dept-import-submit"
+              >
+                {importMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</> : <>Import {csvTotalRows} rows</>}
+              </Button>
+            </>
+          )}
+          {importStep === "result" && (
+            <Button onClick={() => { setImportOpen(false); resetImport(); }} data-testid="button-dept-import-close">Close</Button>
+          )}
+          {importStep === "upload" && (
+            <Button variant="outline" onClick={() => setImportOpen(false)} data-testid="button-dept-import-cancel">Cancel</Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

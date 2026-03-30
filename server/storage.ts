@@ -42,7 +42,7 @@ import {
   passwordResetTokens, type PasswordResetToken,
   ssoTokens, type SsoToken,
   ssoAuditLogs, type SsoAuditLog, type InsertSsoAuditLog,
-  departments, type Department,
+  departments, type Department, type InsertDepartment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc, inArray, isNull } from "drizzle-orm";
@@ -328,6 +328,7 @@ export interface IStorage {
 
   getAllDepartments(): Promise<Department[]>;
   getDepartment(internalId: number): Promise<Department | undefined>;
+  upsertDepartments(rows: InsertDepartment[]): Promise<{ imported: number; updated: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1846,6 +1847,52 @@ export class DatabaseStorage implements IStorage {
 
   async getAllDepartments(): Promise<Department[]> {
     return await db.select().from(departments).orderBy(departments.internalId);
+  }
+
+  async upsertDepartments(rows: InsertDepartment[]): Promise<{ imported: number; updated: number }> {
+    let imported = 0;
+    let updated = 0;
+
+    const idSet = new Set(rows.map(r => r.internalId));
+    const existing = await db.select({ internalId: departments.internalId }).from(departments);
+    const existingIds = new Set(existing.map(e => e.internalId));
+    for (const id of existingIds) idSet.add(id);
+
+    const sorted: InsertDepartment[] = [];
+    const remaining = [...rows];
+    let lastLen = -1;
+    while (remaining.length > 0 && remaining.length !== lastLen) {
+      lastLen = remaining.length;
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        const r = remaining[i];
+        if (!r.parentId || sorted.some(s => s.internalId === r.parentId) || existingIds.has(r.parentId)) {
+          sorted.push(r);
+          remaining.splice(i, 1);
+        }
+      }
+    }
+    sorted.push(...remaining);
+
+    await db.transaction(async (tx) => {
+      for (const row of sorted) {
+        const [ex] = await tx.select({ internalId: departments.internalId }).from(departments).where(eq(departments.internalId, row.internalId));
+        if (ex) {
+          await tx.update(departments).set({
+            externalId: row.externalId,
+            name: row.name,
+            inactive: row.inactive ?? false,
+            budgetOwnerId: row.budgetOwnerId,
+            parentId: row.parentId,
+          }).where(eq(departments.internalId, row.internalId));
+          updated++;
+        } else {
+          await tx.insert(departments).values(row);
+          imported++;
+        }
+      }
+    });
+
+    return { imported, updated };
   }
 
   async getDepartment(internalId: number): Promise<Department | undefined> {
