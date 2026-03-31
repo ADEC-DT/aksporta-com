@@ -177,7 +177,9 @@ export type HRData = {
   metrics: MetricCard[];
   employees: {
     id: string;
+    employeeCode: string;
     name: string;
+    email: string;
     department: string;
     position: string;
     status: "active" | "on-leave" | "terminated";

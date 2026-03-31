@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { MetricCard } from "@/components/metric-card";
 import { DataTable } from "@/components/data-table";
-import { DataStatusBadge } from "@/components/status-badge";
 import { PieChartCard, BarChartCard } from "@/components/dashboard-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,10 +23,14 @@ export default function HRDashboard() {
   };
 
   const filteredEmployees = data?.employees?.filter(
-    (e) =>
-      e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.position.toLowerCase().includes(searchTerm.toLowerCase())
+    (e) => {
+      const term = searchTerm.toLowerCase();
+      return (
+        e.employeeCode.toLowerCase().includes(term) ||
+        e.name.toLowerCase().includes(term) ||
+        e.email.toLowerCase().includes(term)
+      );
+    }
   );
 
   const departmentChartData = data?.departmentStats?.map((item) => ({
@@ -36,18 +39,11 @@ export default function HRDashboard() {
   })) ?? [];
 
   const employeeColumns = [
-    { key: "id", header: "Employee ID", className: "font-mono text-sm" },
-    { key: "name", header: "Name", className: "font-medium" },
+    { key: "employeeCode", header: "Employee Code", className: "font-mono text-sm" },
+    { key: "name", header: "Full Name", className: "font-medium" },
+    { key: "email", header: "Email" },
     { key: "department", header: "Department" },
     { key: "position", header: "Position" },
-    { key: "startDate", header: "Start Date" },
-    {
-      key: "status",
-      header: "Status",
-      render: (item: HRData["employees"][0]) => (
-        <DataStatusBadge status={item.status} />
-      ),
-    },
   ];
 
   const metricIcons = [
@@ -136,7 +132,7 @@ export default function HRDashboard() {
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search employees..."
+              placeholder="Search by code, name, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"

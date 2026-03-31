@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { isAuthenticated } from "../auth";
+import { storage } from "../storage";
 import type { NetSuiteData, HRData, LiveryData } from "@shared/schema";
 
 function generateNetSuiteData(): NetSuiteData & { isPlaceholder: true } {
@@ -58,14 +59,14 @@ function generateHRData(): HRData & { isPlaceholder: true } {
       { id: "departments", title: "Departments", value: "12", change: 0, changeLabel: "stable" },
     ],
     employees: [
-      { id: "EMP-001", name: "Sarah Johnson", department: "Engineering", position: "Senior Developer", status: "active", startDate: "2021-03-15" },
-      { id: "EMP-002", name: "Michael Chen", department: "Marketing", position: "Marketing Manager", status: "active", startDate: "2020-07-22" },
-      { id: "EMP-003", name: "Emily Rodriguez", department: "Sales", position: "Sales Lead", status: "active", startDate: "2022-01-10" },
-      { id: "EMP-004", name: "David Kim", department: "Engineering", position: "DevOps Engineer", status: "on-leave", startDate: "2019-11-05" },
-      { id: "EMP-005", name: "Jessica Brown", department: "HR", position: "HR Specialist", status: "active", startDate: "2021-09-18" },
-      { id: "EMP-006", name: "Robert Taylor", department: "Finance", position: "Financial Analyst", status: "active", startDate: "2020-04-01" },
-      { id: "EMP-007", name: "Amanda White", department: "Engineering", position: "Frontend Developer", status: "active", startDate: "2022-06-12" },
-      { id: "EMP-008", name: "James Wilson", department: "Operations", position: "Operations Manager", status: "terminated", startDate: "2018-02-28" },
+      { id: "EMP-001", employeeCode: "EMP-001", name: "Sarah Johnson", email: "sarah.johnson@example.com", department: "Engineering", position: "Senior Developer", status: "active", startDate: "2021-03-15" },
+      { id: "EMP-002", employeeCode: "EMP-002", name: "Michael Chen", email: "michael.chen@example.com", department: "Marketing", position: "Marketing Manager", status: "active", startDate: "2020-07-22" },
+      { id: "EMP-003", employeeCode: "EMP-003", name: "Emily Rodriguez", email: "emily.rodriguez@example.com", department: "Sales", position: "Sales Lead", status: "active", startDate: "2022-01-10" },
+      { id: "EMP-004", employeeCode: "EMP-004", name: "David Kim", email: "david.kim@example.com", department: "Engineering", position: "DevOps Engineer", status: "on-leave", startDate: "2019-11-05" },
+      { id: "EMP-005", employeeCode: "EMP-005", name: "Jessica Brown", email: "jessica.brown@example.com", department: "HR", position: "HR Specialist", status: "active", startDate: "2021-09-18" },
+      { id: "EMP-006", employeeCode: "EMP-006", name: "Robert Taylor", email: "robert.taylor@example.com", department: "Finance", position: "Financial Analyst", status: "active", startDate: "2020-04-01" },
+      { id: "EMP-007", employeeCode: "EMP-007", name: "Amanda White", email: "amanda.white@example.com", department: "Engineering", position: "Frontend Developer", status: "active", startDate: "2022-06-12" },
+      { id: "EMP-008", employeeCode: "EMP-008", name: "James Wilson", email: "james.wilson@example.com", department: "Operations", position: "Operations Manager", status: "terminated", startDate: "2018-02-28" },
     ],
     departmentStats: [
       { department: "Engineering", count: 85 },
@@ -122,9 +123,61 @@ export function registerErpDashboardRoutes(app: Express, _httpServer: Server) {
     res.json(data);
   });
 
-  app.get("/api/hr", isAuthenticated, (_req, res) => {
-    const data = generateHRData();
-    res.json(data);
+  app.get("/api/hr", isAuthenticated, async (_req, res) => {
+    try {
+      const ds = await storage.getDataSourceBySlug("employee-directory");
+      if (!ds) {
+        const data = generateHRData();
+        return res.json(data);
+      }
+
+      const { records } = await storage.getDsRecords(ds.id, { limit: 500 });
+
+      const employees: HRData["employees"] = records.map((r) => ({
+        id: String(r.id),
+        employeeCode: (r.data.employee_code as string) || "",
+        name: (r.data.full_name as string) || "",
+        email: (r.data.email as string) || "",
+        department: (r.data.department_english as string) || "",
+        position: (r.data.position as string) || "",
+        status: "active" as const,
+        startDate: "",
+      }));
+
+      const deptCounts: Record<string, number> = {};
+      for (const emp of employees) {
+        if (emp.department) {
+          deptCounts[emp.department] = (deptCounts[emp.department] || 0) + 1;
+        }
+      }
+      const departmentStats = Object.entries(deptCounts).map(([department, count]) => ({
+        department,
+        count,
+      }));
+
+      const now = new Date();
+      const formatTime = (date: Date) =>
+        date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+      const data: HRData = {
+        metrics: [
+          { id: "total-employees", title: "Total Employees", value: String(employees.length), change: 0, changeLabel: "" },
+          { id: "active", title: "Active", value: String(employees.filter((e) => e.status === "active").length), change: 0, changeLabel: "" },
+          { id: "on-leave", title: "On Leave", value: String(employees.filter((e) => e.status === "on-leave").length), change: 0, changeLabel: "" },
+          { id: "departments", title: "Departments", value: String(Object.keys(deptCounts).length), change: 0, changeLabel: "" },
+        ],
+        employees,
+        departmentStats,
+        lastSync: formatTime(now),
+        connectionStatus: "connected",
+      };
+
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching HR data:", error);
+      const data = generateHRData();
+      res.json(data);
+    }
   });
 
   app.get("/api/livery", isAuthenticated, (_req, res) => {
