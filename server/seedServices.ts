@@ -1,6 +1,8 @@
 import { db } from "./db";
-import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections, smStables, smBoxes, smHorses, smCustomers, smItemServices, smLiveryPackages, smLiveryAgreements, dataSources } from "@shared/schema";
+import { externalServices, iconLibrary, spaces, projectGroups, projects, projectAssignments, managedUsers, sectionTemplates, pageSections, smStables, smBoxes, smHorses, smCustomers, smItemServices, smLiveryPackages, smLiveryAgreements, dataSources, dsRecords } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import ExcelJS from "exceljs";
+import path from "path";
 
 const defaultServices = [
   {
@@ -673,8 +675,82 @@ const DATA_SOURCE_COLUMNS: Record<string, { key: string; label: string; type: st
     { key: "account", label: "Account", type: "boolean" },
     { key: "direct_manager_code", label: "Direct Manager - Code", type: "text" },
     { key: "direct_manager_full_name", label: "Direct Manager - Full Name", type: "text" },
+    { key: "department_head_code", label: "Department Head Code", type: "text" },
+    { key: "department_head_full_name", label: "Department Head - Full Name", type: "text" },
+    { key: "budget_owner_code", label: "Budget Owner - Code", type: "text" },
+    { key: "budget_owner_full_name", label: "Budget Owner - Full Name", type: "text" },
   ],
 };
+
+const EMPLOYEE_EXCEL_COLUMN_MAP: Record<string, string> = {
+  "Employee Code": "employee_code",
+  "Full Name": "full_name",
+  "Email": "email",
+  "Phone": "phone",
+  "Position": "position",
+  "Department ( English ) ": "department_english",
+  "Sub Department ( English ) ": "sub_department_english",
+  "Section ( English ) ": "section_english",
+  "Cost Center": "cost_center",
+  "Cost Center - Account Number": "cost_center_account_number",
+  "Direct Manager - Code": "direct_manager_code",
+  "Direct Manager - Full Name": "direct_manager_full_name",
+  "Department Head Code": "department_head_code",
+  "Department Head  - Full Name": "department_head_full_name",
+  "Budget Owner - Code": "budget_owner_code",
+  "Budget Owner - Full Name": "budget_owner_full_name",
+};
+
+const NUMERIC_EMPLOYEE_KEYS = new Set(["employee_code", "cost_center_account_number"]);
+
+async function loadEmployeeDataFromExcel(): Promise<Record<string, string | number | boolean | null>[]> {
+  const filePath = path.resolve("attached_assets/Employees_Cost_Center_(1)_1774934982910.xlsx");
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(filePath);
+  const ws = wb.worksheets[0];
+
+  const headerRow = ws.getRow(1);
+  const headers: { col: number; value: string }[] = [];
+  headerRow.eachCell((cell, colNumber) => {
+    headers.push({ col: colNumber, value: String(cell.value).trim() });
+  });
+
+  const trimmedMap: Record<string, string> = {};
+  for (const [excelHeader, key] of Object.entries(EMPLOYEE_EXCEL_COLUMN_MAP)) {
+    trimmedMap[excelHeader.trim()] = key;
+  }
+
+  const rows: Record<string, string | number | boolean | null>[] = [];
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    let hasValue = false;
+    const data: Record<string, string | number | boolean | null> = {};
+
+    for (const h of headers) {
+      const targetKey = trimmedMap[h.value];
+      if (!targetKey) continue;
+      const cellValue = row.getCell(h.col).value;
+      if (cellValue !== null && cellValue !== undefined && cellValue !== "") {
+        if (NUMERIC_EMPLOYEE_KEYS.has(targetKey)) {
+          const num = Number(cellValue);
+          data[targetKey] = isNaN(num) ? String(cellValue) : num;
+        } else {
+          data[targetKey] = String(cellValue);
+        }
+        hasValue = true;
+      } else {
+        data[targetKey] = null;
+      }
+    }
+
+    data["account"] = false;
+
+    if (hasValue) {
+      rows.push(data);
+    }
+  }
+  return rows;
+}
 
 export async function seedDataSources() {
   try {
@@ -706,7 +782,7 @@ export async function seedDataSources() {
       }
     }
 
-    const allSources = existing.length > 0 ? existing : await db.select().from(dataSources);
+    const allSources = await db.select().from(dataSources);
     for (const [slug, expectedCols] of Object.entries(DATA_SOURCE_COLUMNS)) {
       const source = allSources.find(s => s.slug === slug);
       if (!source) continue;
@@ -722,6 +798,39 @@ export async function seedDataSources() {
           const merged = [...currentCols, ...newCols];
           await db.update(dataSources).set({ columns: merged }).where(eq(dataSources.slug, slug));
           console.log(`Added ${newCols.length} new column(s) to ${slug}: ${newCols.map(c => c.label).join(", ")}`);
+        }
+      }
+    }
+
+    const empSource = allSources.find(s => s.slug === "employee-directory");
+    if (empSource) {
+      const currentEmpCols = (empSource.columns as { key: string; label: string; type: string }[]) || [];
+      const hasNewCols = currentEmpCols.some(c => c.key === "department_head_code");
+      const existingCount = await db.select({ id: dsRecords.id }).from(dsRecords).where(eq(dsRecords.dataSourceId, empSource.id));
+      const needsImport = !hasNewCols || existingCount.length === 0;
+
+      if (needsImport) {
+        console.log("Replacing Employee Directory data from Excel...");
+        try {
+          const rows = await loadEmployeeDataFromExcel();
+          await db.transaction(async (tx) => {
+            await tx.delete(dsRecords).where(eq(dsRecords.dataSourceId, empSource.id));
+            const batchSize = 100;
+            for (let i = 0; i < rows.length; i += batchSize) {
+              const batch = rows.slice(i, i + batchSize).map(data => ({
+                dataSourceId: empSource.id,
+                data,
+              }));
+              await tx.insert(dsRecords).values(batch);
+            }
+            await tx.update(dataSources).set({
+              recordCount: rows.length,
+              columns: DATA_SOURCE_COLUMNS["employee-directory"],
+            }).where(eq(dataSources.id, empSource.id));
+          });
+          console.log(`Imported ${rows.length} Employee Directory records from Excel`);
+        } catch (err) {
+          console.error("Failed to import Employee Directory Excel data:", err);
         }
       }
     }
