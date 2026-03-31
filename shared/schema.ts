@@ -940,6 +940,47 @@ export const insertRequisitionCommentSchema = createInsertSchema(requisitionComm
 export type InsertRequisitionComment = z.infer<typeof insertRequisitionCommentSchema>;
 export type RequisitionComment = typeof requisitionComments.$inferSelect;
 
+// ========== Requisition Approval Workflow ==========
+
+export const WORKFLOW_STAGES = [
+  "Submitted",
+  "Pending Line Manager",
+  "Pending Purchasing Review",
+  "Pending Budget Owner",
+  "Pending Final Approval",
+  "Ready for Purchase",
+  "PO Created",
+  "Rejected",
+] as const;
+export type WorkflowStage = typeof WORKFLOW_STAGES[number];
+
+export const APPROVAL_DECISIONS = ["approved", "rejected", "pending"] as const;
+export type ApprovalDecision = typeof APPROVAL_DECISIONS[number];
+
+export const requisitionApprovalSteps = pgTable("requisition_approval_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requisitionId: varchar("requisition_id").notNull().references(() => requisitions.id, { onDelete: "cascade" }),
+  stage: varchar("stage").notNull(),
+  assignedTo: varchar("assigned_to").references(() => managedUsers.id, { onDelete: "set null" }),
+  assignedToName: varchar("assigned_to_name"),
+  decision: varchar("decision").notNull().default("pending"),
+  comments: text("comments"),
+  decidedAt: timestamp("decided_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  requisitionIdx: index("approval_steps_requisition_idx").on(table.requisitionId),
+  assignedToIdx: index("approval_steps_assigned_to_idx").on(table.assignedTo),
+  decisionIdx: index("approval_steps_decision_idx").on(table.decision),
+}));
+
+export const insertApprovalStepSchema = createInsertSchema(requisitionApprovalSteps).omit({
+  id: true,
+  decidedAt: true,
+  createdAt: true,
+});
+export type InsertApprovalStep = z.infer<typeof insertApprovalStepSchema>;
+export type ApprovalStep = typeof requisitionApprovalSteps.$inferSelect;
+
 // ========== StableMaster Tables (2-level: Stables → Boxes) ==========
 
 export const smStables = pgTable("sm_stables", {

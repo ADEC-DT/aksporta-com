@@ -71,6 +71,7 @@ import StableMasterHubPage from "@/pages/stable-master-hub";
 import RequisitionsListPage from "@/pages/requisitions-list";
 import RequisitionNewPage from "@/pages/requisition-new";
 import RequisitionDetailPage from "@/pages/requisition-detail";
+import MyApprovalsPage from "@/pages/my-approvals";
 import LoginPage from "@/pages/login";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -149,6 +150,7 @@ function ProtectedRoutes() {
                   <Redirect to="/dashboard" />
                 </Route>
                 <Route path="/dashboard" component={Dashboard} />
+                <Route path="/my-approvals" component={MyApprovalsPage} />
                 <Route path="/erp/procurement/requisitions/new" component={RequisitionNewPage} />
                 <Route path="/erp/procurement/requisitions/:id" component={RequisitionDetailPage} />
                 <Route path="/erp/procurement/requisitions" component={RequisitionsListPage} />

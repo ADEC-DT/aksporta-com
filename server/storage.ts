@@ -29,6 +29,7 @@ import {
   requisitions, type Requisition, type InsertRequisition,
   requisitionAttachments, type RequisitionAttachment, type InsertRequisitionAttachment,
   requisitionComments, type RequisitionComment, type InsertRequisitionComment,
+  requisitionApprovalSteps, type ApprovalStep, type InsertApprovalStep,
   smStables, type SmStable, type InsertSmStable,
   smBoxes, type SmBox, type InsertSmBox,
   smHorses, type SmHorse, type InsertSmHorse,
@@ -269,6 +270,16 @@ export interface IStorage {
   deleteRequisitionAttachment(id: string): Promise<boolean>;
   getRequisitionComments(requisitionId: string): Promise<RequisitionComment[]>;
   createRequisitionComment(c: InsertRequisitionComment): Promise<RequisitionComment>;
+
+  // Requisition Approval Steps
+  getApprovalSteps(requisitionId: string): Promise<ApprovalStep[]>;
+  getApprovalStep(id: string): Promise<ApprovalStep | undefined>;
+  getPendingApprovalSteps(userId: string): Promise<ApprovalStep[]>;
+  createApprovalStep(step: InsertApprovalStep): Promise<ApprovalStep>;
+  updateApprovalStep(id: string, data: Partial<ApprovalStep>): Promise<ApprovalStep | undefined>;
+  getCurrentApprovalStep(requisitionId: string): Promise<ApprovalStep | undefined>;
+  getUserPendingStepForRequisition(requisitionId: string, userId: string): Promise<ApprovalStep | undefined>;
+  hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean>;
 
   // StableMaster - Stables
   getSmStables(): Promise<SmStable[]>;
@@ -1544,6 +1555,57 @@ export class DatabaseStorage implements IStorage {
   async createRequisitionComment(c: InsertRequisitionComment): Promise<RequisitionComment> {
     const [created] = await db.insert(requisitionComments).values(c).returning();
     return created;
+  }
+
+  // Requisition Approval Steps implementations
+  async getApprovalSteps(requisitionId: string): Promise<ApprovalStep[]> {
+    return await db.select().from(requisitionApprovalSteps)
+      .where(eq(requisitionApprovalSteps.requisitionId, requisitionId))
+      .orderBy(asc(requisitionApprovalSteps.createdAt));
+  }
+  async getApprovalStep(id: string): Promise<ApprovalStep | undefined> {
+    const [step] = await db.select().from(requisitionApprovalSteps).where(eq(requisitionApprovalSteps.id, id));
+    return step;
+  }
+  async getPendingApprovalSteps(userId: string): Promise<ApprovalStep[]> {
+    return await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.assignedTo, userId),
+        eq(requisitionApprovalSteps.decision, "pending")
+      ))
+      .orderBy(desc(requisitionApprovalSteps.createdAt));
+  }
+  async createApprovalStep(step: InsertApprovalStep): Promise<ApprovalStep> {
+    const [created] = await db.insert(requisitionApprovalSteps).values(step).returning();
+    return created;
+  }
+  async updateApprovalStep(id: string, data: Partial<ApprovalStep>): Promise<ApprovalStep | undefined> {
+    const [updated] = await db.update(requisitionApprovalSteps).set(data).where(eq(requisitionApprovalSteps.id, id)).returning();
+    return updated;
+  }
+  async getCurrentApprovalStep(requisitionId: string): Promise<ApprovalStep | undefined> {
+    const [step] = await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.requisitionId, requisitionId),
+        eq(requisitionApprovalSteps.decision, "pending")
+      ))
+      .orderBy(desc(requisitionApprovalSteps.createdAt))
+      .limit(1);
+    return step;
+  }
+  async getUserPendingStepForRequisition(requisitionId: string, userId: string): Promise<ApprovalStep | undefined> {
+    const [step] = await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.requisitionId, requisitionId),
+        eq(requisitionApprovalSteps.assignedTo, userId),
+        eq(requisitionApprovalSteps.decision, "pending")
+      ))
+      .limit(1);
+    return step;
+  }
+  async hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean> {
+    const step = await this.getUserPendingStepForRequisition(requisitionId, userId);
+    return !!step;
   }
 
   // StableMaster implementations

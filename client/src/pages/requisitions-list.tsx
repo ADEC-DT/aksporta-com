@@ -2,7 +2,7 @@ import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,15 +14,29 @@ import type { Requisition } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { jsPDF } from "jspdf";
 
-const statusOptions = ["Submitted", "Awaiting Approval", "PO Created", "Rejected"];
+const statusOptions = [
+  "Submitted",
+  "Pending Line Manager",
+  "Pending Purchasing Review",
+  "Pending Budget Owner",
+  "Pending Final Approval",
+  "Ready for Purchase",
+  "PO Created",
+  "Rejected",
+];
 
 function getStatusBadgeClass(status: string) {
   switch (status) {
     case "Submitted": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0";
-    case "Awaiting Approval": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
+    case "Pending Line Manager": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-0";
+    case "Pending Purchasing Review": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0";
+    case "Pending Budget Owner": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
+    case "Pending Final Approval": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
+    case "Ready for Purchase": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0";
     case "PO Created": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
     case "Rejected": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0";
-    default: return "";
+    case "Awaiting Approval": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
+    default: return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400 border-0";
   }
 }
 
@@ -44,19 +58,6 @@ export default function RequisitionsListPage() {
       if (search) params.set("search", search);
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       return fetch(`/api/requisitions?${params.toString()}`, { credentials: "include" }).then(r => r.json());
-    },
-  });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await apiRequest("PATCH", `/api/requisitions/${id}`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requisitions"] });
-      toast({ title: "Status updated", description: "Requisition status has been updated." });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
     },
   });
 
@@ -167,7 +168,7 @@ export default function RequisitionsListPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]" data-testid="select-status-filter">
+          <SelectTrigger className="w-[220px]" data-testid="select-status-filter">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
@@ -193,7 +194,7 @@ export default function RequisitionsListPage() {
                   <th className="p-3 text-right font-medium text-muted-foreground">Est. Cost (AED)</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Date of Request</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Required By</th>
-                  <th className="p-3 text-left font-medium text-muted-foreground">Status</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">Workflow Stage</th>
                   <th className="p-3 text-center font-medium text-muted-foreground">PDF</th>
                 </tr>
               </thead>
@@ -226,24 +227,10 @@ export default function RequisitionsListPage() {
                       <td className="p-3 text-right font-medium">{formatCost(req.estimatedCostAed)}</td>
                       <td className="p-3 text-muted-foreground">{req.dateOfRequest}</td>
                       <td className="p-3 text-muted-foreground">{req.requiredByDate}</td>
-                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                        {isAdmin ? (
-                          <Select
-                            value={req.status}
-                            onValueChange={(val) => updateStatusMutation.mutate({ id: req.id, status: val })}
-                          >
-                            <SelectTrigger className="h-7 text-xs w-[150px]" data-testid={`select-status-${req.id}`}>
-                              <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`}>{req.status}</Badge>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {statusOptions.map((s) => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`} data-testid={`badge-status-${req.id}`}>{req.status}</Badge>
-                        )}
+                      <td className="p-3">
+                        <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`} data-testid={`badge-status-${req.id}`}>
+                          {req.status}
+                        </Badge>
                       </td>
                       <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <Button
