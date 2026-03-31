@@ -887,6 +887,11 @@ export const requisitions = pgTable("requisitions", {
   projectStartDate: varchar("project_start_date"),
   status: varchar("status").notNull().default("Submitted"),
   userId: varchar("user_id").references(() => managedUsers.id, { onDelete: "set null" }),
+  requesterFullName: varchar("requester_full_name"),
+  requesterPosition: varchar("requester_position"),
+  requesterDepartment: varchar("requester_department"),
+  requesterCostCenter: varchar("requester_cost_center"),
+  requesterCostCenterAccountNumber: varchar("requester_cost_center_account_number"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

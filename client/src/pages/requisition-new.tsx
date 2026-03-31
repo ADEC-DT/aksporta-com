@@ -1,6 +1,6 @@
 import { OtherModulesSection } from "@/components/other-modules-section";
 import { useState, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Upload, X, FileText, Image, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, X, FileText, Image, Loader2, AlertCircle } from "lucide-react";
 
 interface AttachmentFile {
   file: File;
   preview: string;
+}
+
+interface EmployeeProfile {
+  full_name: string | null;
+  position: string | null;
+  department_english: string | null;
+  cost_center: string | null;
+  cost_center_account_number: string | null;
 }
 
 function formatFileSize(bytes: number) {
@@ -42,6 +50,19 @@ export default function RequisitionNewPage() {
   const defaultBack = isIntranet ? "/intranet/requisitions" : "/erp/procurement";
   const returnTo = new URLSearchParams(window.location.search).get("from") || defaultBack;
 
+  const { data: employeeProfile, isLoading: isLoadingProfile, isError: isProfileError } = useQuery<EmployeeProfile | null>({
+    queryKey: ["/api/employee-profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/employee-profile", { credentials: "include" });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch employee profile");
+      return res.json();
+    },
+    retry: false,
+  });
+
+  const profileNotFound = !isLoadingProfile && !isProfileError && employeeProfile === null;
+
   const [form, setForm] = useState({
     date: todayStr,
     requestTitle: "",
@@ -66,7 +87,7 @@ export default function RequisitionNewPage() {
     const e: Record<string, string> = {};
     if (!form.requestTitle.trim()) e.requestTitle = "Request Title is required";
     if (!form.department.trim()) e.department = "Department is required";
-    if (!form.requestedBy.trim()) e.requestedBy = "Requested By is required";
+    if ((profileNotFound || isProfileError) && !form.requestedBy.trim()) e.requestedBy = "Requested By is required";
     if (!form.dateOfRequest) e.dateOfRequest = "Date of Request is required";
     if (!form.description.trim()) e.description = "Description is required";
     if (!form.justification.trim()) e.justification = "Justification is required";
@@ -89,11 +110,19 @@ export default function RequisitionNewPage() {
         }))
       );
 
+      const requestedBy = employeeProfile?.full_name || form.requestedBy;
+
       await apiRequest("POST", "/api/requisitions", {
         ...form,
+        requestedBy,
         estimatedCostAed: Math.round(Number(form.estimatedCostAed) * 100),
         isBudgeted: form.isBudgeted === "yes",
         status: "Submitted",
+        requesterFullName: employeeProfile?.full_name || null,
+        requesterPosition: employeeProfile?.position || null,
+        requesterDepartment: employeeProfile?.department_english || null,
+        requesterCostCenter: employeeProfile?.cost_center || null,
+        requesterCostCenterAccountNumber: employeeProfile?.cost_center_account_number != null ? String(employeeProfile.cost_center_account_number) : null,
         attachments: attachmentData,
       });
     },
@@ -162,7 +191,56 @@ export default function RequisitionNewPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">1. Request Information</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">1. Requester Information</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            {isLoadingProfile ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4" data-testid="loading-employee-profile">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading your employee profile...</span>
+              </div>
+            ) : isProfileError ? (
+              <div className="flex items-start gap-2 p-4 rounded-lg border border-destructive/50 bg-destructive/10" data-testid="employee-profile-error">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">Failed to load your employee profile. You can still submit the form manually.</p>
+              </div>
+            ) : profileNotFound ? (
+              <div className="flex items-start gap-2 p-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950" data-testid="employee-profile-not-found">
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800 dark:text-amber-300">Your employee profile was not found in the directory. Please contact your administrator.</p>
+              </div>
+            ) : employeeProfile ? (
+              <div className="space-y-4" data-testid="employee-profile-info">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Full Name</Label>
+                    <Input value={employeeProfile.full_name || ""} disabled className="bg-muted text-muted-foreground" data-testid="input-requester-full-name" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Position</Label>
+                    <Input value={employeeProfile.position || ""} disabled className="bg-muted text-muted-foreground" data-testid="input-requester-position" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Department</Label>
+                    <Input value={employeeProfile.department_english || ""} disabled className="bg-muted text-muted-foreground" data-testid="input-requester-department" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Cost Center</Label>
+                    <Input value={employeeProfile.cost_center || ""} disabled className="bg-muted text-muted-foreground" data-testid="input-requester-cost-center" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Cost Center - Account Number</Label>
+                  <Input value={employeeProfile.cost_center_account_number != null ? String(employeeProfile.cost_center_account_number) : ""} disabled className="bg-muted text-muted-foreground" data-testid="input-requester-cost-center-account" />
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-lg">2. Request Information</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="requestTitle">Request Title *</Label>
@@ -175,11 +253,13 @@ export default function RequisitionNewPage() {
                 <Input id="department" value={form.department} onChange={(e) => update("department", e.target.value)} placeholder="e.g., IT, Finance, Operations" data-testid="input-department" />
                 {errors.department && <p className="text-xs text-destructive" data-testid="error-department">{errors.department}</p>}
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="requestedBy">Requested By *</Label>
-                <Input id="requestedBy" value={form.requestedBy} onChange={(e) => update("requestedBy", e.target.value)} placeholder="Full name" data-testid="input-requested-by" />
-                {errors.requestedBy && <p className="text-xs text-destructive" data-testid="error-requested-by">{errors.requestedBy}</p>}
-              </div>
+              {(profileNotFound || isProfileError) && (
+                <div className="space-y-1">
+                  <Label htmlFor="requestedBy">Requested By *</Label>
+                  <Input id="requestedBy" value={form.requestedBy} onChange={(e) => update("requestedBy", e.target.value)} placeholder="Full name" data-testid="input-requested-by" />
+                  {errors.requestedBy && <p className="text-xs text-destructive" data-testid="error-requested-by">{errors.requestedBy}</p>}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -196,7 +276,7 @@ export default function RequisitionNewPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">2. Description of Request</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">3. Description of Request</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1">
               <Label htmlFor="description">Please provide a detailed explanation of what is being requested *</Label>
@@ -207,7 +287,7 @@ export default function RequisitionNewPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">3. Justification / Business Need</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">4. Justification / Business Need</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1">
               <Label htmlFor="justification">Justification *</Label>
@@ -218,7 +298,7 @@ export default function RequisitionNewPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">4. Budget Details</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">5. Budget Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -253,7 +333,7 @@ export default function RequisitionNewPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">5. Supporting Documents</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">6. Supporting Documents</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
@@ -297,7 +377,7 @@ export default function RequisitionNewPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">6. Timeline</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">7. Timeline</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">

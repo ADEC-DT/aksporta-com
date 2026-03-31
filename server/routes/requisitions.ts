@@ -7,6 +7,41 @@ import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSche
 import { z } from "zod";
 
 export async function registerRequisitionRoutes(app: Express, _httpServer: Server) {
+  // ========== Employee Profile Lookup ==========
+
+  app.get("/api/employee-profile", isAuthenticated, async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const email = managedUser.email;
+
+      const employeeDs = await storage.getDataSourceBySlug("employee-directory");
+      if (!employeeDs) {
+        return res.status(404).json({ message: "Employee directory not found" });
+      }
+
+      const { records } = await storage.getDsRecords(employeeDs.id, { search: email, limit: 100 });
+      const match = records.find((r: any) => {
+        const data = r.data as Record<string, any>;
+        return data.email && String(data.email).toLowerCase() === email.toLowerCase();
+      });
+
+      if (!match) {
+        return res.status(404).json({ message: "Your employee profile was not found in the directory. Please contact your administrator." });
+      }
+
+      const data = match.data as Record<string, any>;
+      res.json({
+        full_name: data.full_name || null,
+        position: data.position || null,
+        department_english: data.department_english || null,
+        cost_center: data.cost_center || null,
+        cost_center_account_number: data.cost_center_account_number || null,
+      });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ========== Requisitions API Routes ==========
 
   app.get("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
