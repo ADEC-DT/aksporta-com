@@ -145,6 +145,7 @@ export type ManagedUser = typeof managedUsers.$inferSelect;
 export type AdminStats = {
   totalUsers: number;
   activeUsers: number;
+  totalEmployees: number;
   roleDistribution: { role: string; count: number }[];
 };
 

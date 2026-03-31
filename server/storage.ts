@@ -74,7 +74,7 @@ export interface IStorage {
   createSsoAuditLog(log: InsertSsoAuditLog): Promise<SsoAuditLog>;
 
   // Stats
-  getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }>;
+  getUserStats(): Promise<{ totalUsers: number; activeUsers: number; totalEmployees: number; roleDistribution: { role: string; count: number }[] }>;
   
   // System settings CRUD
   getAllSystemSettings(): Promise<SystemSetting[]>;
@@ -442,7 +442,7 @@ export class DatabaseStorage implements IStorage {
     return deletedSso.length + deletedPrt.length;
   }
 
-  async getUserStats(): Promise<{ totalUsers: number; activeUsers: number; roleDistribution: { role: string; count: number }[] }> {
+  async getUserStats(): Promise<{ totalUsers: number; activeUsers: number; totalEmployees: number; roleDistribution: { role: string; count: number }[] }> {
     const allUsers = await db.select().from(managedUsers);
     const totalUsers = allUsers.length;
     
@@ -456,8 +456,17 @@ export class DatabaseStorage implements IStorage {
     });
     
     const roleDistribution = Array.from(roleMap.entries()).map(([role, count]) => ({ role, count }));
+
+    let totalEmployees = 0;
+    try {
+      const empSource = await db.select().from(dataSources).where(eq(dataSources.slug, "employee-directory"));
+      if (empSource.length > 0) {
+        const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(dsRecords).where(eq(dsRecords.dataSourceId, empSource[0].id));
+        totalEmployees = Number(countResult?.count || 0);
+      }
+    } catch {}
     
-    return { totalUsers, activeUsers, roleDistribution };
+    return { totalUsers, activeUsers, totalEmployees, roleDistribution };
   }
 
   // System settings methods

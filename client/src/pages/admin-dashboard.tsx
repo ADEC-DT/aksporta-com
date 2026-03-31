@@ -574,6 +574,18 @@ function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+            <BookUser className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-total-employees">
+              {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : stats?.totalEmployees || 0}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
             <CardTitle className="text-sm font-medium">Active (24h)</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
