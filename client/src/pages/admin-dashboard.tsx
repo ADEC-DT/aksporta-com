@@ -50,7 +50,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX, UsersRound } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX, UsersRound, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -296,6 +296,8 @@ function AdminDashboard() {
   const [empSearchTerm, setEmpSearchTerm] = useState("");
   const [empSearchOpen, setEmpSearchOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userPage, setUserPage] = useState(1);
+  const usersPerPage = 25;
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetResult, setResetResult] = useState<{ resetUrl: string; emailSent: boolean; userName: string } | null>(null);
@@ -669,6 +671,7 @@ function AdminDashboard() {
               Failed to load users. Please try again.
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -683,7 +686,7 @@ function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((user) => (
+                {users?.slice((userPage - 1) * usersPerPage, userPage * usersPerPage).map((user) => (
                   <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
                     <TableCell>
                       <div className="flex flex-col">
@@ -764,6 +767,35 @@ function AdminDashboard() {
                 ))}
               </TableBody>
             </Table>
+            {users && users.length > usersPerPage && (
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(userPage - 1) * usersPerPage + 1}–{Math.min(userPage * usersPerPage, users.length)} of {users.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={userPage <= 1}
+                    onClick={() => setUserPage(userPage - 1)}
+                    data-testid="button-users-prev"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">{userPage} / {Math.ceil(users.length / usersPerPage)}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={userPage >= Math.ceil(users.length / usersPerPage)}
+                    onClick={() => setUserPage(userPage + 1)}
+                    data-testid="button-users-next"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>
