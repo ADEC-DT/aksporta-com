@@ -127,12 +127,36 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
     }
   });
 
+  app.get("/api/admin/employee-directory/lookup", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const search = (req.query.search as string) || "";
+      const ds = await storage.getDataSourceBySlug("employee-directory");
+      if (!ds) {
+        return res.status(404).json({ message: "Employee directory data source not found" });
+      }
+      const { records } = await storage.getDsRecords(ds.id, { search, limit: 50 });
+      const employees = records.map(r => ({
+        id: r.id,
+        employeeCode: r.data.employee_code ?? null,
+        fullName: (r.data.full_name as string) || "",
+        email: (r.data.email as string) || "",
+        position: (r.data.position as string) || "",
+        department: (r.data.department_english as string) || "",
+      }));
+      res.json(employees);
+    } catch (error) {
+      console.error("Error looking up employee directory:", error);
+      res.status(500).json({ message: "Failed to look up employee directory" });
+    }
+  });
+
   const createUserSchema = z.object({
     email: z.string().email(),
     username: z.string().min(3).max(50),
     password: passwordSchema,
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
+    employeeCode: z.string().optional().nullable(),
     role: z.enum(["superadmin", "admin", "finance", "procurement", "livery", "others"]).default("others"),
   });
 
@@ -184,6 +208,7 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
     password: passwordSchema.optional(),
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
+    employeeCode: z.string().optional().nullable(),
     role: z.enum(["superadmin", "admin", "finance", "procurement", "livery", "others"]).optional(),
     isActive: z.boolean().optional(),
   });

@@ -50,7 +50,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -61,7 +61,17 @@ interface UserFormData {
   password: string;
   firstName: string;
   lastName: string;
+  employeeCode: string;
   role: "superadmin" | "admin" | "finance" | "procurement" | "livery" | "others";
+}
+
+interface EmployeeLookupResult {
+  id: string;
+  employeeCode: string | number | null;
+  fullName: string;
+  email: string;
+  position: string;
+  department: string;
 }
 
 function UserServicesCell({ userId, enabledServices }: { userId: string; enabledServices: ExternalService[] }) {
@@ -280,8 +290,11 @@ function AdminDashboard() {
     password: "",
     firstName: "",
     lastName: "",
+    employeeCode: "",
     role: "others",
   });
+  const [empSearchTerm, setEmpSearchTerm] = useState("");
+  const [empSearchOpen, setEmpSearchOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -308,6 +321,17 @@ function AdminDashboard() {
   const { data: enabledServices = [] } = useQuery<ExternalService[]>({
     queryKey: ["/api/services/enabled"],
     enabled: isAdminRole,
+  });
+
+  const { data: employeeLookupResults = [], isFetching: empSearching } = useQuery<EmployeeLookupResult[]>({
+    queryKey: ["/api/admin/employee-directory/lookup", empSearchTerm],
+    queryFn: async () => {
+      if (!empSearchTerm.trim()) return [];
+      const res = await fetch(`/api/admin/employee-directory/lookup?search=${encodeURIComponent(empSearchTerm)}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isAdminRole && empSearchOpen && empSearchTerm.trim().length >= 2,
   });
 
   const createUserMutation = useMutation({
@@ -379,9 +403,11 @@ function AdminDashboard() {
   });
 
   function resetForm() {
-    setFormData({ email: "", username: "", password: "", firstName: "", lastName: "", role: "others" });
+    setFormData({ email: "", username: "", password: "", firstName: "", lastName: "", employeeCode: "", role: "others" });
     setEditingUser(null);
     setFormMode("create");
+    setEmpSearchTerm("");
+    setEmpSearchOpen(false);
   }
 
   function handleOpenCreate() {
@@ -398,10 +424,27 @@ function AdminDashboard() {
       password: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
+      employeeCode: user.employeeCode || "",
       role: (user.role as "superadmin" | "admin" | "finance" | "procurement" | "livery" | "others") || "others",
     });
     setFormMode("edit");
     setDialogOpen(true);
+  }
+
+  function handleSelectEmployee(emp: EmployeeLookupResult) {
+    const nameParts = emp.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+    setFormData({
+      ...formData,
+      email: emp.email || formData.email,
+      firstName,
+      lastName,
+      employeeCode: emp.employeeCode != null ? String(emp.employeeCode) : "",
+    });
+    setEmpSearchOpen(false);
+    setEmpSearchTerm("");
+    toast({ title: "Employee data imported", description: `${emp.fullName} - ${emp.email}` });
   }
 
   function validatePassword(password: string): string | null {
@@ -666,6 +709,57 @@ function AdminDashboard() {
                 : "Update the user's information and role."}
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+              <Popover open={empSearchOpen} onOpenChange={setEmpSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full gap-2" data-testid="button-import-employee">
+                    <BookUser className="h-4 w-4" />
+                    Import from Employee Directory
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-96 p-3" align="start">
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name or email..."
+                        value={empSearchTerm}
+                        onChange={(e) => setEmpSearchTerm(e.target.value)}
+                        className="pl-8"
+                        autoFocus
+                        data-testid="input-employee-search"
+                      />
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {empSearching ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      ) : empSearchTerm.trim().length < 2 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">Type at least 2 characters to search</p>
+                      ) : employeeLookupResults.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">No employees found</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {employeeLookupResults.map((emp) => (
+                            <button
+                              key={emp.id}
+                              type="button"
+                              className="w-full text-left rounded-md px-3 py-2 hover:bg-accent transition-colors"
+                              onClick={() => handleSelectEmployee(emp)}
+                              data-testid={`button-select-employee-${emp.id}`}
+                            >
+                              <div className="font-medium text-sm">{emp.fullName}</div>
+                              <div className="text-xs text-muted-foreground">{emp.email}{emp.position ? ` · ${emp.position}` : ""}{emp.department ? ` · ${emp.department}` : ""}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

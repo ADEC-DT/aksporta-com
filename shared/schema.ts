@@ -79,6 +79,7 @@ export const managedUsers = pgTable("managed_users", {
   allowedPages: jsonb("allowed_pages").$type<string[]>(),
   lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  employeeCode: varchar("employee_code"),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   roleIdx: index("managed_users_role_idx").on(table.role),
