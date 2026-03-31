@@ -654,26 +654,15 @@ export default function CustomerDBPage() {
                                     const rawVal = d[col.key];
                                     const boolVal = rawVal === true || rawVal === "TRUE" || rawVal === "true";
 
-                                    if (isBoolCol && isSuperAdmin) {
+                                    if (isBoolCol) {
                                       return (
                                         <TableCell key={col.key} className="text-sm whitespace-nowrap">
                                           <Checkbox
                                             checked={boolVal}
-                                            onCheckedChange={(checked) => {
-                                              toggleFieldMutation.mutate({ recordId: record.id, field: col.key, value: !!checked });
-                                            }}
+                                            disabled
+                                            className="opacity-50 cursor-not-allowed"
                                             data-testid={`checkbox-${col.key}-${record.id}`}
                                           />
-                                        </TableCell>
-                                      );
-                                    }
-
-                                    if (isBoolCol) {
-                                      return (
-                                        <TableCell key={col.key} className="text-sm whitespace-nowrap">
-                                          <Badge variant={boolVal ? "default" : "secondary"}>
-                                            {boolVal ? "TRUE" : "FALSE"}
-                                          </Badge>
                                         </TableCell>
                                       );
                                     }
