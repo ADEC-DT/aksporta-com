@@ -384,7 +384,7 @@ function AdminDashboard() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      return apiRequest("PUT", `/api/admin/users/${id}`, { isActive });
+      return apiRequest("PATCH", `/api/admin/users/${id}`, { isActive });
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
