@@ -421,16 +421,6 @@ export default function CustomerDBPage() {
         </div>
         {activeSource && activeSource !== "__departments" && (
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={`Search in ${currentSource?.name || "records"}...`}
-                className="w-[280px] pl-9"
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                data-testid="input-search-records"
-              />
-            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" data-testid="button-export">
@@ -592,10 +582,26 @@ export default function CustomerDBPage() {
           {activeTab === "records" && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  {currentSource?.name} Records
-                  <Badge variant="secondary">{totalRecords}</Badge>
-                </CardTitle>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {currentSource?.name} Records
+                    <Badge variant="secondary">{totalRecords}</Badge>
+                  </CardTitle>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder={
+                        currentSource?.name?.toLowerCase().includes("employee")
+                          ? "Search by employee code, name, or email..."
+                          : `Search in ${currentSource?.name || "records"}...`
+                      }
+                      className="w-full sm:w-[300px] pl-9"
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                      data-testid="input-search-records"
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {columns.length === 0 ? (
