@@ -50,7 +50,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -382,6 +382,20 @@ function AdminDashboard() {
     },
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      return apiRequest("PUT", `/api/admin/users/${id}`, { isActive });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: variables.isActive ? "User activated" : "User deactivated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update status", description: error.message, variant: "destructive" });
+    },
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: async (userId: string) => {
       const res = await apiRequest("POST", `/api/admin/users/${userId}/reset-password-link`);
@@ -657,9 +671,23 @@ function AdminDashboard() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.isActive ? "outline" : "secondary"}>
-                        {user.isActive ? "Active" : "Inactive"}
-                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0"
+                        disabled={user.id === currentUser?.id || toggleActiveMutation.isPending}
+                        onClick={() => toggleActiveMutation.mutate({ id: user.id, isActive: !user.isActive })}
+                        title={user.isActive ? "Click to deactivate" : "Click to activate"}
+                        data-testid={`button-toggle-active-${user.id}`}
+                      >
+                        <Badge
+                          variant={user.isActive ? "outline" : "destructive"}
+                          className={`cursor-pointer flex items-center gap-1 ${user.isActive ? "border-green-500 text-green-600" : ""}`}
+                        >
+                          {user.isActive ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <UserServicesCell userId={user.id} enabledServices={enabledServices} />
