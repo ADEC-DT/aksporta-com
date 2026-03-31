@@ -13,23 +13,28 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
       const email = managedUser.email;
+      console.log(`[employee-profile] Looking up profile for email: ${email}`);
 
       const employeeDs = await storage.getDataSourceBySlug("employee-directory");
       if (!employeeDs) {
+        console.log(`[employee-profile] Employee directory data source not found`);
         return res.status(404).json({ message: "Employee directory not found" });
       }
 
       const { records } = await storage.getDsRecords(employeeDs.id, { search: email, limit: 100 });
+      console.log(`[employee-profile] Search returned ${records.length} records for email: ${email}`);
       const match = records.find((r: any) => {
         const data = r.data as Record<string, any>;
         return data.email && String(data.email).toLowerCase() === email.toLowerCase();
       });
 
       if (!match) {
+        console.log(`[employee-profile] No exact match found for email: ${email}`);
         return res.status(404).json({ message: "Your employee profile was not found in the directory. Please contact your administrator." });
       }
 
       const data = match.data as Record<string, any>;
+      console.log(`[employee-profile] Found profile for ${data.full_name} (${email})`);
       res.json({
         full_name: data.full_name || null,
         position: data.position || null,
@@ -38,6 +43,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         cost_center_account_number: data.cost_center_account_number || null,
       });
     } catch (e: any) {
+      console.error(`[employee-profile] Error during lookup: ${e.message}`);
       res.status(500).json({ message: e.message });
     }
   });

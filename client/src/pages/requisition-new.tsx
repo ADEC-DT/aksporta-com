@@ -50,11 +50,15 @@ export default function RequisitionNewPage() {
   const defaultBack = isIntranet ? "/intranet/requisitions" : "/erp/procurement";
   const returnTo = new URLSearchParams(window.location.search).get("from") || defaultBack;
 
-  const { data: employeeProfile, isLoading: isLoadingProfile, isError: isProfileError } = useQuery<EmployeeProfile | null>({
+  const { data: employeeProfile, isLoading: isLoadingProfile, isError: isProfileError, error: profileError } = useQuery<EmployeeProfile | null>({
     queryKey: ["/api/employee-profile"],
     queryFn: async () => {
       const res = await fetch("/api/employee-profile", { credentials: "include" });
       if (res.status === 404) return null;
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Employee profile endpoint not available. The application may need to be redeployed.");
+      }
       if (!res.ok) throw new Error("Failed to fetch employee profile");
       return res.json();
     },
@@ -201,7 +205,7 @@ export default function RequisitionNewPage() {
             ) : isProfileError ? (
               <div className="flex items-start gap-2 p-4 rounded-lg border border-destructive/50 bg-destructive/10" data-testid="employee-profile-error">
                 <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">Failed to load your employee profile. You can still submit the form manually.</p>
+                <p className="text-sm text-destructive">{profileError?.message || "Failed to load your employee profile."} You can still submit the form manually.</p>
               </div>
             ) : profileNotFound ? (
               <div className="flex items-start gap-2 p-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950" data-testid="employee-profile-not-found">
