@@ -50,7 +50,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX, UsersRound } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -396,6 +396,21 @@ function AdminDashboard() {
     },
   });
 
+  const syncEmployeesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/sync-employees");
+      return res.json();
+    },
+    onSuccess: (data: { created: number; skipped: number; total: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Sync complete", description: `${data.created} users created, ${data.skipped} skipped (already exist or no email)` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: async (userId: string) => {
       const res = await apiRequest("POST", `/api/admin/users/${userId}/reset-password-link`);
@@ -627,8 +642,22 @@ function AdminDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>View and manage all users in the system</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>View and manage all users in the system</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncEmployeesMutation.mutate()}
+              disabled={syncEmployeesMutation.isPending}
+              data-testid="button-sync-employees"
+            >
+              {syncEmployeesMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UsersRound className="mr-2 h-4 w-4" />}
+              Sync from Employee Directory
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {usersLoading ? (

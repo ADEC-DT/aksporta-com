@@ -150,6 +150,71 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
     }
   });
 
+  app.post("/api/admin/sync-employees", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ds = await storage.getDataSourceBySlug("employee-directory");
+      if (!ds) {
+        return res.status(404).json({ message: "Employee directory data source not found" });
+      }
+      const { records } = await storage.getDsRecords(ds.id, { limit: 10000 });
+
+      let created = 0;
+      let skipped = 0;
+      const skippedReasons: string[] = [];
+
+      for (const r of records) {
+        const email = ((r.data.email as string) || "").trim().toLowerCase();
+        if (!email || !email.includes("@")) {
+          skipped++;
+          continue;
+        }
+
+        const existing = await storage.getManagedUserByEmail(email);
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        const fullName = ((r.data.full_name as string) || "").trim();
+        const nameParts = fullName.split(/\s+/);
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        const baseUsername = email.split("@")[0].replace(/[^a-zA-Z0-9._-]/g, "");
+        let username = baseUsername;
+        let suffix = 1;
+        while (await storage.getManagedUserByUsername(username)) {
+          username = `${baseUsername}${suffix}`;
+          suffix++;
+        }
+
+        const randomPassword = Array.from({ length: 16 }, () =>
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%"[Math.floor(Math.random() * 69)]
+        ).join("");
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+        const empCode = r.data.employee_code ? String(r.data.employee_code) : null;
+
+        await storage.createManagedUser({
+          email,
+          username,
+          password: hashedPassword,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          role: "others",
+          isActive: false,
+          employeeCode: empCode,
+        });
+        created++;
+      }
+
+      res.json({ created, skipped, total: records.length });
+    } catch (error) {
+      console.error("Error syncing employees:", error);
+      res.status(500).json({ message: "Failed to sync employees" });
+    }
+  });
+
   const createUserSchema = z.object({
     email: z.string().email(),
     username: z.string().min(3).max(50),
