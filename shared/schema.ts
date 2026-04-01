@@ -53,6 +53,7 @@ export const pageRegistry: { key: string; label: string; path: string }[] = [
   { key: "my-tickets", label: "My Tickets", path: "/my-tickets" },
   { key: "customer-db", label: "Customer DB", path: "/applications/customer-db" },
   { key: "settings", label: "Users Profile", path: "/settings" },
+  { key: "azure-tables", label: "Azure Tables", path: "/azure-tables" },
 ];
 
 // Extended user with roles (managed users for admin panel)

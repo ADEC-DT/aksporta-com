@@ -44,6 +44,7 @@ export default function OtherModulesPage({ section }: OtherModulesPageProps) {
     "ops-fm": "OPS & FM",
     "other-systems": "Other Systems",
     "it-dt": "IT Service Desk",
+    "azure-tables": "Azure Tables",
   };
   const title = `${sectionLabels[section] || section} — Other Modules`;
   const modules = section === "erp" ? erpModules : [];

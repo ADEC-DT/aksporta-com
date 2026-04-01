@@ -145,6 +145,16 @@ const defaultServices = [
     isExternal: false,
     sortOrder: "14",
   },
+  {
+    name: "Azure Tables",
+    description: null,
+    url: "/azure-tables",
+    icon: "Database",
+    category: "general",
+    isEnabled: true,
+    isExternal: false,
+    sortOrder: "15",
+  },
 ];
 
 const defaultIcons = [
