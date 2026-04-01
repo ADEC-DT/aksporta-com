@@ -12,10 +12,24 @@ import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
 import multer from "multer";
 
+async function ensureAccountColumn(ds: any) {
+  const columns: any[] = ds.columns || [];
+  const existingIndex = columns.findIndex((c: any) => c.key === "account");
+  if (existingIndex === -1) {
+    const updatedColumns = [...columns, { key: "account", label: "Account", type: "boolean" }];
+    await storage.updateDataSource(ds.id, { columns: updatedColumns });
+  } else if (columns[existingIndex].type !== "boolean") {
+    const updatedColumns = [...columns];
+    updatedColumns[existingIndex] = { ...updatedColumns[existingIndex], type: "boolean" };
+    await storage.updateDataSource(ds.id, { columns: updatedColumns });
+  }
+}
+
 async function syncEmployeeAccountField(email: string, isActive: boolean) {
   try {
     const ds = await storage.getDataSourceBySlug("employee-directory");
     if (!ds) return;
+    await ensureAccountColumn(ds);
     const { records } = await storage.getDsRecords(ds.id, { limit: 10000 });
     const normalizedEmail = email.trim().toLowerCase();
     const match = records.find((r: any) => {
@@ -174,6 +188,7 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
       if (!ds) {
         return res.status(404).json({ message: "Employee directory data source not found" });
       }
+      await ensureAccountColumn(ds);
       const { records } = await storage.getDsRecords(ds.id, { limit: 10000 });
 
       let created = 0;
@@ -193,6 +208,10 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
           existing = await storage.getManagedUserByEmployeeCode(empCode);
         }
         if (existing) {
+          if (existing.role === "superadmin") {
+            skipped++;
+            continue;
+          }
           try {
             await storage.updateDsRecord(r.id, { account: existing.isActive });
             updated++;
@@ -257,6 +276,7 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
       if (!ds) {
         return res.status(404).json({ message: "Employee directory data source not found" });
       }
+      await ensureAccountColumn(ds);
       const { records } = await storage.getDsRecords(ds.id, { limit: 10000 });
       let fixed = 0;
 
@@ -269,6 +289,9 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
           user = await storage.getManagedUserByEmployeeCode(empCode);
         }
         if (user) {
+          if (user.role === "superadmin") {
+            continue;
+          }
           const currentAccount = r.data.account;
           if (currentAccount !== user.isActive) {
             try {
