@@ -163,6 +163,7 @@ export interface IStorage {
   // Data Source Records
   getDsRecords(dataSourceId: string, options?: { search?: string; limit?: number; offset?: number; sortBy?: string; sortOrder?: string }): Promise<{ records: DsRecord[]; total: number }>;
   getDsRecord(id: string): Promise<DsRecord | undefined>;
+  getDsRecordByField(dataSourceId: string, fieldKey: string, fieldValue: string, caseInsensitive?: boolean): Promise<DsRecord | undefined>;
   createDsRecord(record: InsertDsRecord): Promise<DsRecord>;
   createDsRecordsBulk(records: InsertDsRecord[]): Promise<DsRecord[]>;
   updateDsRecord(id: string, data: Record<string, any>): Promise<DsRecord | undefined>;
@@ -967,6 +968,18 @@ export class DatabaseStorage implements IStorage {
 
   async getDsRecord(id: string): Promise<DsRecord | undefined> {
     const [record] = await db.select().from(dsRecords).where(eq(dsRecords.id, id));
+    return record;
+  }
+
+  async getDsRecordByField(dataSourceId: string, fieldKey: string, fieldValue: string, caseInsensitive?: boolean): Promise<DsRecord | undefined> {
+    const sanitizedKey = fieldKey.replace(/[^a-zA-Z0-9_]/g, '');
+    const fieldExpr = sql`${dsRecords.data}->>${sql.raw(`'${sanitizedKey}'`)}`;
+    const matchCondition = caseInsensitive
+      ? sql`LOWER(${fieldExpr}) = LOWER(${fieldValue})`
+      : sql`${fieldExpr} = ${fieldValue}`;
+    const [record] = await db.select().from(dsRecords).where(
+      and(eq(dsRecords.dataSourceId, dataSourceId), matchCondition)
+    ).limit(1);
     return record;
   }
 

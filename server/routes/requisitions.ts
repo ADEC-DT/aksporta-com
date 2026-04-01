@@ -311,7 +311,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
       }
       const { comments } = req.body;
-      const result = await approveStep(req.params.id, comments || null);
+      if (!comments || typeof comments !== "string" || !comments.trim()) {
+        return res.status(400).json({ message: "A comment is required when approving a requisition" });
+      }
+      const result = await approveStep(req.params.id, comments.trim());
       res.json({ success: true, newStatus: result.newStatus, nextSteps: result.nextSteps });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -327,7 +330,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
       }
       const { comments } = req.body;
-      const result = await rejectStep(req.params.id, comments || null);
+      if (!comments || typeof comments !== "string" || !comments.trim()) {
+        return res.status(400).json({ message: "A comment is required when rejecting a requisition" });
+      }
+      const result = await rejectStep(req.params.id, comments.trim());
       res.json({ success: true, newStatus: result.newStatus });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

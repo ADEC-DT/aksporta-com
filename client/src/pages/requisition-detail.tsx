@@ -357,20 +357,23 @@ export default function RequisitionDetailPage() {
                 : "Review the requisition details below and approve or reject this request."}
             </p>
             <div className="space-y-2">
-              <Label htmlFor="approval-comment">Comments</Label>
+              <Label htmlFor="approval-comment">Comments <span className="text-destructive">*</span></Label>
               <Textarea
                 id="approval-comment"
-                placeholder="Add your comments (optional for approval, recommended for rejection)..."
+                placeholder="Add your comments (required)..."
                 value={approvalComment}
                 onChange={(e) => setApprovalComment(e.target.value)}
                 rows={3}
                 data-testid="textarea-approval-comment"
               />
+              {!approvalComment.trim() && (
+                <p className="text-xs text-muted-foreground">A comment is required before you can approve or reject.</p>
+              )}
             </div>
             <div className="flex gap-3">
               <Button
                 onClick={() => approveMutation.mutate(approvalComment)}
-                disabled={approveMutation.isPending || rejectMutation.isPending}
+                disabled={approveMutation.isPending || rejectMutation.isPending || !approvalComment.trim()}
                 className="bg-green-600 hover:bg-green-700"
                 data-testid="button-approve"
               >
@@ -384,7 +387,7 @@ export default function RequisitionDetailPage() {
               <Button
                 variant="destructive"
                 onClick={() => rejectMutation.mutate(approvalComment)}
-                disabled={approveMutation.isPending || rejectMutation.isPending}
+                disabled={approveMutation.isPending || rejectMutation.isPending || !approvalComment.trim()}
                 data-testid="button-reject"
               >
                 {rejectMutation.isPending ? (

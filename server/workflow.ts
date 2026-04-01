@@ -13,8 +13,75 @@ export interface WorkflowRouter {
   getFinalApprovers(requisition: Requisition, amount: number): Promise<ApproverAssignment[]>;
 }
 
+async function resolveDirectManager(requisition: Requisition): Promise<ApproverAssignment | null> {
+  try {
+    if (!requisition.userId) return null;
+
+    const creator = await storage.getManagedUser(requisition.userId);
+    if (!creator) return null;
+
+    const empDs = await storage.getDataSourceBySlug("employee-directory");
+    if (!empDs) {
+      console.warn("[workflow] Employee Directory data source not found — falling back to admin assignment");
+      return null;
+    }
+
+    const creatorEmployeeCode = creator.employeeCode?.trim();
+    const creatorEmail = creator.email?.trim().toLowerCase();
+
+    let creatorRecord = null;
+    if (creatorEmployeeCode) {
+      creatorRecord = await storage.getDsRecordByField(empDs.id, "employee_code", creatorEmployeeCode);
+    }
+    if (!creatorRecord && creatorEmail) {
+      creatorRecord = await storage.getDsRecordByField(empDs.id, "email", creatorEmail, true);
+    }
+
+    if (!creatorRecord) {
+      console.warn(`[workflow] No Employee Directory record found for user ${creator.username} (code=${creatorEmployeeCode}, email=${creatorEmail}) — falling back to admin assignment`);
+      return null;
+    }
+
+    const managerCode = creatorRecord.data.direct_manager_code;
+    if (!managerCode) {
+      console.warn(`[workflow] Employee record for ${creator.username} has no direct_manager_code — falling back to admin assignment`);
+      return null;
+    }
+
+    const managerCodeStr = String(managerCode).trim();
+    let managerUser = await storage.getManagedUserByEmployeeCode(managerCodeStr);
+
+    if (!managerUser) {
+      const managerEmpRecord = await storage.getDsRecordByField(empDs.id, "employee_code", managerCodeStr);
+      if (managerEmpRecord && managerEmpRecord.data.email) {
+        const managerEmail = String(managerEmpRecord.data.email).trim().toLowerCase();
+        managerUser = await storage.getManagedUserByEmail(managerEmail);
+      }
+    }
+
+    if (!managerUser) {
+      const managerName = creatorRecord.data.direct_manager_full_name
+        ? String(creatorRecord.data.direct_manager_full_name)
+        : `Manager (code: ${managerCode})`;
+      console.warn(`[workflow] Direct manager "${managerName}" (code=${managerCode}) has no matching user account — falling back to admin assignment`);
+      return null;
+    }
+
+    const managerDisplayName = managerUser.displayName
+      || [managerUser.firstName, managerUser.lastName].filter(Boolean).join(" ")
+      || managerUser.username;
+
+    return { userId: String(managerUser.id), userName: managerDisplayName };
+  } catch (err) {
+    console.warn("[workflow] Error resolving direct manager:", err);
+    return null;
+  }
+}
+
 const defaultRouter: WorkflowRouter = {
-  async getLineManager(_req: Requisition): Promise<ApproverAssignment> {
+  async getLineManager(req: Requisition): Promise<ApproverAssignment> {
+    const manager = await resolveDirectManager(req);
+    if (manager) return manager;
     const admins = await getAdminUsers();
     if (admins.length > 0) return { userId: admins[0].id, userName: admins[0].name };
     return { userId: null, userName: "Line Manager (Unassigned)" };
