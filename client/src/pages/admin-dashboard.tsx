@@ -50,7 +50,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX, UsersRound, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, UserPlus, Shield, Activity, Loader2, Pencil, Trash2, Settings2, FileCheck, KeyRound, Copy, CheckCircle, Mail, MailX, Search, BookUser, UserCheck, UserX, UsersRound, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 type FormMode = "create" | "edit";
@@ -298,6 +298,9 @@ function AdminDashboard() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userPage, setUserPage] = useState(1);
   const usersPerPage = 25;
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userSortColumn, setUserSortColumn] = useState<"user" | "role" | "status" | null>(null);
+  const [userSortDirection, setUserSortDirection] = useState<"asc" | "desc">("asc");
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetResult, setResetResult] = useState<{ resetUrl: string; emailSent: boolean; userName: string } | null>(null);
@@ -335,6 +338,50 @@ function AdminDashboard() {
     },
     enabled: isAdminRole && empSearchOpen && empSearchTerm.trim().length >= 2,
   });
+
+  const handleUserSortToggle = (column: "user" | "role" | "status") => {
+    if (userSortColumn === column) {
+      setUserSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setUserSortColumn(column);
+      setUserSortDirection("asc");
+    }
+    setUserPage(1);
+  };
+
+  const filteredAndSortedUsers = (() => {
+    if (!users) return [];
+    let result = [...users];
+    if (userSearchTerm.trim()) {
+      const term = userSearchTerm.toLowerCase();
+      result = result.filter((u) =>
+        (u.username?.toLowerCase() || "").includes(term) ||
+        (u.firstName?.toLowerCase() || "").includes(term) ||
+        (u.lastName?.toLowerCase() || "").includes(term) ||
+        (u.email?.toLowerCase() || "").includes(term) ||
+        (u.employeeCode?.toLowerCase() || "").includes(term)
+      );
+    }
+    if (userSortColumn) {
+      result.sort((a, b) => {
+        let aVal = "";
+        let bVal = "";
+        if (userSortColumn === "user") {
+          aVal = (a.username || "").toLowerCase();
+          bVal = (b.username || "").toLowerCase();
+        } else if (userSortColumn === "role") {
+          aVal = (a.role || "others").toLowerCase();
+          bVal = (b.role || "others").toLowerCase();
+        } else if (userSortColumn === "status") {
+          aVal = a.isActive ? "active" : "inactive";
+          bVal = b.isActive ? "active" : "inactive";
+        }
+        const cmp = aVal.localeCompare(bVal);
+        return userSortDirection === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  })();
 
   const createUserMutation = useMutation({
     mutationFn: async (data: UserFormData) => {
@@ -672,13 +719,65 @@ function AdminDashboard() {
             </div>
           ) : (
             <>
+            <div className="mb-4 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, username, email, or employee code..."
+                value={userSearchTerm}
+                onChange={(e) => {
+                  setUserSearchTerm(e.target.value);
+                  setUserPage(1);
+                }}
+                className="pl-9"
+                data-testid="input-user-search"
+              />
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => handleUserSortToggle("user")}
+                      data-testid="button-sort-user"
+                    >
+                      User
+                      {userSortColumn === "user" ? (
+                        userSortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                      )}
+                    </button>
+                  </TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => handleUserSortToggle("role")}
+                      data-testid="button-sort-role"
+                    >
+                      Role
+                      {userSortColumn === "role" ? (
+                        userSortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => handleUserSortToggle("status")}
+                      data-testid="button-sort-status"
+                    >
+                      Status
+                      {userSortColumn === "status" ? (
+                        userSortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                      )}
+                    </button>
+                  </TableHead>
                   <TableHead>Services</TableHead>
                   <TableHead>Sub Services</TableHead>
                   <TableHead>Last Active</TableHead>
@@ -686,7 +785,7 @@ function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.slice((userPage - 1) * usersPerPage, userPage * usersPerPage).map((user) => (
+                {filteredAndSortedUsers.slice((userPage - 1) * usersPerPage, userPage * usersPerPage).map((user) => (
                   <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
                     <TableCell>
                       <div className="flex flex-col">
@@ -767,10 +866,10 @@ function AdminDashboard() {
                 ))}
               </TableBody>
             </Table>
-            {users && users.length > usersPerPage && (
+            {filteredAndSortedUsers.length > usersPerPage && (
               <div className="flex items-center justify-between mt-4">
                 <p className="text-sm text-muted-foreground">
-                  Showing {(userPage - 1) * usersPerPage + 1}–{Math.min(userPage * usersPerPage, users.length)} of {users.length}
+                  Showing {(userPage - 1) * usersPerPage + 1}–{Math.min(userPage * usersPerPage, filteredAndSortedUsers.length)} of {filteredAndSortedUsers.length}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -782,11 +881,11 @@ function AdminDashboard() {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm">{userPage} / {Math.ceil(users.length / usersPerPage)}</span>
+                  <span className="text-sm">{userPage} / {Math.ceil(filteredAndSortedUsers.length / usersPerPage)}</span>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={userPage >= Math.ceil(users.length / usersPerPage)}
+                    disabled={userPage >= Math.ceil(filteredAndSortedUsers.length / usersPerPage)}
                     onClick={() => setUserPage(userPage + 1)}
                     data-testid="button-users-next"
                   >
