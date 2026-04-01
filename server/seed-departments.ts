@@ -6,10 +6,8 @@ import { departments } from "@shared/schema";
 interface DepartmentRow {
   internalId: number;
   externalId: string;
-  hierarchicalName: string;
   name: string;
   inactive: boolean;
-  budgetOwnerId: string | null;
 }
 
 function decodeXmlEntities(text: string): string {
@@ -46,50 +44,25 @@ function parseXlsXml(filePath: string): DepartmentRow[] {
   }
 
   const dataRows = rows.slice(1);
-  const departments: DepartmentRow[] = [];
+  const deptRows: DepartmentRow[] = [];
 
   for (const cells of dataRows) {
     if (cells.length < 5) continue;
 
     const internalId = parseInt(cells[0], 10);
     const externalId = cells[1];
-    const hierarchicalName = cells[2];
     const name = cells[3];
     const inactive = cells[4] === "Yes";
-    const budgetOwnerId = cells.length > 5 && cells[5] ? cells[5] : null;
 
-    departments.push({
+    deptRows.push({
       internalId,
       externalId,
-      hierarchicalName,
       name,
       inactive,
-      budgetOwnerId,
     });
   }
 
-  return departments;
-}
-
-function computeParentIds(rows: DepartmentRow[]): Map<number, number | null> {
-  const hierarchyToId = new Map<string, number>();
-  for (const row of rows) {
-    hierarchyToId.set(row.hierarchicalName, row.internalId);
-  }
-
-  const parentMap = new Map<number, number | null>();
-  for (const row of rows) {
-    const parts = row.hierarchicalName.split(" : ");
-    if (parts.length <= 1) {
-      parentMap.set(row.internalId, null);
-    } else {
-      const parentHierarchy = parts.slice(0, -1).join(" : ");
-      const parentId = hierarchyToId.get(parentHierarchy) ?? null;
-      parentMap.set(row.internalId, parentId);
-    }
-  }
-
-  return parentMap;
+  return deptRows;
 }
 
 export async function seedDepartments() {
@@ -105,8 +78,6 @@ export async function seedDepartments() {
   const rows = parseXlsXml(filePath);
   console.log(`Parsed ${rows.length} department rows from XLS`);
 
-  const parentMap = computeParentIds(rows);
-
   await db.delete(departments);
 
   const insertValues = rows.map((row) => ({
@@ -114,29 +85,13 @@ export async function seedDepartments() {
     externalId: row.externalId,
     name: row.name,
     inactive: row.inactive,
-    budgetOwnerId: row.budgetOwnerId,
-    parentId: parentMap.get(row.internalId) ?? null,
   }));
 
-  const topLevel = insertValues.filter((v) => v.parentId === null);
-  const midLevel = insertValues.filter(
-    (v) => v.parentId !== null && topLevel.some((t) => t.internalId === v.parentId)
-  );
-  const leafLevel = insertValues.filter(
-    (v) => v.parentId !== null && !topLevel.some((t) => t.internalId === v.parentId)
-  );
-
-  if (topLevel.length > 0) {
-    await db.insert(departments).values(topLevel);
-  }
-  if (midLevel.length > 0) {
-    await db.insert(departments).values(midLevel);
-  }
-  if (leafLevel.length > 0) {
-    await db.insert(departments).values(leafLevel);
+  if (insertValues.length > 0) {
+    await db.insert(departments).values(insertValues);
   }
 
-  console.log(`Seeded ${insertValues.length} departments (${topLevel.length} top-level, ${midLevel.length} mid-level, ${leafLevel.length} leaf-level)`);
+  console.log(`Seeded ${insertValues.length} departments`);
 }
 
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;

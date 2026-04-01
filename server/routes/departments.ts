@@ -77,22 +77,11 @@ export async function registerDepartmentRoutes(app: Express, _httpServer: Server
         const inactiveRaw = mapping.inactive ? rec[mapping.inactive] : null;
         const inactive = inactiveRaw ? ["true", "yes", "1", "t", "y"].includes(String(inactiveRaw).trim().toLowerCase()) : false;
 
-        const parentIdRaw = mapping.parentId ? rec[mapping.parentId] : null;
-        let parentId: number | null = null;
-        if (parentIdRaw && String(parentIdRaw).trim()) {
-          parentId = parseInt(String(parentIdRaw).trim(), 10);
-          if (isNaN(parentId)) parentId = null;
-        }
-
-        const budgetOwnerIdRaw = mapping.budgetOwnerId ? rec[mapping.budgetOwnerId] : null;
-
         rows.push({
           internalId,
           externalId: externalIdRaw ? String(externalIdRaw).trim() : String(internalId),
           name: String(nameRaw).trim(),
           inactive,
-          budgetOwnerId: budgetOwnerIdRaw ? String(budgetOwnerIdRaw).trim() : null,
-          parentId,
         });
       }
 

@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, index, uniqueIndex, jsonb, integer } from "drizzle-orm/pg-core";
-import type { AnyPgColumn } from "drizzle-orm/pg-core/columns/common";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1166,8 +1165,6 @@ export const departments = pgTable("departments", {
   externalId: varchar("external_id").notNull(),
   name: varchar("name").notNull(),
   inactive: boolean("inactive").notNull().default(false),
-  budgetOwnerId: varchar("budget_owner_id"),
-  parentId: integer("parent_id").references((): AnyPgColumn => departments.internalId),
 });
 
 export const insertDepartmentSchema = createInsertSchema(departments);

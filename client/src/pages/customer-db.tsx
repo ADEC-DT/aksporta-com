@@ -1084,8 +1084,6 @@ function DepartmentsTable({
   onPageChange: (p: number) => void;
 }) {
   const { toast } = useToast();
-  const deptMap = new Map(departments.map(d => [d.internalId, d]));
-
   const [importOpen, setImportOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "mapping" | "result">("upload");
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -1093,7 +1091,7 @@ function DepartmentsTable({
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvTotalRows, setCsvTotalRows] = useState(0);
   const [colMapping, setColMapping] = useState<Record<string, string>>({
-    internalId: "", externalId: "", name: "", inactive: "", budgetOwnerId: "", parentId: "",
+    internalId: "", externalId: "", name: "", inactive: "",
   });
   const [importResult, setImportResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1103,8 +1101,6 @@ function DepartmentsTable({
     { key: "externalId", label: "External ID", required: false },
     { key: "name", label: "Name", required: true },
     { key: "inactive", label: "Inactive", required: false },
-    { key: "budgetOwnerId", label: "Budget Owner ID", required: false },
-    { key: "parentId", label: "Parent ID", required: false },
   ];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1147,7 +1143,7 @@ function DepartmentsTable({
         preview.push(row);
       }
       setCsvPreview(preview);
-      const autoMap: Record<string, string> = { internalId: "", externalId: "", name: "", inactive: "", budgetOwnerId: "", parentId: "" };
+      const autoMap: Record<string, string> = { internalId: "", externalId: "", name: "", inactive: "" };
       const lowerHeaders = headers.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
       headers.forEach((h, idx) => {
         const lh = lowerHeaders[idx];
@@ -1155,8 +1151,6 @@ function DepartmentsTable({
         else if (lh.includes("externalid")) autoMap.externalId = h;
         else if (lh === "name" || lh === "departmentname" || lh === "deptname") autoMap.name = h;
         else if (lh.includes("inactive") || lh === "status") autoMap.inactive = h;
-        else if (lh.includes("budgetowner")) autoMap.budgetOwnerId = h;
-        else if (lh.includes("parent") || lh === "parentid") autoMap.parentId = h;
       });
       setColMapping(autoMap);
       setImportStep("mapping");
@@ -1193,14 +1187,9 @@ function DepartmentsTable({
     setCsvHeaders([]);
     setCsvPreview([]);
     setCsvTotalRows(0);
-    setColMapping({ internalId: "", externalId: "", name: "", inactive: "", budgetOwnerId: "", parentId: "" });
+    setColMapping({ internalId: "", externalId: "", name: "", inactive: "" });
     setImportResult(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const getParentName = (parentId: number | null): string => {
-    if (!parentId) return "";
-    return deptMap.get(parentId)?.name || "";
   };
 
   const filtered = departments.filter(d => {
@@ -1208,8 +1197,7 @@ function DepartmentsTable({
     const q = search.toLowerCase();
     return d.name.toLowerCase().includes(q) ||
       d.externalId.toLowerCase().includes(q) ||
-      String(d.internalId).includes(q) ||
-      getParentName(d.parentId).toLowerCase().includes(q);
+      String(d.internalId).includes(q);
   });
 
   const totalPages = Math.ceil(filtered.length / pageSize);
@@ -1261,14 +1249,13 @@ function DepartmentsTable({
                     <TableHead className="whitespace-nowrap">Internal ID</TableHead>
                     <TableHead className="whitespace-nowrap">External ID</TableHead>
                     <TableHead className="whitespace-nowrap">Name</TableHead>
-                    <TableHead className="whitespace-nowrap">Parent Department</TableHead>
                     <TableHead className="whitespace-nowrap">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginated.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                         {search ? "No departments match your search" : "No departments found"}
                       </TableCell>
                     </TableRow>
@@ -1278,7 +1265,6 @@ function DepartmentsTable({
                         <TableCell className="font-mono text-sm">{dept.internalId}</TableCell>
                         <TableCell className="font-mono text-sm">{dept.externalId}</TableCell>
                         <TableCell className="font-medium">{dept.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{getParentName(dept.parentId)}</TableCell>
                         <TableCell>
                           <Badge variant={dept.inactive ? "destructive" : "default"} className={dept.inactive ? "" : "bg-green-600"}>
                             {dept.inactive ? "Inactive" : "Active"}
