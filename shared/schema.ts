@@ -963,6 +963,7 @@ export const requisitionApprovalSteps = pgTable("requisition_approval_steps", {
   stage: varchar("stage").notNull(),
   assignedTo: varchar("assigned_to").references(() => managedUsers.id, { onDelete: "set null" }),
   assignedToName: varchar("assigned_to_name"),
+  assignedToGroup: varchar("assigned_to_group"),
   decision: varchar("decision").notNull().default("pending"),
   comments: text("comments"),
   decidedAt: timestamp("decided_at"),
@@ -980,6 +981,31 @@ export const insertApprovalStepSchema = createInsertSchema(requisitionApprovalSt
 });
 export type InsertApprovalStep = z.infer<typeof insertApprovalStepSchema>;
 export type ApprovalStep = typeof requisitionApprovalSteps.$inferSelect;
+
+// ========== Requisition Quotations ==========
+
+export const requisitionQuotations = pgTable("requisition_quotations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requisitionId: varchar("requisition_id").notNull().references(() => requisitions.id, { onDelete: "cascade" }),
+  vendorName: varchar("vendor_name").notNull(),
+  fileName: varchar("file_name"),
+  fileType: varchar("file_type"),
+  fileSize: integer("file_size"),
+  fileData: text("file_data"),
+  isRecommended: boolean("is_recommended").notNull().default(false),
+  comments: text("comments"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  requisitionIdx: index("quotations_requisition_idx").on(table.requisitionId),
+}));
+
+export const insertRequisitionQuotationSchema = createInsertSchema(requisitionQuotations).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRequisitionQuotation = z.infer<typeof insertRequisitionQuotationSchema>;
+export type RequisitionQuotation = typeof requisitionQuotations.$inferSelect;
 
 // ========== StableMaster Tables (2-level: Stables → Boxes) ==========
 

@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign, Pencil, X, Send, MessageSquare, CheckCircle2, XCircle, Clock, ArrowRight, Upload, Loader2 } from "lucide-react";
-import type { Requisition, RequisitionAttachment, RequisitionComment, ApprovalStep } from "@shared/schema";
+import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign, Pencil, X, Send, MessageSquare, CheckCircle2, XCircle, Clock, ArrowRight, Upload, Loader2, Star, Trash2, Plus, ShoppingCart } from "lucide-react";
+import type { Requisition, RequisitionAttachment, RequisitionComment, ApprovalStep, RequisitionQuotation } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useRef } from "react";
 
@@ -96,6 +96,14 @@ export default function RequisitionDetailPage() {
   const [commentBody, setCommentBody] = useState("");
   const [approvalComment, setApprovalComment] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const quotationFileInputRef = useRef<HTMLInputElement>(null);
+  const [quotationForm, setQuotationForm] = useState({
+    vendorName: "",
+    isRecommended: false,
+    comments: "",
+  });
+  const [quotationFile, setQuotationFile] = useState<File | null>(null);
+  const [showQuotationForm, setShowQuotationForm] = useState(false);
 
   const { data: requisition, isLoading } = useQuery<Requisition>({
     queryKey: ["/api/requisitions", id],
@@ -121,7 +129,19 @@ export default function RequisitionDetailPage() {
     enabled: !!id,
   });
 
-  const currentUserPendingStep = approvalSteps.find(s => s.decision === "pending" && user && s.assignedTo === String(user.id));
+  const { data: myPendingStep } = useQuery<ApprovalStep | null>({
+    queryKey: ["/api/requisitions", id, "my-pending-step"],
+    queryFn: () => fetch(`/api/requisitions/${id}/my-pending-step`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!id,
+  });
+
+  const { data: quotations = [] } = useQuery<RequisitionQuotation[]>({
+    queryKey: ["/api/requisitions", id, "quotations"],
+    queryFn: () => fetch(`/api/requisitions/${id}/quotations`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!id,
+  });
+
+  const currentUserPendingStep = myPendingStep || undefined;
   const currentStep = currentUserPendingStep;
   const isCurrentApprover = !!currentUserPendingStep;
 
@@ -168,6 +188,7 @@ export default function RequisitionDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "approval-steps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "my-pending-step"] });
       queryClient.invalidateQueries({ queryKey: ["/api/my-approvals"] });
       setApprovalComment("");
       toast({ title: "Approved", description: "The requisition has been approved and moved to the next stage." });
@@ -185,6 +206,7 @@ export default function RequisitionDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "approval-steps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "my-pending-step"] });
       queryClient.invalidateQueries({ queryKey: ["/api/my-approvals"] });
       setApprovalComment("");
       toast({ title: "Rejected", description: "The requisition has been rejected." });
@@ -227,6 +249,66 @@ export default function RequisitionDetailPage() {
     },
     onError: () => {
       toast({ title: "Failed to upload files", variant: "destructive" });
+    },
+  });
+
+  const addQuotationMutation = useMutation({
+    mutationFn: async () => {
+      let fileData = null;
+      let fileName = null;
+      let fileType = null;
+      let fileSize = null;
+      if (quotationFile) {
+        fileData = await toBase64(quotationFile);
+        fileName = quotationFile.name;
+        fileType = quotationFile.type;
+        fileSize = quotationFile.size;
+      }
+      await apiRequest("POST", `/api/requisitions/${id}/quotations`, {
+        vendorName: quotationForm.vendorName,
+        isRecommended: quotationForm.isRecommended,
+        comments: quotationForm.comments || null,
+        fileName,
+        fileType,
+        fileSize,
+        fileData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "quotations"] });
+      setQuotationForm({ vendorName: "", isRecommended: false, comments: "" });
+      setQuotationFile(null);
+      setShowQuotationForm(false);
+      toast({ title: "Quotation added" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add quotation", variant: "destructive" });
+    },
+  });
+
+  const deleteQuotationMutation = useMutation({
+    mutationFn: async (quotationId: string) => {
+      await apiRequest("DELETE", `/api/quotations/${quotationId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "quotations"] });
+      toast({ title: "Quotation deleted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete quotation", variant: "destructive" });
+    },
+  });
+
+  const recommendQuotationMutation = useMutation({
+    mutationFn: async (quotationId: string) => {
+      await apiRequest("PATCH", `/api/quotations/${quotationId}/recommend`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "quotations"] });
+      toast({ title: "Quotation marked as recommended" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update quotation", variant: "destructive" });
     },
   });
 
@@ -398,6 +480,186 @@ export default function RequisitionDetailPage() {
                 Reject
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {((isPurchasingStage && isCurrentApprover) || quotations.length > 0) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Vendor Quotations {quotations.length > 0 && `(${quotations.length})`}
+              </CardTitle>
+              {isPurchasingStage && isCurrentApprover && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowQuotationForm(!showQuotationForm)}
+                  data-testid="button-add-quotation"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Add Quotation
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showQuotationForm && isPurchasingStage && isCurrentApprover && (
+              <div className="border rounded-lg p-4 space-y-3 bg-muted/20" data-testid="form-add-quotation">
+                <div className="space-y-2">
+                  <Label htmlFor="quotation-vendor">Vendor Name <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="quotation-vendor"
+                    placeholder="Enter vendor name"
+                    value={quotationForm.vendorName}
+                    onChange={(e) => setQuotationForm({ ...quotationForm, vendorName: e.target.value })}
+                    data-testid="input-quotation-vendor"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Quotation File</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => quotationFileInputRef.current?.click()}
+                      data-testid="button-upload-quotation-file"
+                    >
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      {quotationFile ? quotationFile.name : "Choose File"}
+                    </Button>
+                    {quotationFile && (
+                      <Button variant="ghost" size="sm" onClick={() => setQuotationFile(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <input
+                      ref={quotationFileInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setQuotationFile(file);
+                        if (quotationFileInputRef.current) quotationFileInputRef.current.value = "";
+                      }}
+                      data-testid="input-quotation-file"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quotation-comments">Comments</Label>
+                  <Textarea
+                    id="quotation-comments"
+                    placeholder="Add comments about this quotation..."
+                    value={quotationForm.comments}
+                    onChange={(e) => setQuotationForm({ ...quotationForm, comments: e.target.value })}
+                    rows={2}
+                    data-testid="textarea-quotation-comments"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="quotation-recommended"
+                    checked={quotationForm.isRecommended}
+                    onCheckedChange={(checked) => setQuotationForm({ ...quotationForm, isRecommended: checked })}
+                    data-testid="switch-quotation-recommended"
+                  />
+                  <Label htmlFor="quotation-recommended">Mark as Recommended</Label>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    onClick={() => addQuotationMutation.mutate()}
+                    disabled={!quotationForm.vendorName.trim() || addQuotationMutation.isPending}
+                    data-testid="button-submit-quotation"
+                  >
+                    {addQuotationMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    {addQuotationMutation.isPending ? "Adding..." : "Add Quotation"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowQuotationForm(false)} data-testid="button-cancel-quotation">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {quotations.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-quotations">No quotations added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {quotations.map((q) => (
+                  <div
+                    key={q.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border ${q.isRecommended ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20" : "bg-muted/30"}`}
+                    data-testid={`quotation-${q.id}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm" data-testid={`quotation-vendor-${q.id}`}>{q.vendorName}</span>
+                        {q.isRecommended && (
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" data-testid={`badge-recommended-${q.id}`}>
+                            <Star className="h-3 w-3 mr-1 fill-current" />
+                            Recommended
+                          </Badge>
+                        )}
+                      </div>
+                      {q.comments && (
+                        <p className="text-sm text-muted-foreground mt-1" data-testid={`quotation-comments-${q.id}`}>{q.comments}</p>
+                      )}
+                      {q.fileName && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          File: {q.fileName} {q.fileSize ? `(${formatFileSize(q.fileSize)})` : ""}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {q.fileData && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`/api/quotations/${q.id}/download`, "_blank")}
+                          data-testid={`button-download-quotation-${q.id}`}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {isPurchasingStage && isCurrentApprover && (
+                        <>
+                          {!q.isRecommended && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => recommendQuotationMutation.mutate(q.id)}
+                              disabled={recommendQuotationMutation.isPending}
+                              data-testid={`button-recommend-${q.id}`}
+                            >
+                              <Star className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteQuotationMutation.mutate(q.id)}
+                            disabled={deleteQuotationMutation.isPending}
+                            className="text-destructive hover:text-destructive"
+                            data-testid={`button-delete-quotation-${q.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

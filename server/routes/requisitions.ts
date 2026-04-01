@@ -3,9 +3,31 @@ import type { Server } from "http";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { checkSubmoduleAccess } from "./helpers";
-import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition } from "@shared/schema";
+import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition, type RequisitionQuotation } from "@shared/schema";
 import { z } from "zod";
 import { initializeWorkflow, approveStep, rejectStep, markPOCreated } from "../workflow";
+
+async function getUserCostCenter(managedUser: ManagedUser): Promise<string | null> {
+  try {
+    const empDs = await storage.getDataSourceBySlug("employee-directory");
+    if (!empDs) return null;
+    const email = managedUser.email?.trim().toLowerCase();
+    const empRecord = managedUser.employeeCode
+      ? await storage.getDsRecordByField(empDs.id, "employee_code", managedUser.employeeCode)
+      : null;
+    const record = empRecord || (email ? await storage.getDsRecordByField(empDs.id, "email", email, true) : null);
+    if (!record) return null;
+    return String((record.data as any).cost_center || "").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+async function isPurchasingReviewApprover(requisitionId: string, managedUser: ManagedUser): Promise<boolean> {
+  const requisition = await storage.getRequisition(requisitionId);
+  if (!requisition || requisition.status !== "Pending Purchasing Review") return false;
+  return storage.hasPendingStepForUser(requisitionId, String(managedUser.id));
+}
 
 export async function registerRequisitionRoutes(app: Express, _httpServer: Server) {
   // ========== Employee Profile Lookup ==========
@@ -287,6 +309,22 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/requisitions/:id/my-pending-step", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const userId = String(managedUser.id);
+      const directStep = await storage.getUserPendingStepForRequisition(req.params.id, userId);
+      if (directStep) return res.json(directStep);
+      const costCenter = await getUserCostCenter(managedUser);
+      if (costCenter) {
+        const allSteps = await storage.getApprovalSteps(req.params.id);
+        const groupStep = allSteps.find(s => s.decision === "pending" && s.assignedToGroup === costCenter);
+        if (groupStep) return res.json(groupStep);
+      }
+      res.json(null);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/requisitions/:id/approval-steps", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
@@ -306,8 +344,21 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
-      if (step.assignedTo !== String(managedUser.id)) {
+      const isDirectAssignee = step.assignedTo === String(managedUser.id);
+      let isGroupMember = false;
+      if (!isDirectAssignee && step.assignedToGroup) {
+        const userCostCenter = await getUserCostCenter(managedUser);
+        isGroupMember = userCostCenter === step.assignedToGroup;
+      }
+      if (!isDirectAssignee && !isGroupMember) {
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
+      }
+      if (isGroupMember && !isDirectAssignee) {
+        const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+        await storage.updateApprovalStep(step.id, {
+          assignedTo: String(managedUser.id),
+          assignedToName: userName,
+        });
       }
       const { comments } = req.body;
       if (!comments || typeof comments !== "string" || !comments.trim()) {
@@ -324,8 +375,21 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
-      if (step.assignedTo !== String(managedUser.id)) {
+      const isDirectAssignee = step.assignedTo === String(managedUser.id);
+      let isGroupMember = false;
+      if (!isDirectAssignee && step.assignedToGroup) {
+        const userCostCenter = await getUserCostCenter(managedUser);
+        isGroupMember = userCostCenter === step.assignedToGroup;
+      }
+      if (!isDirectAssignee && !isGroupMember) {
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
+      }
+      if (isGroupMember && !isDirectAssignee) {
+        const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+        await storage.updateApprovalStep(step.id, {
+          assignedTo: String(managedUser.id),
+          assignedToName: userName,
+        });
       }
       const { comments } = req.body;
       if (!comments || typeof comments !== "string" || !comments.trim()) {
@@ -344,6 +408,134 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       await markPOCreated(req.params.id);
       const updated = await storage.getRequisition(req.params.id);
       res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ========== Quotation Management Routes ==========
+
+  app.get("/api/requisitions/:id/quotations", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      if (!isAdmin) {
+        const r = await storage.getRequisition(req.params.id);
+        const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
+        const allSteps = await storage.getApprovalSteps(req.params.id);
+        const wasApprover = allSteps.some(s => s.assignedTo === String(managedUser.id));
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !wasApprover)) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      res.json(await storage.getQuotationsByRequisition(req.params.id));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/requisitions/:id/quotations", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      const isProcurementApprover = await isPurchasingReviewApprover(req.params.id, managedUser);
+      if (!isAdmin && !isProcurementApprover) {
+        return res.status(403).json({ message: "Only the Procurement approver at Purchasing Review stage or admins can add quotations" });
+      }
+      const { vendorName, fileName, fileType, fileSize, fileData, isRecommended, comments } = req.body;
+      if (!vendorName || typeof vendorName !== "string" || !vendorName.trim()) {
+        return res.status(400).json({ message: "Vendor name is required" });
+      }
+      if (fileData) {
+        if (!fileType || !fileSize) {
+          return res.status(400).json({ message: "fileType and fileSize are required when uploading a file" });
+        }
+        const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+        const maxFileSize = 10 * 1024 * 1024;
+        if (!allowedTypes.includes(fileType)) {
+          return res.status(400).json({ message: `Invalid file type: ${fileType}. Allowed: JPG, PNG, PDF` });
+        }
+        if (fileSize > maxFileSize) {
+          return res.status(400).json({ message: `File too large. Maximum 10MB per file.` });
+        }
+      }
+      if (isRecommended) {
+        const existing = await storage.getQuotationsByRequisition(req.params.id);
+        for (const q of existing) {
+          if (q.isRecommended) {
+            await storage.updateQuotation(q.id, { isRecommended: false });
+          }
+        }
+      }
+      const quotation = await storage.createQuotation({
+        requisitionId: req.params.id,
+        vendorName: vendorName.trim(),
+        fileName: fileName || null,
+        fileType: fileType || null,
+        fileSize: fileSize || null,
+        fileData: fileData || null,
+        isRecommended: isRecommended || false,
+        comments: comments || null,
+        createdBy: String(managedUser.id),
+      });
+      res.json(quotation);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/quotations/:id/recommend", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      const quotation = await storage.getQuotation(req.params.id);
+      if (!quotation) return res.status(404).json({ message: "Quotation not found" });
+      const isProcurementApprover = await isPurchasingReviewApprover(quotation.requisitionId, managedUser);
+      if (!isAdmin && !isProcurementApprover) {
+        return res.status(403).json({ message: "Only the Procurement approver at Purchasing Review stage or admins can update quotations" });
+      }
+      const existing = await storage.getQuotationsByRequisition(quotation.requisitionId);
+      for (const q of existing) {
+        if (q.isRecommended && q.id !== req.params.id) {
+          await storage.updateQuotation(q.id, { isRecommended: false });
+        }
+      }
+      const updated = await storage.updateQuotation(req.params.id, { isRecommended: true });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/quotations/:id", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      const quotation = await storage.getQuotation(req.params.id);
+      if (!quotation) return res.status(404).json({ message: "Quotation not found" });
+      const isProcurementApprover = await isPurchasingReviewApprover(quotation.requisitionId, managedUser);
+      if (!isAdmin && !isProcurementApprover) {
+        return res.status(403).json({ message: "Only the Procurement approver at Purchasing Review stage or admins can delete quotations" });
+      }
+      const ok = await storage.deleteQuotation(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/quotations/:id/download", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
+      const quotation = await storage.getQuotation(req.params.id);
+      if (!quotation || !quotation.fileData) return res.status(404).json({ message: "Not found" });
+      if (!isAdmin) {
+        const r = await storage.getRequisition(quotation.requisitionId);
+        const isApprover = await storage.hasPendingStepForUser(quotation.requisitionId, String(managedUser.id));
+        const allSteps = await storage.getApprovalSteps(quotation.requisitionId);
+        const wasApprover = allSteps.some(s => s.assignedTo === String(managedUser.id));
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !wasApprover)) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      const base64Data = quotation.fileData.includes(",") ? quotation.fileData.split(",")[1] : quotation.fileData;
+      const buffer = Buffer.from(base64Data, "base64");
+      res.setHeader("Content-Type", quotation.fileType || "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${quotation.fileName || "quotation"}"`);
+      res.setHeader("Content-Length", buffer.length.toString());
+      res.send(buffer);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 }

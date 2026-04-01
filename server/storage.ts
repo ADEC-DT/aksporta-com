@@ -30,6 +30,7 @@ import {
   requisitionAttachments, type RequisitionAttachment, type InsertRequisitionAttachment,
   requisitionComments, type RequisitionComment, type InsertRequisitionComment,
   requisitionApprovalSteps, type ApprovalStep, type InsertApprovalStep,
+  requisitionQuotations, type RequisitionQuotation, type InsertRequisitionQuotation,
   smStables, type SmStable, type InsertSmStable,
   smBoxes, type SmBox, type InsertSmBox,
   smHorses, type SmHorse, type InsertSmHorse,
@@ -282,6 +283,18 @@ export interface IStorage {
   getCurrentApprovalStep(requisitionId: string): Promise<ApprovalStep | undefined>;
   getUserPendingStepForRequisition(requisitionId: string, userId: string): Promise<ApprovalStep | undefined>;
   hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean>;
+  getPendingApprovalStepsByGroup(groupCostCenter: string, userId: string): Promise<ApprovalStep[]>;
+  hasPendingGroupStepForUser(requisitionId: string, groupCostCenter: string): Promise<boolean>;
+
+  // Requisition Quotations
+  createQuotation(q: InsertRequisitionQuotation): Promise<RequisitionQuotation>;
+  getQuotationsByRequisition(requisitionId: string): Promise<RequisitionQuotation[]>;
+  getQuotation(id: string): Promise<RequisitionQuotation | undefined>;
+  updateQuotation(id: string, data: Partial<RequisitionQuotation>): Promise<RequisitionQuotation | undefined>;
+  deleteQuotation(id: string): Promise<boolean>;
+
+  // Data Source Records (multi)
+  getDsRecordsByField(dataSourceId: string, fieldKey: string, fieldValue: string, caseInsensitive?: boolean): Promise<DsRecord[]>;
 
   // StableMaster - Stables
   getSmStables(): Promise<SmStable[]>;
@@ -1588,12 +1601,50 @@ export class DatabaseStorage implements IStorage {
     return step;
   }
   async getPendingApprovalSteps(userId: string): Promise<ApprovalStep[]> {
-    return await db.select().from(requisitionApprovalSteps)
+    const directSteps = await db.select().from(requisitionApprovalSteps)
       .where(and(
         eq(requisitionApprovalSteps.assignedTo, userId),
         eq(requisitionApprovalSteps.decision, "pending")
       ))
       .orderBy(desc(requisitionApprovalSteps.createdAt));
+
+    let groupSteps: ApprovalStep[] = [];
+    try {
+      const user = await this.getManagedUser(userId);
+      if (user) {
+        const empDs = await this.getDataSourceBySlug("employee-directory");
+        if (empDs) {
+          const email = user.email?.trim().toLowerCase();
+          const empRecord = user.employeeCode
+            ? await this.getDsRecordByField(empDs.id, "employee_code", user.employeeCode)
+            : null;
+          const record = empRecord || (email ? await this.getDsRecordByField(empDs.id, "email", email, true) : null);
+          if (record) {
+            const costCenter = String((record.data as any).cost_center || "").trim();
+            if (costCenter) {
+              groupSteps = await db.select().from(requisitionApprovalSteps)
+                .where(and(
+                  eq(requisitionApprovalSteps.assignedToGroup, costCenter),
+                  eq(requisitionApprovalSteps.decision, "pending")
+                ))
+                .orderBy(desc(requisitionApprovalSteps.createdAt));
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[storage] Error fetching group approval steps:", err);
+    }
+
+    const seenIds = new Set<string>();
+    const combined: ApprovalStep[] = [];
+    for (const step of [...directSteps, ...groupSteps]) {
+      if (!seenIds.has(step.id)) {
+        seenIds.add(step.id);
+        combined.push(step);
+      }
+    }
+    return combined;
   }
   async createApprovalStep(step: InsertApprovalStep): Promise<ApprovalStep> {
     const [created] = await db.insert(requisitionApprovalSteps).values(step).returning();
@@ -1625,7 +1676,92 @@ export class DatabaseStorage implements IStorage {
   }
   async hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean> {
     const step = await this.getUserPendingStepForRequisition(requisitionId, userId);
+    if (step) return true;
+    const groupStep = await this.hasPendingGroupStepForUserInternal(requisitionId, userId);
+    return groupStep;
+  }
+
+  private async hasPendingGroupStepForUserInternal(requisitionId: string, userId: string): Promise<boolean> {
+    const user = await this.getManagedUser(userId);
+    if (!user) return false;
+    const empDs = await this.getDataSourceBySlug("employee-directory");
+    if (!empDs) return false;
+    const email = user.email?.trim().toLowerCase();
+    let record = null;
+    if (user.employeeCode) {
+      record = await this.getDsRecordByField(empDs.id, "employee_code", user.employeeCode);
+    }
+    if (!record && email) {
+      record = await this.getDsRecordByField(empDs.id, "email", email, true);
+    }
+    if (!record) return false;
+    const costCenter = String((record.data as any).cost_center || "").trim();
+    if (!costCenter) return false;
+    const [step] = await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.requisitionId, requisitionId),
+        eq(requisitionApprovalSteps.assignedToGroup, costCenter),
+        eq(requisitionApprovalSteps.decision, "pending")
+      ))
+      .limit(1);
     return !!step;
+  }
+
+  async getPendingApprovalStepsByGroup(groupCostCenter: string, _userId: string): Promise<ApprovalStep[]> {
+    return await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.assignedToGroup, groupCostCenter),
+        eq(requisitionApprovalSteps.decision, "pending")
+      ))
+      .orderBy(desc(requisitionApprovalSteps.createdAt));
+  }
+
+  async hasPendingGroupStepForUser(requisitionId: string, groupCostCenter: string): Promise<boolean> {
+    const [step] = await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.requisitionId, requisitionId),
+        eq(requisitionApprovalSteps.assignedToGroup, groupCostCenter),
+        eq(requisitionApprovalSteps.decision, "pending")
+      ))
+      .limit(1);
+    return !!step;
+  }
+
+  async createQuotation(q: InsertRequisitionQuotation): Promise<RequisitionQuotation> {
+    const [created] = await db.insert(requisitionQuotations).values(q).returning();
+    return created;
+  }
+
+  async getQuotationsByRequisition(requisitionId: string): Promise<RequisitionQuotation[]> {
+    return await db.select().from(requisitionQuotations)
+      .where(eq(requisitionQuotations.requisitionId, requisitionId))
+      .orderBy(desc(requisitionQuotations.createdAt));
+  }
+
+  async getQuotation(id: string): Promise<RequisitionQuotation | undefined> {
+    const [q] = await db.select().from(requisitionQuotations).where(eq(requisitionQuotations.id, id));
+    return q;
+  }
+
+  async updateQuotation(id: string, data: Partial<RequisitionQuotation>): Promise<RequisitionQuotation | undefined> {
+    const [updated] = await db.update(requisitionQuotations).set(data).where(eq(requisitionQuotations.id, id)).returning();
+    return updated;
+  }
+
+  async deleteQuotation(id: string): Promise<boolean> {
+    const [deleted] = await db.delete(requisitionQuotations).where(eq(requisitionQuotations.id, id)).returning();
+    return !!deleted;
+  }
+
+  async getDsRecordsByField(dataSourceId: string, fieldKey: string, fieldValue: string, caseInsensitive?: boolean): Promise<DsRecord[]> {
+    const sanitizedKey = fieldKey.replace(/[^a-zA-Z0-9_]/g, '');
+    const fieldExpr = sql`${dsRecords.data}->>${sql.raw(`'${sanitizedKey}'`)}`;
+    const matchCondition = caseInsensitive
+      ? sql`LOWER(${fieldExpr}) = LOWER(${fieldValue})`
+      : sql`${fieldExpr} = ${fieldValue}`;
+    return await db.select().from(dsRecords).where(
+      and(eq(dsRecords.dataSourceId, dataSourceId), matchCondition)
+    );
   }
 
   // StableMaster implementations

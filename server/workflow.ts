@@ -4,6 +4,7 @@ import type { Requisition, ApprovalStep, WorkflowStage } from "@shared/schema";
 export interface ApproverAssignment {
   userId: string | null;
   userName: string;
+  groupCostCenter?: string;
 }
 
 export interface WorkflowRouter {
@@ -87,9 +88,7 @@ const defaultRouter: WorkflowRouter = {
     return { userId: null, userName: "Line Manager (Unassigned)" };
   },
   async getPurchasingReviewer(_req: Requisition): Promise<ApproverAssignment> {
-    const admins = await getAdminUsers();
-    if (admins.length > 0) return { userId: admins[0].id, userName: admins[0].name };
-    return { userId: null, userName: "Purchasing Team (Unassigned)" };
+    return { userId: null, userName: "Procurement Department", groupCostCenter: "118001003" };
   },
   async getBudgetOwner(_req: Requisition): Promise<ApproverAssignment> {
     const admins = await getAdminUsers();
@@ -174,6 +173,7 @@ export async function approveStep(
         stage: newStatus,
         assignedTo: assignment.userId,
         assignedToName: assignment.userName,
+        assignedToGroup: assignment.groupCostCenter || null,
         decision: "pending",
         comments: null,
       });
