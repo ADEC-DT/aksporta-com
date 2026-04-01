@@ -34,6 +34,7 @@ export default function AzureTablesPage() {
   });
 
   const { data: tableData, isLoading: tableLoading } = useQuery<{
+    columns: string[];
     rows: Record<string, any>[];
     total: number;
     page: number;
@@ -52,7 +53,7 @@ export default function AzureTablesPage() {
   const selectedMeta = azureTableRegistry.find((t) => t.key === selectedTable);
 
   if (selectedTable && selectedMeta) {
-    const columns = tableData?.rows?.[0] ? Object.keys(tableData.rows[0]) : [];
+    const columns = tableData?.columns ?? [];
     const filteredRows = tableData?.rows?.filter((row) => {
       if (!searchTerm) return true;
       const lower = searchTerm.toLowerCase();

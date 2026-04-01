@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { getTableColumns } from "drizzle-orm";
 import {
   nsAccountLines, nsAccounts, nsClasses, nsCustomers,
   nsDeletedTransactions, nsDepartments, nsEmployee, nsEntities,
@@ -30,6 +31,11 @@ const tableMap: Record<string, any> = {
   ns_transaction_lines: nsTransactionLines,
 };
 
+function getColumnNames(table: any): string[] {
+  const cols = getTableColumns(table);
+  return Object.keys(cols);
+}
+
 export async function registerAzureTableRoutes(app: Express, _httpServer: Server): Promise<void> {
   app.get("/api/azure-tables/summary", isAuthenticated, async (_req, res) => {
     try {
@@ -56,6 +62,8 @@ export async function registerAzureTableRoutes(app: Express, _httpServer: Server
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
       const offset = (page - 1) * limit;
 
+      const columns = getColumnNames(table);
+
       const [countResult, rows] = await Promise.all([
         db.select({ count: sql<number>`count(*)::int` }).from(table),
         db.select().from(table).limit(limit).offset(offset),
@@ -64,6 +72,7 @@ export async function registerAzureTableRoutes(app: Express, _httpServer: Server
       const total = countResult[0]?.count ?? 0;
 
       res.json({
+        columns,
         rows,
         total,
         page,
