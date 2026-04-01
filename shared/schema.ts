@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, index, uniqueIndex, jsonb, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, index, uniqueIndex, jsonb, integer, decimal, date, char, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1170,6 +1170,248 @@ export const departments = pgTable("departments", {
 export const insertDepartmentSchema = createInsertSchema(departments);
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type Department = typeof departments.$inferSelect;
+
+// ─── Azure Tables (NetSuite mirror) ────────────────────────────────────────
+export const nsAccountLines = pgTable("ns_account_lines", {
+  id: serial("id").primaryKey(),
+  exchangerate: decimal("exchangerate"),
+  transactionline: integer("transactionline"),
+  amount: decimal("amount"),
+  posting: char("posting", { length: 1 }),
+  debit: decimal("debit"),
+  credit: decimal("credit"),
+  txn: integer("txn"),
+  netamount: decimal("netamount"),
+  account: varchar("account", { length: 100 }).notNull(),
+});
+export type NsAccountLine = typeof nsAccountLines.$inferSelect;
+
+export const nsAccounts = pgTable("ns_accounts", {
+  id: integer("id").primaryKey(),
+  acctnumber: varchar("acctnumber", { length: 50 }).notNull(),
+  issummary: char("issummary", { length: 1 }).notNull(),
+  isinactive: char("isinactive", { length: 1 }).notNull(),
+  fullname: varchar("fullname", { length: 255 }),
+  description: varchar("description", { length: 255 }),
+  accttype: varchar("accttype", { length: 50 }),
+  subsidiary: varchar("subsidiary", { length: 50 }),
+});
+export type NsAccount = typeof nsAccounts.$inferSelect;
+
+export const nsClasses = pgTable("ns_classes", {
+  id: integer("id").primaryKey(),
+  isinactive: char("isinactive", { length: 1 }).notNull(),
+  parent: integer("parent"),
+  fullname: varchar("fullname", { length: 255 }),
+  name: varchar("name", { length: 255 }),
+  subsidiary: varchar("subsidiary", { length: 50 }),
+});
+export type NsClass = typeof nsClasses.$inferSelect;
+
+export const nsCustomers = pgTable("ns_customers", {
+  id: integer("id").primaryKey(),
+  fullname: varchar("fullname", { length: 255 }),
+  firstname: varchar("firstname", { length: 100 }),
+  lastname: varchar("lastname", { length: 100 }),
+  isinactive: char("isinactive", { length: 1 }).notNull(),
+});
+export type NsCustomer = typeof nsCustomers.$inferSelect;
+
+export const nsDeletedTransactions = pgTable("ns_deleted_transactions", {
+  rowId: serial("row_id").primaryKey(),
+  id: integer("id"),
+});
+export type NsDeletedTransaction = typeof nsDeletedTransactions.$inferSelect;
+
+export const nsDepartments = pgTable("ns_departments", {
+  rowId: serial("row_id").primaryKey(),
+  nsId: integer("ns_id"),
+  name: varchar("name", { length: 255 }),
+  fullname: text("fullname"),
+  parent: integer("parent"),
+  subsidiary: varchar("subsidiary", { length: 255 }),
+  externalid: varchar("externalid", { length: 255 }),
+  isinactive: char("isinactive", { length: 1 }),
+  includechildren: char("includechildren", { length: 1 }),
+  custrecordNsAdecDepartmentHead: varchar("custrecord_ns_adec_department_head", { length: 255 }),
+  lastmodifieddate: timestamp("lastmodifieddate"),
+});
+export type NsDepartment = typeof nsDepartments.$inferSelect;
+
+export const nsEmployee = pgTable("ns_employee", {
+  id: integer("id").primaryKey(),
+  giveaccess: char("giveaccess", { length: 1 }).notNull(),
+  officephone: varchar("officephone", { length: 50 }),
+  firstname: varchar("firstname", { length: 100 }),
+  middlename: varchar("middlename", { length: 100 }),
+  lastname: varchar("lastname", { length: 100 }),
+  subsidiary: integer("subsidiary"),
+  isinactive: char("isinactive", { length: 1 }).notNull(),
+  title: varchar("title", { length: 100 }),
+  hiredate: date("hiredate"),
+});
+export type NsEmployeeRow = typeof nsEmployee.$inferSelect;
+
+export const nsEntities = pgTable("ns_entities", {
+  id: integer("id").primaryKey(),
+  vendor: integer("vendor"),
+  customer: integer("customer"),
+  employee: integer("employee"),
+  type: varchar("type", { length: 50 }).notNull(),
+  firstname: varchar("firstname", { length: 100 }),
+  lastname: varchar("lastname", { length: 100 }),
+  fullname: varchar("fullname", { length: 200 }),
+  isinactive: boolean("isinactive").notNull(),
+});
+export type NsEntity = typeof nsEntities.$inferSelect;
+
+export const nsHorses = pgTable("ns_horses", {
+  id: integer("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  parent: integer("parent"),
+  csegNsHorseFilterbySubsidiary: integer("cseg_ns_horse_filterby_subsidiary"),
+  created: timestamp("created"),
+  isinactive: boolean("isinactive").notNull(),
+});
+export type NsHorse = typeof nsHorses.$inferSelect;
+
+export const nsItems = pgTable("ns_items", {
+  id: integer("id").primaryKey(),
+  itemid: varchar("itemid", { length: 255 }).notNull(),
+  displayname: varchar("displayname", { length: 255 }).notNull(),
+  expenseaccount: integer("expenseaccount"),
+  incomeaccount: integer("incomeaccount"),
+  subsidiary: integer("subsidiary").notNull(),
+  itemtype: varchar("itemtype", { length: 50 }).notNull(),
+  totalquantityonhand: decimal("totalquantityonhand"),
+  price: decimal("price").notNull(),
+});
+export type NsItem = typeof nsItems.$inferSelect;
+
+export const nsLocations = pgTable("ns_locations", {
+  id: integer("id").primaryKey(),
+  isinactive: char("isinactive", { length: 1 }).notNull(),
+  parent: integer("parent"),
+  mainaddress: varchar("mainaddress", { length: 500 }),
+  subsidiary: varchar("subsidiary", { length: 50 }),
+  fullname: varchar("fullname", { length: 255 }),
+  name: varchar("name", { length: 255 }),
+  locationtype: varchar("locationtype", { length: 100 }),
+});
+export type NsLocation = typeof nsLocations.$inferSelect;
+
+export const nsSubclasses = pgTable("ns_subclasses", {
+  id: integer("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  parent: integer("parent"),
+  isinactive: boolean("isinactive").notNull(),
+});
+export type NsSubclass = typeof nsSubclasses.$inferSelect;
+
+export const nsSubsidiaries = pgTable("ns_subsidiaries", {
+  id: integer("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  fullname: varchar("fullname", { length: 255 }),
+  parent: integer("parent"),
+  isinactive: boolean("isinactive").notNull(),
+});
+export type NsSubsidiary = typeof nsSubsidiaries.$inferSelect;
+
+export const nsTransactions = pgTable("ns_transactions", {
+  id: integer("id").primaryKey(),
+  postingperiod: integer("postingperiod").notNull(),
+  amountunbilled: varchar("amountunbilled", { length: 50 }),
+  createddate: date("createddate").notNull(),
+  sourcetransaction: varchar("sourcetransaction", { length: 100 }),
+  currency: integer("currency").notNull(),
+  lastmodifieddate: date("lastmodifieddate").notNull(),
+  entity: integer("entity").notNull(),
+  exchangerate: decimal("exchangerate").notNull(),
+  memo: varchar("memo", { length: 500 }),
+  status: char("status", { length: 1 }).notNull(),
+  trandate: date("trandate").notNull(),
+  tranid: varchar("tranid", { length: 50 }).notNull(),
+  recordtype: varchar("recordtype", { length: 50 }).notNull(),
+  type: varchar("type", { length: 50 }),
+});
+export type NsTransaction = typeof nsTransactions.$inferSelect;
+
+export const nsTransactionsTest = pgTable("ns_transactions_test", {
+  id: integer("id").primaryKey(),
+  postingperiod: integer("postingperiod").notNull(),
+  amountunbilled: text("amountunbilled"),
+  createddate: date("createddate").notNull(),
+  sourcetransaction: text("sourcetransaction"),
+  currency: integer("currency").notNull(),
+  lastmodifieddate: date("lastmodifieddate").notNull(),
+  entity: integer("entity").notNull(),
+  exchangerate: decimal("exchangerate").notNull(),
+  memo: text("memo"),
+  status: varchar("status", { length: 100 }).notNull(),
+  trandate: date("trandate").notNull(),
+  tranid: text("tranid").notNull(),
+  recordtype: text("recordtype").notNull(),
+  type: text("type"),
+});
+export type NsTransactionTest = typeof nsTransactionsTest.$inferSelect;
+
+export const nsVendors = pgTable("ns_vendors", {
+  id: integer("id").primaryKey(),
+  fullname: varchar("fullname", { length: 255 }).notNull(),
+  firstname: varchar("firstname", { length: 100 }),
+  lastname: varchar("lastname", { length: 100 }),
+  isinactive: boolean("isinactive").notNull(),
+});
+export type NsVendor = typeof nsVendors.$inferSelect;
+
+export const nsTransactionLines = pgTable("ns_transaction_lines", {
+  uniquekey: integer("uniquekey").primaryKey(),
+  id: integer("id").notNull(),
+  expenseaccount: integer("expenseaccount"),
+  fxamountlinked: decimal("fxamountlinked"),
+  amountpending: decimal("amountpending"),
+  settlementamount: decimal("settlementamount"),
+  taxline: boolean("taxline"),
+  classId: integer("class_id"),
+  linelastmodifieddate: date("linelastmodifieddate"),
+  department: integer("department"),
+  estgrossprofit: decimal("estgrossprofit"),
+  item: integer("item"),
+  memo: varchar("memo", { length: 8000 }),
+  netamount: decimal("netamount"),
+  txns: integer("txns"),
+  debitforeignamount: decimal("debitforeignamount"),
+  creditforeignamount: decimal("creditforeignamount"),
+  quantity: decimal("quantity"),
+  quantitybilled: decimal("quantitybilled"),
+  entity: integer("entity"),
+  tranid: varchar("tranid", { length: 50 }),
+  location: integer("location"),
+  cseg1: integer("cseg1"),
+  cseg2: integer("cseg2"),
+  createdfrom: integer("createdfrom"),
+});
+export type NsTransactionLine = typeof nsTransactionLines.$inferSelect;
+
+export const azureTableRegistry = [
+  { key: "ns_account_lines", label: "Account Lines", icon: "FileSpreadsheet" },
+  { key: "ns_accounts", label: "Accounts", icon: "Landmark" },
+  { key: "ns_classes", label: "Classes", icon: "FolderTree" },
+  { key: "ns_customers", label: "Customers", icon: "Users" },
+  { key: "ns_deleted_transactions", label: "Deleted Transactions", icon: "Trash2" },
+  { key: "ns_departments", label: "Departments", icon: "Building2" },
+  { key: "ns_employee", label: "Employees", icon: "UserCheck" },
+  { key: "ns_entities", label: "Entities", icon: "Contact" },
+  { key: "ns_horses", label: "Horses", icon: "CircleDot" },
+  { key: "ns_items", label: "Items", icon: "Package" },
+  { key: "ns_locations", label: "Locations", icon: "MapPin" },
+  { key: "ns_subclasses", label: "Subclasses", icon: "GitBranch" },
+  { key: "ns_subsidiaries", label: "Subsidiaries", icon: "Network" },
+  { key: "ns_transactions", label: "Transactions", icon: "ArrowLeftRight" },
+  { key: "ns_transactions_test", label: "Transactions (Test)", icon: "FlaskConical" },
+  { key: "ns_vendors", label: "Vendors", icon: "Truck" },
+  { key: "ns_transaction_lines", label: "Transaction Lines", icon: "List" },
+] as const;
 
 export const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")

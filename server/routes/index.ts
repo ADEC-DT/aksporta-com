@@ -11,6 +11,7 @@ import { registerRequisitionRoutes } from "./requisitions";
 import { registerEquestrianRoutes } from "./equestrian";
 import { registerSsoRoutes } from "./sso";
 import { registerDepartmentRoutes } from "./departments";
+import { registerAzureTableRoutes } from "./azure-tables";
 
 export async function registerAllRoutes(app: Express, httpServer: Server): Promise<void> {
   registerErpDashboardRoutes(app, httpServer);
@@ -23,4 +24,5 @@ export async function registerAllRoutes(app: Express, httpServer: Server): Promi
   await registerEquestrianRoutes(app, httpServer);
   await registerSsoRoutes(app, httpServer);
   await registerDepartmentRoutes(app, httpServer);
+  await registerAzureTableRoutes(app, httpServer);
 }

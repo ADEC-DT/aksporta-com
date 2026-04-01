@@ -83,7 +83,7 @@ shared/           # Shared code between client/server
 10. **Performance & KPIs** (`/performance-kpi`) - KPI tracking, metrics dashboard, performance alerts
 11. **OPS & FM** (`/ops-fm`) - Operations & Facility Management with work orders, maintenance, utilities
 12. **IT Service Desk** (`/it-dt`) - IT Service Desk ticket management (same interface as Ticket Management). Accessible to all authenticated users. Non-admin users see only their own tickets; admin controls (status change, assignee) are hidden for non-admins. Backend enforces ticket ownership at all endpoints.
-13. **Azure Tables** (`/azure-tables`) - Azure Table Storage management and data explorer (Under Development).
+13. **Azure Tables** (`/azure-tables`) - NetSuite data tables synced from Azure. 17 tables: Account Lines, Accounts, Classes, Customers, Deleted Transactions, Departments, Employees, Entities, Horses, Items, Locations, Subclasses, Subsidiaries, Transactions, Transactions Test, Vendors, Transaction Lines. Card grid with record counts, click-through to paginated data table with search. API: `/api/azure-tables/summary` (counts), `/api/azure-tables/:tableName` (paginated rows). Schema tables prefixed `ns_` in PostgreSQL.
 
 ### Equestrian - StableMaster Hub
 The StableMaster Hub (`/equestrian/stable-master`) is a separate implementation from Stable Assets Management (`/equestrian/stable-assets`), built from an external spec. It shares the same `sm_*` database tables and `/api/sm/` API endpoints, but has its own distinct frontend:
