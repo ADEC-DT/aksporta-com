@@ -9,9 +9,12 @@ import type { InsertDepartment } from "@shared/schema";
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 export async function registerDepartmentRoutes(app: Express, _httpServer: Server) {
-  app.get("/api/departments", isAuthenticated, async (_req, res) => {
+  app.get("/api/departments", isAuthenticated, async (req, res) => {
     try {
-      const depts = await storage.getAllDepartments();
+      const activeOnly = req.query.active === "true";
+      const depts = activeOnly
+        ? await storage.getActiveDepartments()
+        : await storage.getAllDepartments();
       res.json(depts);
     } catch (error) {
       console.error("Error fetching departments:", error);

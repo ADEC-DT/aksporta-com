@@ -339,6 +339,7 @@ export interface IStorage {
   createSmInvoiceLine(line: InsertSmInvoiceLine): Promise<SmInvoiceLine>;
 
   getAllDepartments(): Promise<Department[]>;
+  getActiveDepartments(): Promise<Department[]>;
   getDepartment(internalId: number): Promise<Department | undefined>;
   upsertDepartments(rows: InsertDepartment[]): Promise<{ imported: number; updated: number }>;
 }
@@ -1924,6 +1925,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllDepartments(): Promise<Department[]> {
     return await db.select().from(departments).orderBy(departments.internalId);
+  }
+
+  async getActiveDepartments(): Promise<Department[]> {
+    return await db.select().from(departments).where(eq(departments.inactive, false)).orderBy(departments.name);
   }
 
   async upsertDepartments(rows: InsertDepartment[]): Promise<{ imported: number; updated: number }> {

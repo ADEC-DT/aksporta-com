@@ -8,9 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Upload, X, FileText, Image, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, X, FileText, Image, Loader2, AlertCircle, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Department } from "@shared/schema";
 
 interface AttachmentFile {
   file: File;
@@ -64,6 +68,17 @@ export default function RequisitionNewPage() {
     },
     retry: false,
   });
+
+  const { data: activeDepartments = [], isLoading: isLoadingDepts, isError: isDeptsError } = useQuery<Department[]>({
+    queryKey: ["/api/departments", { active: "true" }],
+    queryFn: async () => {
+      const res = await fetch("/api/departments?active=true", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch departments");
+      return res.json();
+    },
+  });
+
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
 
   const profileNotFound = !isLoadingProfile && !isProfileError && employeeProfile === null;
 
@@ -254,7 +269,52 @@ export default function RequisitionNewPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="department">Department *</Label>
-                <Input id="department" value={form.department} onChange={(e) => update("department", e.target.value)} placeholder="e.g., IT, Finance, Operations" data-testid="input-department" />
+                <Popover open={deptDropdownOpen} onOpenChange={setDeptDropdownOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="department"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={deptDropdownOpen}
+                      aria-label="Select department"
+                      disabled={isLoadingDepts}
+                      className="w-full justify-between font-normal"
+                      data-testid="input-department"
+                    >
+                      {isLoadingDepts ? (
+                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading departments...</span>
+                      ) : (
+                        form.department || "Select department..."
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search departments..." data-testid="input-department-search" />
+                      <CommandList>
+                        <CommandEmpty>No department found.</CommandEmpty>
+                        <CommandGroup>
+                          {activeDepartments.map((dept) => (
+                            <CommandItem
+                              key={dept.internalId}
+                              value={dept.name}
+                              onSelect={() => {
+                                update("department", dept.name);
+                                setDeptDropdownOpen(false);
+                              }}
+                              data-testid={`option-department-${dept.internalId}`}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", form.department === dept.name ? "opacity-100" : "opacity-0")} />
+                              {dept.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {isDeptsError && <p className="text-xs text-destructive" data-testid="error-department-load">Failed to load departments. Please refresh the page.</p>}
                 {errors.department && <p className="text-xs text-destructive" data-testid="error-department">{errors.department}</p>}
               </div>
               {(profileNotFound || isProfileError) && (
