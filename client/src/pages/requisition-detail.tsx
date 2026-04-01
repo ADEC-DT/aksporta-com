@@ -122,7 +122,7 @@ export default function RequisitionDetailPage() {
   });
 
   const currentUserPendingStep = approvalSteps.find(s => s.decision === "pending" && user && s.assignedTo === String(user.id));
-  const currentStep = currentUserPendingStep || approvalSteps.find(s => s.decision === "pending");
+  const currentStep = currentUserPendingStep;
   const isCurrentApprover = !!currentUserPendingStep;
 
   const updateDetailsMutation = useMutation({
@@ -342,7 +342,7 @@ export default function RequisitionDetailPage() {
         </Card>
       </div>
 
-      {(isCurrentApprover || isAdmin) && currentStep && (
+      {isCurrentApprover && currentStep && (
         <Card className="border-primary/50 bg-primary/5">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

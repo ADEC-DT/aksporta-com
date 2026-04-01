@@ -303,11 +303,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
   app.post("/api/approval-steps/:id/approve", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
-      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
-      if (!isAdmin && step.assignedTo !== String(managedUser.id)) {
+      if (step.assignedTo !== String(managedUser.id)) {
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
       }
       const { comments } = req.body;
@@ -322,11 +321,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
   app.post("/api/approval-steps/:id/reject", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
-      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
-      if (!isAdmin && step.assignedTo !== String(managedUser.id)) {
+      if (step.assignedTo !== String(managedUser.id)) {
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
       }
       const { comments } = req.body;
