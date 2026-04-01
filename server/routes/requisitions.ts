@@ -13,7 +13,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
   app.get("/api/employee-profile", isAuthenticated, async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
-      const email = managedUser.email;
+      const email = managedUser.email.trim().toLowerCase();
       console.log(`[employee-profile] Looking up profile for email: ${email}`);
 
       const employeeDs = await storage.getDataSourceBySlug("employee-directory");
@@ -26,7 +26,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       console.log(`[employee-profile] Search returned ${records.length} records for email: ${email}`);
       const match = records.find((r: any) => {
         const data = r.data as Record<string, any>;
-        return data.email && String(data.email).toLowerCase() === email.toLowerCase();
+        return data.email && String(data.email).trim().toLowerCase() === email;
       });
 
       if (!match) {

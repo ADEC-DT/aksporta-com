@@ -12,6 +12,24 @@ import { generateSecret, verify, generateURI } from "otplib";
 import * as QRCode from "qrcode";
 import multer from "multer";
 
+async function syncEmployeeAccountField(email: string, isActive: boolean) {
+  try {
+    const ds = await storage.getDataSourceBySlug("employee-directory");
+    if (!ds) return;
+    const { records } = await storage.getDsRecords(ds.id, { limit: 10000 });
+    const normalizedEmail = email.trim().toLowerCase();
+    const match = records.find((r: any) => {
+      const data = r.data as Record<string, any>;
+      return data.email && String(data.email).trim().toLowerCase() === normalizedEmail;
+    });
+    if (match) {
+      await storage.updateDsRecord(match.id, { account: isActive });
+    }
+  } catch (err) {
+    console.error(`[syncEmployeeAccountField] Error syncing account field for ${email}:`, err);
+  }
+}
+
 export async function registerAdminRoutes(app: Express, _httpServer: Server) {
   app.get("/api/admin/health-check", isAuthenticated, isAdmin, async (_req, res) => {
     try {
@@ -195,7 +213,7 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
 
         const empCode = r.data.employee_code ? String(r.data.employee_code) : null;
 
-        await storage.createManagedUser({
+        const newUser = await storage.createManagedUser({
           email,
           username,
           password: hashedPassword,
@@ -205,6 +223,11 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
           isActive: false,
           employeeCode: empCode,
         });
+        try {
+          await storage.updateDsRecord(r.id, { account: newUser.isActive });
+        } catch (err) {
+          console.error(`[sync-employees] Failed to update account field for record ${r.id}:`, err);
+        }
         created++;
       }
 
@@ -320,6 +343,12 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
 
       const user = await storage.updateManagedUser(req.params.id, updateData);
       if (user) {
+        if (parsed.data.isActive !== undefined && parsed.data.isActive !== targetUser.isActive) {
+          await syncEmployeeAccountField(targetUser.email, parsed.data.isActive);
+          if (parsed.data.email && parsed.data.email !== targetUser.email) {
+            await syncEmployeeAccountField(parsed.data.email, parsed.data.isActive);
+          }
+        }
         const { password: _, mfaSecret, mfaBackupCodes, ...sanitized } = user;
         res.json(sanitized);
       } else {
