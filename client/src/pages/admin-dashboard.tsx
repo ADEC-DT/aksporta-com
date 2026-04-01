@@ -299,7 +299,7 @@ function AdminDashboard() {
   const [userPage, setUserPage] = useState(1);
   const usersPerPage = 25;
   const [userSearchTerm, setUserSearchTerm] = useState("");
-  const [userSortColumn, setUserSortColumn] = useState<"user" | "role" | "status" | null>(null);
+  const [userSortColumn, setUserSortColumn] = useState<"user" | "employeeCode" | "role" | "status" | null>(null);
   const [userSortDirection, setUserSortDirection] = useState<"asc" | "desc">("asc");
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -339,7 +339,7 @@ function AdminDashboard() {
     enabled: isAdminRole && empSearchOpen && empSearchTerm.trim().length >= 2,
   });
 
-  const handleUserSortToggle = (column: "user" | "role" | "status") => {
+  const handleUserSortToggle = (column: "user" | "employeeCode" | "role" | "status") => {
     if (userSortColumn === column) {
       setUserSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
@@ -369,6 +369,9 @@ function AdminDashboard() {
         if (userSortColumn === "user") {
           aVal = (a.username || "").toLowerCase();
           bVal = (b.username || "").toLowerCase();
+        } else if (userSortColumn === "employeeCode") {
+          aVal = (a.employeeCode || "").toLowerCase();
+          bVal = (b.employeeCode || "").toLowerCase();
         } else if (userSortColumn === "role") {
           aVal = (a.role || "others").toLowerCase();
           bVal = (b.role || "others").toLowerCase();
@@ -450,10 +453,11 @@ function AdminDashboard() {
       const res = await apiRequest("POST", "/api/admin/sync-employees");
       return res.json();
     },
-    onSuccess: (data: { created: number; skipped: number; total: number }) => {
+    onSuccess: (data: { created: number; skipped: number; updated: number; total: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-      toast({ title: "Sync complete", description: `${data.created} users created, ${data.skipped} skipped (already exist or no email)` });
+      const parts = [`${data.created} created`, `${data.updated} accounts synced`, `${data.skipped} skipped`];
+      toast({ title: "Sync complete", description: parts.join(", ") });
     },
     onError: (error: Error) => {
       toast({ title: "Sync failed", description: error.message, variant: "destructive" });
@@ -749,6 +753,20 @@ function AdminDashboard() {
                       )}
                     </button>
                   </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => handleUserSortToggle("employeeCode")}
+                      data-testid="button-sort-employee-code"
+                    >
+                      Employee Code
+                      {userSortColumn === "employeeCode" ? (
+                        userSortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                      )}
+                    </button>
+                  </TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>
                     <button
@@ -794,6 +812,9 @@ function AdminDashboard() {
                           {user.firstName} {user.lastName}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-sm text-muted-foreground">{user.employeeCode || "—"}</span>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>

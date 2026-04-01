@@ -178,17 +178,32 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
 
       let created = 0;
       let skipped = 0;
-      const skippedReasons: string[] = [];
+      let updated = 0;
 
       for (const r of records) {
         const email = ((r.data.email as string) || "").trim().toLowerCase();
-        if (!email || !email.includes("@")) {
+        const empCode = r.data.employee_code ? String(r.data.employee_code).trim() : null;
+        const hasValidEmail = email && email.includes("@");
+
+        let existing: Awaited<ReturnType<typeof storage.getManagedUserByEmail>> | undefined;
+        if (hasValidEmail) {
+          existing = await storage.getManagedUserByEmail(email);
+        }
+        if (!existing && empCode) {
+          existing = await storage.getManagedUserByEmployeeCode(empCode);
+        }
+        if (existing) {
+          try {
+            await storage.updateDsRecord(r.id, { account: existing.isActive });
+            updated++;
+          } catch (err) {
+            console.error(`[sync-employees] Failed to update account field for existing user ${email || empCode}:`, err);
+          }
           skipped++;
           continue;
         }
 
-        const existing = await storage.getManagedUserByEmail(email);
-        if (existing) {
+        if (!hasValidEmail) {
           skipped++;
           continue;
         }
@@ -211,8 +226,6 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
         ).join("");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
-        const empCode = r.data.employee_code ? String(r.data.employee_code) : null;
-
         const newUser = await storage.createManagedUser({
           email,
           username,
@@ -231,10 +244,47 @@ export async function registerAdminRoutes(app: Express, _httpServer: Server) {
         created++;
       }
 
-      res.json({ created, skipped, total: records.length });
+      res.json({ created, skipped, updated, total: records.length });
     } catch (error) {
       console.error("Error syncing employees:", error);
       res.status(500).json({ message: "Failed to sync employees" });
+    }
+  });
+
+  app.post("/api/admin/fix-employee-accounts", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ds = await storage.getDataSourceBySlug("employee-directory");
+      if (!ds) {
+        return res.status(404).json({ message: "Employee directory data source not found" });
+      }
+      const { records } = await storage.getDsRecords(ds.id, { limit: 10000 });
+      let fixed = 0;
+
+      for (const r of records) {
+        const email = ((r.data.email as string) || "").trim().toLowerCase();
+        const empCode = r.data.employee_code ? String(r.data.employee_code).trim() : null;
+
+        let user = email ? await storage.getManagedUserByEmail(email) : undefined;
+        if (!user && empCode) {
+          user = await storage.getManagedUserByEmployeeCode(empCode);
+        }
+        if (user) {
+          const currentAccount = r.data.account;
+          if (currentAccount !== user.isActive) {
+            try {
+              await storage.updateDsRecord(r.id, { account: user.isActive });
+              fixed++;
+            } catch (err) {
+              console.error(`[fix-employee-accounts] Failed to update record ${r.id}:`, err);
+            }
+          }
+        }
+      }
+
+      res.json({ fixed, total: records.length });
+    } catch (error) {
+      console.error("Error fixing employee accounts:", error);
+      res.status(500).json({ message: "Failed to fix employee accounts" });
     }
   });
 

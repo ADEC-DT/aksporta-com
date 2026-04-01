@@ -39,11 +39,11 @@ export default function HRDashboard() {
   })) ?? [];
 
   const employeeColumns = [
-    { key: "employeeCode", header: "Employee Code", className: "font-mono text-sm" },
-    { key: "name", header: "Full Name", className: "font-medium" },
-    { key: "email", header: "Email" },
-    { key: "department", header: "Department" },
-    { key: "position", header: "Position" },
+    { key: "employeeCode", header: "Employee Code", className: "font-mono text-sm", sortable: true },
+    { key: "name", header: "Full Name", className: "font-medium", sortable: true },
+    { key: "email", header: "Email", sortable: true },
+    { key: "department", header: "Department", sortable: true },
+    { key: "position", header: "Position", sortable: true },
   ];
 
   const metricIcons = [
@@ -147,6 +147,7 @@ export default function HRDashboard() {
             isLoading={isLoading}
             emptyMessage="No employees found"
             testIdPrefix="hr-employees"
+            sortable
           />
         </CardContent>
       </Card>
