@@ -313,14 +313,28 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
       const userId = String(managedUser.id);
+      const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+      console.log(`[my-pending-step] Checking requisition=${req.params.id} for userId=${userId} userName="${userName}"`);
       const directStep = await storage.getUserPendingStepForRequisition(req.params.id, userId);
-      if (directStep) return res.json(directStep);
+      if (directStep) {
+        console.log(`[my-pending-step] Found direct step ${directStep.id} (assignedTo=${directStep.assignedTo})`);
+        return res.json(directStep);
+      }
       const costCenter = await getUserCostCenter(managedUser);
       if (costCenter) {
         const allSteps = await storage.getApprovalSteps(req.params.id);
         const groupStep = allSteps.find(s => s.decision === "pending" && s.assignedToGroup === costCenter);
-        if (groupStep) return res.json(groupStep);
+        if (groupStep) {
+          console.log(`[my-pending-step] Found group step ${groupStep.id} (assignedToGroup=${groupStep.assignedToGroup})`);
+          return res.json(groupStep);
+        }
       }
+      const relinkedStep = await storage.findAndRelinkOrphanedStep(req.params.id, userId, userName);
+      if (relinkedStep) {
+        console.log(`[my-pending-step] Re-linked orphaned step ${relinkedStep.id} to userId=${userId}`);
+        return res.json(relinkedStep);
+      }
+      console.log(`[my-pending-step] No pending step found for userId=${userId} on requisition=${req.params.id}`);
       res.json(null);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -344,7 +358,13 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
-      const isDirectAssignee = step.assignedTo === String(managedUser.id);
+      const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+      let isDirectAssignee = step.assignedTo === String(managedUser.id);
+      if (!isDirectAssignee && !step.assignedTo && step.assignedToName?.trim().toLowerCase() === userName.trim().toLowerCase()) {
+        console.log(`[approve] Re-linking orphaned step ${step.id} to userId=${managedUser.id}`);
+        await storage.updateApprovalStep(step.id, { assignedTo: String(managedUser.id) });
+        isDirectAssignee = true;
+      }
       let isGroupMember = false;
       if (!isDirectAssignee && step.assignedToGroup) {
         const userCostCenter = await getUserCostCenter(managedUser);
@@ -354,7 +374,6 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
       }
       if (isGroupMember && !isDirectAssignee) {
-        const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
         await storage.updateApprovalStep(step.id, {
           assignedTo: String(managedUser.id),
           assignedToName: userName,
@@ -375,7 +394,13 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
-      const isDirectAssignee = step.assignedTo === String(managedUser.id);
+      const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+      let isDirectAssignee = step.assignedTo === String(managedUser.id);
+      if (!isDirectAssignee && !step.assignedTo && step.assignedToName?.trim().toLowerCase() === userName.trim().toLowerCase()) {
+        console.log(`[reject] Re-linking orphaned step ${step.id} to userId=${managedUser.id}`);
+        await storage.updateApprovalStep(step.id, { assignedTo: String(managedUser.id) });
+        isDirectAssignee = true;
+      }
       let isGroupMember = false;
       if (!isDirectAssignee && step.assignedToGroup) {
         const userCostCenter = await getUserCostCenter(managedUser);
@@ -385,7 +410,6 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         return res.status(403).json({ message: "You are not the assigned approver for this step" });
       }
       if (isGroupMember && !isDirectAssignee) {
-        const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
         await storage.updateApprovalStep(step.id, {
           assignedTo: String(managedUser.id),
           assignedToName: userName,

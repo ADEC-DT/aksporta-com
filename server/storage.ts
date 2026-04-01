@@ -282,6 +282,7 @@ export interface IStorage {
   updateApprovalStep(id: string, data: Partial<ApprovalStep>): Promise<ApprovalStep | undefined>;
   getCurrentApprovalStep(requisitionId: string): Promise<ApprovalStep | undefined>;
   getUserPendingStepForRequisition(requisitionId: string, userId: string): Promise<ApprovalStep | undefined>;
+  findAndRelinkOrphanedStep(requisitionId: string, userId: string, userName: string): Promise<ApprovalStep | undefined>;
   hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean>;
   getPendingApprovalStepsByGroup(groupCostCenter: string, userId: string): Promise<ApprovalStep[]>;
   hasPendingGroupStepForUser(requisitionId: string, groupCostCenter: string): Promise<boolean>;
@@ -1674,11 +1675,43 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return step;
   }
+  async findAndRelinkOrphanedStep(requisitionId: string, userId: string, userName: string): Promise<ApprovalStep | undefined> {
+    const trimmedName = userName.trim();
+    const [candidate] = await db.select().from(requisitionApprovalSteps)
+      .where(and(
+        eq(requisitionApprovalSteps.requisitionId, requisitionId),
+        eq(requisitionApprovalSteps.decision, "pending"),
+        isNull(requisitionApprovalSteps.assignedTo),
+        ilike(requisitionApprovalSteps.assignedToName, trimmedName)
+      ))
+      .orderBy(asc(requisitionApprovalSteps.createdAt))
+      .limit(1);
+    if (!candidate) return undefined;
+    const [updated] = await db.update(requisitionApprovalSteps)
+      .set({ assignedTo: userId })
+      .where(and(
+        eq(requisitionApprovalSteps.id, candidate.id),
+        isNull(requisitionApprovalSteps.assignedTo)
+      ))
+      .returning();
+    if (updated) {
+      console.log(`[approval-relink] Re-linked orphaned step ${updated.id} (assignedToName="${updated.assignedToName}") to user ${userId}`);
+      return updated;
+    }
+    return undefined;
+  }
   async hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean> {
     const step = await this.getUserPendingStepForRequisition(requisitionId, userId);
     if (step) return true;
     const groupStep = await this.hasPendingGroupStepForUserInternal(requisitionId, userId);
-    return groupStep;
+    if (groupStep) return true;
+    const user = await this.getManagedUser(userId);
+    if (user) {
+      const displayName = user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username;
+      const relinked = await this.findAndRelinkOrphanedStep(requisitionId, userId, displayName);
+      if (relinked) return true;
+    }
+    return false;
   }
 
   private async hasPendingGroupStepForUserInternal(requisitionId: string, userId: string): Promise<boolean> {
