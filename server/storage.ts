@@ -277,6 +277,7 @@ export interface IStorage {
   // Requisition Approval Steps
   getApprovalSteps(requisitionId: string): Promise<ApprovalStep[]>;
   getApprovalStep(id: string): Promise<ApprovalStep | undefined>;
+  resolveCostCenter(rawCostCenter: string): Promise<string>;
   getPendingApprovalSteps(userId: string): Promise<ApprovalStep[]>;
   createApprovalStep(step: InsertApprovalStep): Promise<ApprovalStep>;
   updateApprovalStep(id: string, data: Partial<ApprovalStep>): Promise<ApprovalStep | undefined>;
@@ -1601,6 +1602,23 @@ export class DatabaseStorage implements IStorage {
     const [step] = await db.select().from(requisitionApprovalSteps).where(eq(requisitionApprovalSteps.id, id));
     return step;
   }
+  async resolveCostCenter(rawCostCenter: string): Promise<string> {
+    if (/^\d+$/.test(rawCostCenter)) return rawCostCenter;
+    try {
+      const [exactDept] = await db.select().from(departments)
+        .where(ilike(departments.name, rawCostCenter))
+        .limit(1);
+      if (exactDept) return exactDept.externalId;
+      const [partialDept] = await db.select().from(departments)
+        .where(ilike(departments.name, `%${rawCostCenter}%`))
+        .limit(1);
+      if (partialDept) return partialDept.externalId;
+    } catch (err) {
+      console.warn("[storage] Error resolving cost center:", err);
+    }
+    return rawCostCenter;
+  }
+
   async getPendingApprovalSteps(userId: string): Promise<ApprovalStep[]> {
     const directSteps = await db.select().from(requisitionApprovalSteps)
       .where(and(
@@ -1621,8 +1639,9 @@ export class DatabaseStorage implements IStorage {
             : null;
           const record = empRecord || (email ? await this.getDsRecordByField(empDs.id, "email", email, true) : null);
           if (record) {
-            const costCenter = String((record.data as any).cost_center || "").trim();
-            if (costCenter) {
+            const rawCostCenter = String((record.data as any).cost_center || "").trim();
+            if (rawCostCenter) {
+              const costCenter = await this.resolveCostCenter(rawCostCenter);
               groupSteps = await db.select().from(requisitionApprovalSteps)
                 .where(and(
                   eq(requisitionApprovalSteps.assignedToGroup, costCenter),
@@ -1728,8 +1747,9 @@ export class DatabaseStorage implements IStorage {
       record = await this.getDsRecordByField(empDs.id, "email", email, true);
     }
     if (!record) return false;
-    const costCenter = String((record.data as any).cost_center || "").trim();
-    if (!costCenter) return false;
+    const rawCostCenter = String((record.data as any).cost_center || "").trim();
+    if (!rawCostCenter) return false;
+    const costCenter = await this.resolveCostCenter(rawCostCenter);
     const [step] = await db.select().from(requisitionApprovalSteps)
       .where(and(
         eq(requisitionApprovalSteps.requisitionId, requisitionId),

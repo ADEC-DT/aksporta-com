@@ -17,7 +17,9 @@ async function getUserCostCenter(managedUser: ManagedUser): Promise<string | nul
       : null;
     const record = empRecord || (email ? await storage.getDsRecordByField(empDs.id, "email", email, true) : null);
     if (!record) return null;
-    return String((record.data as any).cost_center || "").trim() || null;
+    const rawCostCenter = String((record.data as any).cost_center || "").trim();
+    if (!rawCostCenter) return null;
+    return await storage.resolveCostCenter(rawCostCenter);
   } catch {
     return null;
   }
