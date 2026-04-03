@@ -88,6 +88,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         .from(nsDepartments)
         .where(sql`${nsDepartments.custrecordNsAdecDepartmentHead} IS NOT NULL AND ${nsDepartments.custrecordNsAdecDepartmentHead} != ''`);
 
+      console.log("[budget-owners] Found", rows.length, "ns_departments with heads");
+
+      const allDepts = await storage.getActiveDepartments();
+
       const ownerMap = new Map<string, { name: string; departmentIds: number[] }>();
 
       for (const row of rows) {
@@ -95,14 +99,9 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         if (!headValue) continue;
 
         if (!ownerMap.has(headValue)) {
-          ownerMap.set(headValue, { name: headValue, departmentIds: [] });
-        }
-        if (row.nsId != null) {
-          ownerMap.get(headValue)!.departmentIds.push(row.nsId);
+          ownerMap.set(headValue, { name: headValue, departmentIds: allDepts.map(d => d.internalId) });
         }
       }
-
-      const empDs = await storage.getDataSourceBySlug("employee-directory");
 
       const result: { id: string; name: string; departmentIds: number[] }[] = [];
 
@@ -110,21 +109,28 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         let resolvedName = headValue;
         let resolvedId = headValue;
 
-        if (empDs) {
-          const empRecord = await storage.getDsRecordByField(empDs.id, "employee_code", headValue);
-          if (empRecord) {
-            const empData = empRecord.data as Record<string, any>;
-            resolvedName = empData.full_name || headValue;
-            resolvedId = headValue;
+        try {
+          const empDs = await storage.getDataSourceBySlug("employee-directory");
+          if (empDs) {
+            const empRecord = await storage.getDsRecordByField(empDs.id, "employee_code", headValue);
+            if (empRecord) {
+              const empData = empRecord.data as Record<string, any>;
+              resolvedName = empData.full_name || headValue;
+            }
           }
+        } catch (lookupErr) {
+          console.warn("[budget-owners] Employee lookup failed for", headValue, lookupErr);
         }
 
-        const managedUser = await storage.getManagedUserByEmployeeCode(headValue);
-        if (managedUser) {
-          resolvedName = managedUser.displayName
-            || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ")
-            || managedUser.username;
-          resolvedId = headValue;
+        try {
+          const managedUser = await storage.getManagedUserByEmployeeCode(headValue);
+          if (managedUser) {
+            resolvedName = managedUser.displayName
+              || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ")
+              || managedUser.username;
+          }
+        } catch (lookupErr) {
+          console.warn("[budget-owners] Managed user lookup failed for", headValue, lookupErr);
         }
 
         result.push({
@@ -135,10 +141,11 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       }
 
       result.sort((a, b) => a.name.localeCompare(b.name));
-      res.json(result);
+      console.log("[budget-owners] Returning", result.length, "budget owners:", JSON.stringify(result.map(r => ({ id: r.id, name: r.name, deptCount: r.departmentIds.length }))));
+      return res.json(result);
     } catch (e: any) {
-      console.error("[budget-owners] Error:", e.message);
-      res.status(500).json({ message: e.message });
+      console.error("[budget-owners] Error:", e.message, e.stack);
+      return res.status(500).json({ message: e.message });
     }
   });
 
