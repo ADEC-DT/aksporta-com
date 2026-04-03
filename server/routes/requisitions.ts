@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { checkSubmoduleAccess } from "./helpers";
-import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition, type RequisitionQuotation, nsDepartments } from "@shared/schema";
+import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition, type RequisitionQuotation } from "@shared/schema";
 import { z } from "zod";
 import { initializeWorkflow, approveStep, rejectStep, markPOCreated } from "../workflow";
 import { db } from "../db";
@@ -79,69 +79,33 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   app.get("/api/budget-owners", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (_req, res) => {
     try {
-      const rows = await db
-        .select({
-          nsId: nsDepartments.nsId,
-          name: nsDepartments.name,
-          departmentHead: nsDepartments.custrecordNsAdecDepartmentHead,
-        })
-        .from(nsDepartments)
-        .where(sql`${nsDepartments.custrecordNsAdecDepartmentHead} IS NOT NULL AND ${nsDepartments.custrecordNsAdecDepartmentHead} != ''`);
+      const empDs = await storage.getDataSourceBySlug("employee-directory");
+      if (!empDs) {
+        return res.json([]);
+      }
 
-      console.log("[budget-owners] Found", rows.length, "ns_departments with heads");
+      const allRecords = await db.execute(sql`
+        SELECT DISTINCT
+          data->>'budget_owner_code' as code,
+          data->>'budget_owner_full_name' as name
+        FROM ds_records
+        WHERE data_source_id = ${empDs.id}
+          AND data->>'budget_owner_code' IS NOT NULL
+          AND data->>'budget_owner_code' != ''
+          AND data->>'budget_owner_full_name' IS NOT NULL
+          AND data->>'budget_owner_full_name' != ''
+        ORDER BY name
+      `);
 
       const allDepts = await storage.getActiveDepartments();
+      const allDeptIds = allDepts.map(d => d.internalId);
 
-      const ownerMap = new Map<string, { name: string; departmentIds: number[] }>();
+      const result = allRecords.rows.map((row: any) => ({
+        id: String(row.code).trim(),
+        name: String(row.name).trim().replace(/\s+/g, ' '),
+        departmentIds: allDeptIds,
+      }));
 
-      for (const row of rows) {
-        const headValue = (row.departmentHead || "").trim();
-        if (!headValue) continue;
-
-        if (!ownerMap.has(headValue)) {
-          ownerMap.set(headValue, { name: headValue, departmentIds: allDepts.map(d => d.internalId) });
-        }
-      }
-
-      const result: { id: string; name: string; departmentIds: number[] }[] = [];
-
-      for (const [headValue, data] of ownerMap.entries()) {
-        let resolvedName = headValue;
-        let resolvedId = headValue;
-
-        try {
-          const empDs = await storage.getDataSourceBySlug("employee-directory");
-          if (empDs) {
-            const empRecord = await storage.getDsRecordByField(empDs.id, "employee_code", headValue);
-            if (empRecord) {
-              const empData = empRecord.data as Record<string, any>;
-              resolvedName = empData.full_name || headValue;
-            }
-          }
-        } catch (lookupErr) {
-          console.warn("[budget-owners] Employee lookup failed for", headValue, lookupErr);
-        }
-
-        try {
-          const managedUser = await storage.getManagedUserByEmployeeCode(headValue);
-          if (managedUser) {
-            resolvedName = managedUser.displayName
-              || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ")
-              || managedUser.username;
-          }
-        } catch (lookupErr) {
-          console.warn("[budget-owners] Managed user lookup failed for", headValue, lookupErr);
-        }
-
-        result.push({
-          id: resolvedId,
-          name: resolvedName,
-          departmentIds: data.departmentIds,
-        });
-      }
-
-      result.sort((a, b) => a.name.localeCompare(b.name));
-      console.log("[budget-owners] Returning", result.length, "budget owners:", JSON.stringify(result.map(r => ({ id: r.id, name: r.name, deptCount: r.departmentIds.length }))));
       return res.json(result);
     } catch (e: any) {
       console.error("[budget-owners] Error:", e.message, e.stack);
@@ -202,19 +166,15 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!parsed.success) return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
 
       if (parsed.data.budgetOwnerId) {
-        const deptRows = await db
-          .select({ nsId: nsDepartments.nsId, name: nsDepartments.name })
-          .from(nsDepartments)
-          .where(sql`${nsDepartments.custrecordNsAdecDepartmentHead} = ${parsed.data.budgetOwnerId}`);
-        if (deptRows.length === 0) {
-          return res.status(400).json({ message: "Invalid budget owner selection" });
-        }
-        if (parsed.data.department) {
-          const ownerNsIds = deptRows.map((r) => r.nsId).filter((id): id is number => id != null);
-          const activeDepts = await storage.getActiveDepartments();
-          const selectedDept = activeDepts.find((d) => d.name === parsed.data.department);
-          if (selectedDept && ownerNsIds.length > 0 && !ownerNsIds.includes(selectedDept.internalId)) {
-            return res.status(400).json({ message: "Selected department does not belong to the selected budget owner" });
+        const empDs = await storage.getDataSourceBySlug("employee-directory");
+        if (empDs) {
+          const checkOwner = await db.execute(sql`
+            SELECT COUNT(*) as cnt FROM ds_records
+            WHERE data_source_id = ${empDs.id}
+              AND data->>'budget_owner_code' = ${parsed.data.budgetOwnerId}
+          `);
+          if (Number(checkOwner.rows[0]?.cnt) === 0) {
+            return res.status(400).json({ message: "Invalid budget owner selection" });
           }
         }
       }
