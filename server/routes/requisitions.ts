@@ -3,9 +3,11 @@ import type { Server } from "http";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { checkSubmoduleAccess } from "./helpers";
-import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition, type RequisitionQuotation } from "@shared/schema";
+import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition, type RequisitionQuotation, nsDepartments } from "@shared/schema";
 import { z } from "zod";
 import { initializeWorkflow, approveStep, rejectStep, markPOCreated } from "../workflow";
+import { db } from "../db";
+import { sql } from "drizzle-orm";
 
 async function getUserCostCenter(managedUser: ManagedUser): Promise<string | null> {
   try {
@@ -73,6 +75,73 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     }
   });
 
+  // ========== Budget Owners API ==========
+
+  app.get("/api/budget-owners", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (_req, res) => {
+    try {
+      const rows = await db
+        .select({
+          nsId: nsDepartments.nsId,
+          name: nsDepartments.name,
+          departmentHead: nsDepartments.custrecordNsAdecDepartmentHead,
+        })
+        .from(nsDepartments)
+        .where(sql`${nsDepartments.custrecordNsAdecDepartmentHead} IS NOT NULL AND ${nsDepartments.custrecordNsAdecDepartmentHead} != ''`);
+
+      const ownerMap = new Map<string, { name: string; departmentIds: number[] }>();
+
+      for (const row of rows) {
+        const headValue = (row.departmentHead || "").trim();
+        if (!headValue) continue;
+
+        if (!ownerMap.has(headValue)) {
+          ownerMap.set(headValue, { name: headValue, departmentIds: [] });
+        }
+        if (row.nsId != null) {
+          ownerMap.get(headValue)!.departmentIds.push(row.nsId);
+        }
+      }
+
+      const empDs = await storage.getDataSourceBySlug("employee-directory");
+
+      const result: { id: string; name: string; departmentIds: number[] }[] = [];
+
+      for (const [headValue, data] of ownerMap.entries()) {
+        let resolvedName = headValue;
+        let resolvedId = headValue;
+
+        if (empDs) {
+          const empRecord = await storage.getDsRecordByField(empDs.id, "employee_code", headValue);
+          if (empRecord) {
+            const empData = empRecord.data as Record<string, any>;
+            resolvedName = empData.full_name || headValue;
+            resolvedId = headValue;
+          }
+        }
+
+        const managedUser = await storage.getManagedUserByEmployeeCode(headValue);
+        if (managedUser) {
+          resolvedName = managedUser.displayName
+            || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ")
+            || managedUser.username;
+          resolvedId = headValue;
+        }
+
+        result.push({
+          id: resolvedId,
+          name: resolvedName,
+          departmentIds: data.departmentIds,
+        });
+      }
+
+      result.sort((a, b) => a.name.localeCompare(b.name));
+      res.json(result);
+    } catch (e: any) {
+      console.error("[budget-owners] Error:", e.message);
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ========== Requisitions API Routes ==========
 
   app.get("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
@@ -124,6 +193,24 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const { attachments, ...data } = req.body;
       const parsed = insertRequisitionSchema.safeParse(data);
       if (!parsed.success) return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
+
+      if (parsed.data.budgetOwnerId) {
+        const deptRows = await db
+          .select({ nsId: nsDepartments.nsId, name: nsDepartments.name })
+          .from(nsDepartments)
+          .where(sql`${nsDepartments.custrecordNsAdecDepartmentHead} = ${parsed.data.budgetOwnerId}`);
+        if (deptRows.length === 0) {
+          return res.status(400).json({ message: "Invalid budget owner selection" });
+        }
+        if (parsed.data.department) {
+          const ownerNsIds = deptRows.map((r) => r.nsId).filter((id): id is number => id != null);
+          const activeDepts = await storage.getActiveDepartments();
+          const selectedDept = activeDepts.find((d) => d.name === parsed.data.department);
+          if (selectedDept && ownerNsIds.length > 0 && !ownerNsIds.includes(selectedDept.internalId)) {
+            return res.status(400).json({ message: "Selected department does not belong to the selected budget owner" });
+          }
+        }
+      }
 
       const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
       const maxFileSize = 10 * 1024 * 1024;

@@ -892,6 +892,8 @@ export const requisitions = pgTable("requisitions", {
   requesterDepartment: varchar("requester_department"),
   requesterCostCenter: varchar("requester_cost_center"),
   requesterCostCenterAccountNumber: varchar("requester_cost_center_account_number"),
+  budgetOwnerId: varchar("budget_owner_id"),
+  budgetOwnerName: varchar("budget_owner_name"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

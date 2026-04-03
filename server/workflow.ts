@@ -90,7 +90,32 @@ const defaultRouter: WorkflowRouter = {
   async getPurchasingReviewer(_req: Requisition): Promise<ApproverAssignment> {
     return { userId: null, userName: "Procurement Department", groupCostCenter: "118001003" };
   },
-  async getBudgetOwner(_req: Requisition): Promise<ApproverAssignment> {
+  async getBudgetOwner(req: Requisition): Promise<ApproverAssignment> {
+    if (req.budgetOwnerId) {
+      const byCode = await storage.getManagedUserByEmployeeCode(req.budgetOwnerId);
+      if (byCode) {
+        const displayName = byCode.displayName
+          || [byCode.firstName, byCode.lastName].filter(Boolean).join(" ")
+          || byCode.username;
+        return { userId: String(byCode.id), userName: displayName };
+      }
+
+      if (req.budgetOwnerName) {
+        const allUsers = await storage.getAllManagedUsers();
+        const byName = allUsers.find((u) => {
+          const fullName = u.displayName
+            || [u.firstName, u.lastName].filter(Boolean).join(" ")
+            || u.username;
+          return fullName.toLowerCase() === req.budgetOwnerName!.toLowerCase();
+        });
+        if (byName) {
+          const displayName = byName.displayName
+            || [byName.firstName, byName.lastName].filter(Boolean).join(" ")
+            || byName.username;
+          return { userId: String(byName.id), userName: displayName };
+        }
+      }
+    }
     const admins = await getAdminUsers();
     if (admins.length > 0) return { userId: admins[0].id, userName: admins[0].name };
     return { userId: null, userName: "Budget Owner (Unassigned)" };

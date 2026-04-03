@@ -16,6 +16,12 @@ import { ArrowLeft, Upload, X, FileText, Image, Loader2, AlertCircle, ChevronsUp
 import { cn } from "@/lib/utils";
 import type { Department } from "@shared/schema";
 
+interface BudgetOwner {
+  id: string;
+  name: string;
+  departmentIds: number[];
+}
+
 interface AttachmentFile {
   file: File;
   preview: string;
@@ -78,6 +84,17 @@ export default function RequisitionNewPage() {
     },
   });
 
+  const { data: budgetOwners = [], isLoading: isLoadingBudgetOwners } = useQuery<BudgetOwner[]>({
+    queryKey: ["/api/budget-owners"],
+    queryFn: async () => {
+      const res = await fetch("/api/budget-owners", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch budget owners");
+      return res.json();
+    },
+  });
+
+  const [budgetOwnerDropdownOpen, setBudgetOwnerDropdownOpen] = useState(false);
+  const [selectedBudgetOwner, setSelectedBudgetOwner] = useState<BudgetOwner | null>(null);
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
 
   const profileNotFound = !isLoadingProfile && !isProfileError && employeeProfile === null;
@@ -97,7 +114,13 @@ export default function RequisitionNewPage() {
     vendorName: "",
     requiredByDate: "",
     projectStartDate: "",
+    budgetOwnerId: "",
+    budgetOwnerName: "",
   });
+
+  const filteredDepartments = selectedBudgetOwner
+    ? activeDepartments.filter((dept) => selectedBudgetOwner.departmentIds.includes(dept.internalId))
+    : activeDepartments;
 
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -268,6 +291,61 @@ export default function RequisitionNewPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
+                <Label htmlFor="budgetOwner">Budget Owner</Label>
+                <Popover open={budgetOwnerDropdownOpen} onOpenChange={setBudgetOwnerDropdownOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="budgetOwner"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={budgetOwnerDropdownOpen}
+                      aria-label="Select budget owner"
+                      disabled={isLoadingBudgetOwners}
+                      className="w-full justify-between font-normal"
+                      data-testid="input-budget-owner"
+                    >
+                      {isLoadingBudgetOwners ? (
+                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading budget owners...</span>
+                      ) : (
+                        selectedBudgetOwner?.name || "Select budget owner..."
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search budget owners..." data-testid="input-budget-owner-search" />
+                      <CommandList>
+                        <CommandEmpty>No budget owner found.</CommandEmpty>
+                        <CommandGroup>
+                          {budgetOwners.map((owner) => (
+                            <CommandItem
+                              key={owner.id}
+                              value={owner.name}
+                              onSelect={() => {
+                                if (selectedBudgetOwner?.id === owner.id) {
+                                  setSelectedBudgetOwner(null);
+                                  setForm((prev) => ({ ...prev, budgetOwnerId: "", budgetOwnerName: "", department: "" }));
+                                } else {
+                                  setSelectedBudgetOwner(owner);
+                                  setForm((prev) => ({ ...prev, budgetOwnerId: owner.id, budgetOwnerName: owner.name, department: "" }));
+                                }
+                                setBudgetOwnerDropdownOpen(false);
+                                if (errors.department) setErrors((prev) => ({ ...prev, department: "" }));
+                              }}
+                              data-testid={`option-budget-owner-${owner.id}`}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", selectedBudgetOwner?.id === owner.id ? "opacity-100" : "opacity-0")} />
+                              {owner.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-1">
                 <Label htmlFor="department">Department *</Label>
                 <Popover open={deptDropdownOpen} onOpenChange={setDeptDropdownOpen}>
                   <PopoverTrigger asChild>
@@ -295,7 +373,7 @@ export default function RequisitionNewPage() {
                       <CommandList>
                         <CommandEmpty>No department found.</CommandEmpty>
                         <CommandGroup>
-                          {activeDepartments.map((dept) => (
+                          {filteredDepartments.map((dept) => (
                             <CommandItem
                               key={dept.internalId}
                               value={dept.name}
