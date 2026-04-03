@@ -81,10 +81,24 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const search = req.query.search as string | undefined;
       const status = req.query.status as string | undefined;
+
+      let approverRequisitionIds: string[] | undefined;
+      if (!isAdmin) {
+        try {
+          const pendingSteps = await storage.getPendingApprovalSteps(String(managedUser.id));
+          if (pendingSteps.length > 0) {
+            approverRequisitionIds = [...new Set(pendingSteps.map(s => s.requisitionId))];
+          }
+        } catch (err) {
+          console.warn("[requisitions] Error fetching pending approval steps for user visibility:", err);
+        }
+      }
+
       res.json(await storage.getAllRequisitions({
         search,
         status,
         userId: isAdmin ? undefined : String(managedUser.id),
+        approverRequisitionIds,
       }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -301,7 +315,12 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
   app.get("/api/my-approvals", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
-      const steps = await storage.getPendingApprovalSteps(String(managedUser.id));
+      const userId = String(managedUser.id);
+      console.log(`[my-approvals] Fetching approvals for user=${userId} (${managedUser.username || managedUser.email}), employeeCode=${managedUser.employeeCode || "none"}`);
+
+      const steps = await storage.getPendingApprovalSteps(userId);
+      console.log(`[my-approvals] Found ${steps.length} pending steps for user=${userId}. Direct/group breakdown logged in storage layer.`);
+
       const results: (ApprovalStep & { requisition?: Requisition })[] = [];
       for (const step of steps) {
         const requisition = await storage.getRequisition(step.requisitionId);

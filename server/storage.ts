@@ -262,7 +262,7 @@ export interface IStorage {
   deleteIcon(id: string): Promise<boolean>;
 
   // Requisitions
-  getAllRequisitions(options?: { search?: string; status?: string; userId?: string }): Promise<Requisition[]>;
+  getAllRequisitions(options?: { search?: string; status?: string; userId?: string; approverRequisitionIds?: string[] }): Promise<Requisition[]>;
   getRequisition(id: string): Promise<Requisition | undefined>;
   createRequisition(r: InsertRequisition & { userId?: string }): Promise<Requisition>;
   updateRequisition(id: string, d: Partial<InsertRequisition>): Promise<Requisition | undefined>;
@@ -1532,24 +1532,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Requisitions implementations
-  async getAllRequisitions(options?: { search?: string; status?: string; userId?: string }): Promise<Requisition[]> {
-    const conditions = [];
-    if (options?.userId) {
-      conditions.push(eq(requisitions.userId, options.userId));
-    }
+  async getAllRequisitions(options?: { search?: string; status?: string; userId?: string; approverRequisitionIds?: string[] }): Promise<Requisition[]> {
+    const filterConditions = [];
     if (options?.status) {
-      conditions.push(eq(requisitions.status, options.status));
+      filterConditions.push(eq(requisitions.status, options.status));
     }
     if (options?.search) {
       const term = `%${options.search}%`;
-      conditions.push(or(
+      filterConditions.push(or(
         ilike(requisitions.requestTitle, term),
         ilike(requisitions.department, term),
         ilike(requisitions.requestedBy, term),
       )!);
     }
-    if (conditions.length > 0) {
-      return await db.select().from(requisitions).where(and(...conditions)).orderBy(desc(requisitions.createdAt));
+
+    let ownershipCondition = undefined;
+    if (options?.userId && options?.approverRequisitionIds && options.approverRequisitionIds.length > 0) {
+      ownershipCondition = or(
+        eq(requisitions.userId, options.userId),
+        inArray(requisitions.id, options.approverRequisitionIds)
+      );
+    } else if (options?.userId) {
+      ownershipCondition = eq(requisitions.userId, options.userId);
+    }
+
+    const allConditions = ownershipCondition
+      ? [ownershipCondition, ...filterConditions]
+      : filterConditions;
+
+    if (allConditions.length > 0) {
+      return await db.select().from(requisitions).where(and(...allConditions)).orderBy(desc(requisitions.createdAt));
     }
     return await db.select().from(requisitions).orderBy(desc(requisitions.createdAt));
   }
@@ -1626,6 +1638,7 @@ export class DatabaseStorage implements IStorage {
         eq(requisitionApprovalSteps.decision, "pending")
       ))
       .orderBy(desc(requisitionApprovalSteps.createdAt));
+    console.log(`[storage] getPendingApprovalSteps user=${userId}: ${directSteps.length} direct steps found`);
 
     let groupSteps: ApprovalStep[] = [];
     try {
@@ -1640,17 +1653,28 @@ export class DatabaseStorage implements IStorage {
           const record = empRecord || (email ? await this.getDsRecordByField(empDs.id, "email", email, true) : null);
           if (record) {
             const rawCostCenter = String((record.data as any).cost_center || "").trim();
+            console.log(`[storage] getPendingApprovalSteps user=${userId}: employee record found, rawCostCenter="${rawCostCenter}"`);
             if (rawCostCenter) {
               const costCenter = await this.resolveCostCenter(rawCostCenter);
+              console.log(`[storage] getPendingApprovalSteps user=${userId}: resolved costCenter="${costCenter}" (from raw="${rawCostCenter}")`);
               groupSteps = await db.select().from(requisitionApprovalSteps)
                 .where(and(
                   eq(requisitionApprovalSteps.assignedToGroup, costCenter),
                   eq(requisitionApprovalSteps.decision, "pending")
                 ))
                 .orderBy(desc(requisitionApprovalSteps.createdAt));
+              console.log(`[storage] getPendingApprovalSteps user=${userId}: ${groupSteps.length} group steps found for costCenter="${costCenter}"`);
+            } else {
+              console.log(`[storage] getPendingApprovalSteps user=${userId}: employee record has no cost_center field`);
             }
+          } else {
+            console.log(`[storage] getPendingApprovalSteps user=${userId}: no employee record found (email=${email}, employeeCode=${user.employeeCode || "none"})`);
           }
+        } else {
+          console.log(`[storage] getPendingApprovalSteps user=${userId}: employee-directory data source not found`);
         }
+      } else {
+        console.log(`[storage] getPendingApprovalSteps user=${userId}: managed user not found`);
       }
     } catch (err) {
       console.warn("[storage] Error fetching group approval steps:", err);
