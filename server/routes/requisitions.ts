@@ -110,7 +110,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const r = await storage.getRequisition(req.params.id);
       if (!r) return res.status(404).json({ message: "Not found" });
       const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
-      if (!isAdmin && r.userId !== String(managedUser.id) && !isApprover) {
+      const wasPastApprover = !isApprover && await storage.hasAnyStepForUser(req.params.id, String(managedUser.id));
+      if (!isAdmin && r.userId !== String(managedUser.id) && !isApprover && !wasPastApprover) {
         return res.status(403).json({ message: "Access denied" });
       }
       res.json(r);

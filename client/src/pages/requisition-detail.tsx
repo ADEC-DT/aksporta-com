@@ -107,37 +107,63 @@ export default function RequisitionDetailPage() {
 
   const { data: requisition, isLoading } = useQuery<Requisition>({
     queryKey: ["/api/requisitions", id],
-    queryFn: () => fetch(`/api/requisitions/${id}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/requisitions/${id}`, { credentials: "include" });
+      if (!r.ok) {
+        throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+      }
+      return r.json();
+    },
     enabled: !!id,
   });
 
   const { data: attachments = [] } = useQuery<RequisitionAttachment[]>({
     queryKey: ["/api/requisitions", id, "attachments"],
-    queryFn: () => fetch(`/api/requisitions/${id}/attachments`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/requisitions/${id}/attachments`, { credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+      return r.json();
+    },
     enabled: !!id,
   });
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery<RequisitionComment[]>({
     queryKey: ["/api/requisitions", id, "comments"],
-    queryFn: () => fetch(`/api/requisitions/${id}/comments`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/requisitions/${id}/comments`, { credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+      return r.json();
+    },
     enabled: !!id,
   });
 
   const { data: approvalSteps = [] } = useQuery<ApprovalStep[]>({
     queryKey: ["/api/requisitions", id, "approval-steps"],
-    queryFn: () => fetch(`/api/requisitions/${id}/approval-steps`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/requisitions/${id}/approval-steps`, { credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+      return r.json();
+    },
     enabled: !!id,
   });
 
   const { data: myPendingStep } = useQuery<ApprovalStep | null>({
     queryKey: ["/api/requisitions", id, "my-pending-step"],
-    queryFn: () => fetch(`/api/requisitions/${id}/my-pending-step`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/requisitions/${id}/my-pending-step`, { credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+      return r.json();
+    },
     enabled: !!id,
   });
 
   const { data: quotations = [] } = useQuery<RequisitionQuotation[]>({
     queryKey: ["/api/requisitions", id, "quotations"],
-    queryFn: () => fetch(`/api/requisitions/${id}/quotations`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/requisitions/${id}/quotations`, { credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+      return r.json();
+    },
     enabled: !!id,
   });
 
@@ -367,7 +393,7 @@ export default function RequisitionDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold font-outfit" data-testid="text-detail-title">{requisition.requestTitle}</h1>
-            <p className="text-sm text-muted-foreground font-mono">ID: {requisition.id.slice(0, 8).toUpperCase()}</p>
+            <p className="text-sm text-muted-foreground font-mono">ID: {requisition.id?.slice(0, 8).toUpperCase()}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -285,6 +285,7 @@ export interface IStorage {
   getUserPendingStepForRequisition(requisitionId: string, userId: string): Promise<ApprovalStep | undefined>;
   findAndRelinkOrphanedStep(requisitionId: string, userId: string, userName: string): Promise<ApprovalStep | undefined>;
   hasPendingStepForUser(requisitionId: string, userId: string): Promise<boolean>;
+  hasAnyStepForUser(requisitionId: string, userId: string): Promise<boolean>;
   getPendingApprovalStepsByGroup(groupCostCenter: string, userId: string): Promise<ApprovalStep[]>;
   hasPendingGroupStepForUser(requisitionId: string, groupCostCenter: string): Promise<boolean>;
 
@@ -1755,6 +1756,19 @@ export class DatabaseStorage implements IStorage {
       if (relinked) return true;
     }
     return false;
+  }
+
+  async hasAnyStepForUser(requisitionId: string, userId: string): Promise<boolean> {
+    const steps = await db.select({ id: requisitionApprovalSteps.id })
+      .from(requisitionApprovalSteps)
+      .where(
+        and(
+          eq(requisitionApprovalSteps.requisitionId, requisitionId),
+          eq(requisitionApprovalSteps.assignedTo, userId)
+        )
+      )
+      .limit(1);
+    return steps.length > 0;
   }
 
   private async hasPendingGroupStepForUserInternal(requisitionId: string, userId: string): Promise<boolean> {
