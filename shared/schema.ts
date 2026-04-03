@@ -990,6 +990,7 @@ export const requisitionQuotations = pgTable("requisition_quotations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   requisitionId: varchar("requisition_id").notNull().references(() => requisitions.id, { onDelete: "cascade" }),
   vendorName: varchar("vendor_name").notNull(),
+  amountAed: decimal("amount_aed", { precision: 12, scale: 2 }).notNull(),
   fileName: varchar("file_name"),
   fileType: varchar("file_type"),
   fileSize: integer("file_size"),

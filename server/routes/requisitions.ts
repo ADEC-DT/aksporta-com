@@ -569,9 +569,13 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin && !isProcurementApprover) {
         return res.status(403).json({ message: "Only the Procurement approver at Purchasing Review stage or admins can add quotations" });
       }
-      const { vendorName, fileName, fileType, fileSize, fileData, isRecommended, comments } = req.body;
+      const { vendorName, amountAed, fileName, fileType, fileSize, fileData, isRecommended, comments } = req.body;
       if (!vendorName || typeof vendorName !== "string" || !vendorName.trim()) {
         return res.status(400).json({ message: "Vendor name is required" });
+      }
+      const parsedAmount = Number(amountAed);
+      if (amountAed === undefined || amountAed === null || amountAed === "" || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ message: "Amount (AED) is required and must be a positive number" });
       }
       if (fileData) {
         if (!fileType || !fileSize) {
@@ -597,6 +601,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const quotation = await storage.createQuotation({
         requisitionId: req.params.id,
         vendorName: vendorName.trim(),
+        amountAed: String(parsedAmount),
         fileName: fileName || null,
         fileType: fileType || null,
         fileSize: fileSize || null,

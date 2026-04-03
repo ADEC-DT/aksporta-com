@@ -99,9 +99,11 @@ export default function RequisitionDetailPage() {
   const quotationFileInputRef = useRef<HTMLInputElement>(null);
   const [quotationForm, setQuotationForm] = useState({
     vendorName: "",
+    amountAed: "",
     isRecommended: false,
     comments: "",
   });
+  const [amountTouched, setAmountTouched] = useState(false);
   const [quotationFile, setQuotationFile] = useState<File | null>(null);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
 
@@ -292,6 +294,7 @@ export default function RequisitionDetailPage() {
       }
       await apiRequest("POST", `/api/requisitions/${id}/quotations`, {
         vendorName: quotationForm.vendorName,
+        amountAed: quotationForm.amountAed,
         isRecommended: quotationForm.isRecommended,
         comments: quotationForm.comments || null,
         fileName,
@@ -302,7 +305,8 @@ export default function RequisitionDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "quotations"] });
-      setQuotationForm({ vendorName: "", isRecommended: false, comments: "" });
+      setQuotationForm({ vendorName: "", amountAed: "", isRecommended: false, comments: "" });
+      setAmountTouched(false);
       setQuotationFile(null);
       setShowQuotationForm(false);
       toast({ title: "Quotation added" });
@@ -545,6 +549,26 @@ export default function RequisitionDetailPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="quotation-amount">Amount (AED) <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="quotation-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="Enter amount in AED"
+                    value={quotationForm.amountAed}
+                    onChange={(e) => setQuotationForm({ ...quotationForm, amountAed: e.target.value })}
+                    onBlur={() => setAmountTouched(true)}
+                    data-testid="input-quotation-amount"
+                  />
+                  {amountTouched && quotationForm.amountAed === "" && (
+                    <p className="text-xs text-destructive" data-testid="error-quotation-amount">Amount (AED) is required</p>
+                  )}
+                  {quotationForm.amountAed !== "" && !(parseFloat(quotationForm.amountAed) > 0) && (
+                    <p className="text-xs text-destructive" data-testid="error-quotation-amount">Amount must be a positive number</p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <Label>Quotation File</Label>
                   <div className="flex items-center gap-2">
                     <Button
@@ -599,7 +623,7 @@ export default function RequisitionDetailPage() {
                   <Button
                     size="sm"
                     onClick={() => addQuotationMutation.mutate()}
-                    disabled={!quotationForm.vendorName.trim() || addQuotationMutation.isPending}
+                    disabled={!quotationForm.vendorName.trim() || !quotationForm.amountAed || !(parseFloat(quotationForm.amountAed) > 0) || addQuotationMutation.isPending}
                     data-testid="button-submit-quotation"
                   >
                     {addQuotationMutation.isPending ? (
@@ -629,6 +653,11 @@ export default function RequisitionDetailPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm" data-testid={`quotation-vendor-${q.id}`}>{q.vendorName}</span>
+                        {q.amountAed && (
+                          <span className="text-sm font-semibold text-primary" data-testid={`quotation-amount-${q.id}`}>
+                            AED {Number(q.amountAed).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
                         {q.isRecommended && (
                           <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" data-testid={`badge-recommended-${q.id}`}>
                             <Star className="h-3 w-3 mr-1 fill-current" />
