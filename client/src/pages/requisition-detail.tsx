@@ -653,7 +653,7 @@ export default function RequisitionDetailPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm" data-testid={`quotation-vendor-${q.id}`}>{q.vendorName}</span>
-                        {q.amountAed && (
+                        {q.amountAed != null && (
                           <span className="text-sm font-semibold text-primary" data-testid={`quotation-amount-${q.id}`}>
                             AED {Number(q.amountAed).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
