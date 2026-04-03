@@ -120,7 +120,7 @@ export default function RequisitionNewPage() {
 
   const filteredDepartments = selectedBudgetOwner
     ? activeDepartments.filter((dept) => selectedBudgetOwner.departmentIds.includes(dept.internalId))
-    : activeDepartments;
+    : [];
 
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});

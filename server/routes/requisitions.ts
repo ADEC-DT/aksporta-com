@@ -84,7 +84,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         return res.json([]);
       }
 
-      const allRecords = await db.execute(sql`
+      const ownerRows = await db.execute(sql`
         SELECT DISTINCT
           data->>'budget_owner_code' as code,
           data->>'budget_owner_full_name' as name
@@ -97,14 +97,45 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         ORDER BY name
       `);
 
-      const allDepts = await storage.getActiveDepartments();
-      const allDeptIds = allDepts.map(d => d.internalId);
+      const ccRows = await db.execute(sql`
+        SELECT DISTINCT
+          data->>'budget_owner_code' as code,
+          data->>'cost_center_account_number' as cc_acct
+        FROM ds_records
+        WHERE data_source_id = ${empDs.id}
+          AND data->>'budget_owner_code' IS NOT NULL
+          AND data->>'budget_owner_code' != ''
+          AND data->>'cost_center_account_number' IS NOT NULL
+          AND data->>'cost_center_account_number' != ''
+      `);
 
-      const result = allRecords.rows.map((row: any) => ({
-        id: String(row.code).trim(),
-        name: String(row.name).trim().replace(/\s+/g, ' '),
-        departmentIds: allDeptIds,
-      }));
+      const ownerCcMap = new Map<string, Set<string>>();
+      for (const row of ccRows.rows as any[]) {
+        const code = String(row.code).trim();
+        if (!ownerCcMap.has(code)) ownerCcMap.set(code, new Set());
+        ownerCcMap.get(code)!.add(String(row.cc_acct).trim());
+      }
+
+      const allDepts = await storage.getActiveDepartments();
+      const deptByExtId = new Map<string, number>();
+      for (const d of allDepts) {
+        deptByExtId.set(d.externalId, d.internalId);
+      }
+
+      const result = ownerRows.rows.map((row: any) => {
+        const code = String(row.code).trim();
+        const ccAccts = ownerCcMap.get(code) || new Set<string>();
+        const departmentIds: number[] = [];
+        for (const cc of ccAccts) {
+          const deptId = deptByExtId.get(cc);
+          if (deptId != null) departmentIds.push(deptId);
+        }
+        return {
+          id: code,
+          name: String(row.name).trim().replace(/\s+/g, ' '),
+          departmentIds,
+        };
+      });
 
       return res.json(result);
     } catch (e: any) {
