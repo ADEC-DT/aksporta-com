@@ -345,13 +345,27 @@ export default function RequisitionDetailPage() {
   const selectQuotationMutation = useMutation({
     mutationFn: async (quotationId: string) => {
       await apiRequest("PATCH", `/api/requisitions/${id}/select-quotation`, { quotationId });
+      return quotationId;
+    },
+    onMutate: async (quotationId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/requisitions", id] });
+      const prev = queryClient.getQueryData<Requisition>(["/api/requisitions", id]);
+      if (prev) {
+        queryClient.setQueryData<Requisition>(["/api/requisitions", id], { ...prev, selectedQuotationId: quotationId });
+      }
+      return { prev };
+    },
+    onError: (err: Error, _quotationId, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(["/api/requisitions", id], context.prev);
+      }
+      toast({ title: "Failed to select quotation", description: err.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
       toast({ title: "Quotation selected" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Failed to select quotation", description: err.message, variant: "destructive" });
     },
   });
 

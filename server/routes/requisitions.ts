@@ -675,10 +675,12 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
       const { quotationId } = req.body;
+      console.log(`[select-quotation] User ${managedUser.id} selecting quotation ${quotationId} for requisition ${req.params.id}`);
       if (!quotationId || typeof quotationId !== "string") {
         return res.status(400).json({ message: "quotationId is required" });
       }
       const isBudgetOwner = await isBudgetOwnerApprover(req.params.id, managedUser);
+      console.log(`[select-quotation] isBudgetOwner=${isBudgetOwner}`);
       if (!isBudgetOwner) {
         return res.status(403).json({ message: "Only the assigned Budget Owner at the 'Pending Budget Owner' stage can select a quotation" });
       }
@@ -687,8 +689,12 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         return res.status(404).json({ message: "Quotation not found for this requisition" });
       }
       const updated = await storage.updateRequisition(req.params.id, { selectedQuotationId: quotationId });
+      console.log(`[select-quotation] Updated requisition selectedQuotationId=${updated?.selectedQuotationId}`);
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      console.error(`[select-quotation] Error:`, e.message);
+      res.status(500).json({ message: e.message });
+    }
   });
 
   app.get("/api/quotations/:id/download", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
