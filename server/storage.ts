@@ -265,7 +265,7 @@ export interface IStorage {
   getAllRequisitions(options?: { search?: string; status?: string; userId?: string; approverRequisitionIds?: string[] }): Promise<Requisition[]>;
   getRequisition(id: string): Promise<Requisition | undefined>;
   createRequisition(r: InsertRequisition & { userId?: string }): Promise<Requisition>;
-  updateRequisition(id: string, d: Partial<InsertRequisition>): Promise<Requisition | undefined>;
+  updateRequisition(id: string, d: Partial<InsertRequisition> & { selectedQuotationId?: string | null }): Promise<Requisition | undefined>;
   deleteRequisition(id: string): Promise<boolean>;
   getRequisitionAttachments(requisitionId: string): Promise<RequisitionAttachment[]>;
   getRequisitionAttachmentById(id: string): Promise<RequisitionAttachment | undefined>;
@@ -1574,7 +1574,7 @@ export class DatabaseStorage implements IStorage {
     const [created] = await db.insert(requisitions).values(r).returning();
     return created;
   }
-  async updateRequisition(id: string, d: Partial<InsertRequisition>): Promise<Requisition | undefined> {
+  async updateRequisition(id: string, d: Partial<InsertRequisition> & { selectedQuotationId?: string | null }): Promise<Requisition | undefined> {
     const [updated] = await db.update(requisitions).set({ ...d, updatedAt: new Date() }).where(eq(requisitions.id, id)).returning();
     return updated;
   }

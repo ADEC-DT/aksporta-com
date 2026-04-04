@@ -15,7 +15,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign, Pencil, X, Send, MessageSquare, CheckCircle2, XCircle, Clock, ArrowRight, Upload, Loader2, Star, Trash2, Plus, ShoppingCart } from "lucide-react";
 import type { Requisition, RequisitionAttachment, RequisitionComment, ApprovalStep, RequisitionQuotation } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 function getStatusBadgeClass(status: string) {
   switch (status) {
@@ -342,6 +342,38 @@ export default function RequisitionDetailPage() {
     },
   });
 
+  const selectQuotationMutation = useMutation({
+    mutationFn: async (quotationId: string) => {
+      await apiRequest("PATCH", `/api/requisitions/${id}/select-quotation`, { quotationId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
+      toast({ title: "Quotation selected" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to select quotation", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const [preselectionDoneForId, setPreselectionDoneForId] = useState<string | null>(null);
+  useEffect(() => {
+    if (
+      requisition &&
+      requisition.status === "Pending Budget Owner" &&
+      isCurrentApprover &&
+      quotations.length > 0 &&
+      !requisition.selectedQuotationId &&
+      preselectionDoneForId !== requisition.id &&
+      !selectQuotationMutation.isPending
+    ) {
+      const recommended = quotations.find(q => q.isRecommended);
+      if (recommended) {
+        setPreselectionDoneForId(requisition.id);
+        selectQuotationMutation.mutate(recommended.id);
+      }
+    }
+  }, [requisition?.id, requisition?.status, requisition?.selectedQuotationId, isCurrentApprover, quotations.length, preselectionDoneForId, selectQuotationMutation.isPending]);
+
   function startEditing() {
     if (!requisition) return;
     setEditFields({
@@ -387,6 +419,10 @@ export default function RequisitionDetailPage() {
 
   const canEdit = isAdmin || isCurrentApprover;
   const isPurchasingStage = requisition.status === "Pending Purchasing Review";
+  const isBudgetOwnerStage = requisition.status === "Pending Budget Owner";
+  const isBudgetOwnerApprover = isBudgetOwnerStage && isCurrentApprover;
+  const hasQuotations = quotations.length > 0;
+  const needsQuotationSelection = isBudgetOwnerApprover && (!hasQuotations || !requisition.selectedQuotationId);
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
@@ -482,10 +518,17 @@ export default function RequisitionDetailPage() {
                 <p className="text-xs text-muted-foreground">A comment is required before you can approve or reject.</p>
               )}
             </div>
+            {needsQuotationSelection && (
+              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid="text-select-quotation-warning">
+                {!hasQuotations
+                  ? "No quotations are available. Quotations must be added and one selected before you can approve."
+                  : "You must select a quotation before you can approve this requisition."}
+              </p>
+            )}
             <div className="flex gap-3">
               <Button
                 onClick={() => approveMutation.mutate(approvalComment)}
-                disabled={approveMutation.isPending || rejectMutation.isPending || !approvalComment.trim()}
+                disabled={approveMutation.isPending || rejectMutation.isPending || !approvalComment.trim() || needsQuotationSelection}
                 className="bg-green-600 hover:bg-green-700"
                 data-testid="button-approve"
               >
@@ -644,12 +687,25 @@ export default function RequisitionDetailPage() {
               <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-quotations">No quotations added yet</p>
             ) : (
               <div className="space-y-2">
-                {quotations.map((q) => (
+                {quotations.map((q) => {
+                  const isSelected = requisition.selectedQuotationId === q.id;
+                  return (
                   <div
                     key={q.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border ${q.isRecommended ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20" : "bg-muted/30"}`}
+                    className={`flex items-start gap-3 p-3 rounded-lg border ${isSelected ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20" : q.isRecommended ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20" : "bg-muted/30"}`}
                     data-testid={`quotation-${q.id}`}
                   >
+                    {isBudgetOwnerApprover && (
+                      <input
+                        type="radio"
+                        name="selectedQuotation"
+                        checked={isSelected}
+                        onChange={() => selectQuotationMutation.mutate(q.id)}
+                        disabled={selectQuotationMutation.isPending}
+                        className="mt-1 h-4 w-4 accent-primary cursor-pointer"
+                        data-testid={`radio-select-quotation-${q.id}`}
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm" data-testid={`quotation-vendor-${q.id}`}>{q.vendorName}</span>
@@ -657,6 +713,12 @@ export default function RequisitionDetailPage() {
                           <span className="text-sm font-semibold text-primary" data-testid={`quotation-amount-${q.id}`}>
                             AED {Number(q.amountAed).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
+                        )}
+                        {isSelected && (
+                          <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0" data-testid={`badge-selected-${q.id}`}>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Selected
+                          </Badge>
                         )}
                         {q.isRecommended && (
                           <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0" data-testid={`badge-recommended-${q.id}`}>
@@ -712,7 +774,8 @@ export default function RequisitionDetailPage() {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

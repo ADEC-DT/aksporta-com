@@ -33,6 +33,12 @@ async function isPurchasingReviewApprover(requisitionId: string, managedUser: Ma
   return storage.hasPendingStepForUser(requisitionId, String(managedUser.id));
 }
 
+async function isBudgetOwnerApprover(requisitionId: string, managedUser: ManagedUser): Promise<boolean> {
+  const requisition = await storage.getRequisition(requisitionId);
+  if (!requisition || requisition.status !== "Pending Budget Owner") return false;
+  return storage.hasPendingStepForUser(requisitionId, String(managedUser.id));
+}
+
 export async function registerRequisitionRoutes(app: Express, _httpServer: Server) {
   // ========== Employee Profile Lookup ==========
 
@@ -490,6 +496,20 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!comments || typeof comments !== "string" || !comments.trim()) {
         return res.status(400).json({ message: "A comment is required when approving a requisition" });
       }
+      if (step.stage === "Pending Budget Owner") {
+        const requisition = await storage.getRequisition(step.requisitionId);
+        const quotations = await storage.getQuotationsByRequisition(step.requisitionId);
+        if (quotations.length === 0) {
+          return res.status(400).json({ message: "No quotations are available. Quotations must be added and one selected before approving." });
+        }
+        if (!requisition?.selectedQuotationId) {
+          return res.status(400).json({ message: "You must select a quotation before approving" });
+        }
+        const selectedQuotation = quotations.find(q => q.id === requisition.selectedQuotationId);
+        if (!selectedQuotation) {
+          return res.status(400).json({ message: "The selected quotation is no longer valid. Please select a quotation before approving." });
+        }
+      }
       const result = await approveStep(req.params.id, comments.trim());
       res.json({ success: true, newStatus: result.newStatus, nextSteps: result.nextSteps });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -648,6 +668,26 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const ok = await storage.deleteQuotation(req.params.id);
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/requisitions/:id/select-quotation", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const { quotationId } = req.body;
+      if (!quotationId || typeof quotationId !== "string") {
+        return res.status(400).json({ message: "quotationId is required" });
+      }
+      const isBudgetOwner = await isBudgetOwnerApprover(req.params.id, managedUser);
+      if (!isBudgetOwner) {
+        return res.status(403).json({ message: "Only the assigned Budget Owner at the 'Pending Budget Owner' stage can select a quotation" });
+      }
+      const quotation = await storage.getQuotation(quotationId);
+      if (!quotation || quotation.requisitionId !== req.params.id) {
+        return res.status(404).json({ message: "Quotation not found for this requisition" });
+      }
+      const updated = await storage.updateRequisition(req.params.id, { selectedQuotationId: quotationId });
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

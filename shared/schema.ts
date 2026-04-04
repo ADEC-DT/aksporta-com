@@ -894,6 +894,7 @@ export const requisitions = pgTable("requisitions", {
   requesterCostCenterAccountNumber: varchar("requester_cost_center_account_number"),
   budgetOwnerId: varchar("budget_owner_id"),
   budgetOwnerName: varchar("budget_owner_name"),
+  selectedQuotationId: varchar("selected_quotation_id").references(() => requisitionQuotations.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -903,6 +904,7 @@ export const requisitions = pgTable("requisitions", {
 export const insertRequisitionSchema = createInsertSchema(requisitions).omit({
   id: true,
   userId: true,
+  selectedQuotationId: true,
   createdAt: true,
   updatedAt: true,
 });
