@@ -73,6 +73,7 @@ import RequisitionsListPage from "@/pages/requisitions-list";
 import RequisitionNewPage from "@/pages/requisition-new";
 import RequisitionDetailPage from "@/pages/requisition-detail";
 import MyApprovalsPage from "@/pages/my-approvals";
+import ApprovalMatrixPage from "@/pages/approval-matrix";
 import LoginPage from "@/pages/login";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -172,6 +173,7 @@ function ProtectedRoutes() {
                 <Route path="/livery" component={LiveryDashboard} />
                 <Route path="/admin" component={AdminDashboard} />
                 <Route path="/admin/tickets" component={AdminTicketsPage} />
+                <Route path="/admin/approval-matrix" component={ApprovalMatrixPage} />
                 <Route path="/settings" component={SettingsPage} />
                 <Route path="/system-settings" component={SystemSettingsPage} />
                 <Route path="/help" component={HelpCenterPage} />

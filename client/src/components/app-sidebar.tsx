@@ -24,6 +24,7 @@ import {
   Fence,
   Loader2,
   ClipboardCheck,
+  GitBranch,
 } from "lucide-react";
 import {
   Sidebar,
@@ -497,6 +498,20 @@ export function AppSidebar() {
                     <Link href="/admin/tickets">
                       <Ticket className="h-4 w-4" />
                       <span className="text-sm">Ticket Management</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/approval-matrix"}
+                    className="h-9 px-3 rounded-md"
+                    data-testid="nav-item-approval-matrix"
+                    tooltip="Approval Matrix"
+                  >
+                    <Link href="/admin/approval-matrix">
+                      <GitBranch className="h-4 w-4" />
+                      <span className="text-sm">Approval Matrix</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

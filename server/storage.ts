@@ -45,6 +45,7 @@ import {
   ssoTokens, type SsoToken,
   ssoAuditLogs, type SsoAuditLog, type InsertSsoAuditLog,
   departments, type Department, type InsertDepartment,
+  approvalMatrix, type ApprovalMatrixRule, type InsertApprovalMatrixRule,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, and, ilike, or, asc, inArray, isNull } from "drizzle-orm";
@@ -359,6 +360,14 @@ export interface IStorage {
   getActiveDepartments(): Promise<Department[]>;
   getDepartment(internalId: number): Promise<Department | undefined>;
   upsertDepartments(rows: InsertDepartment[]): Promise<{ imported: number; updated: number }>;
+
+  // Approval Matrix
+  getAllApprovalMatrixRules(): Promise<ApprovalMatrixRule[]>;
+  getApprovalMatrixRule(id: string): Promise<ApprovalMatrixRule | undefined>;
+  createApprovalMatrixRule(rule: InsertApprovalMatrixRule): Promise<ApprovalMatrixRule>;
+  updateApprovalMatrixRule(id: string, data: Partial<InsertApprovalMatrixRule>): Promise<ApprovalMatrixRule | undefined>;
+  deleteApprovalMatrixRule(id: string): Promise<boolean>;
+  checkApprovalMatrixOverlap(fromAmount: number, toAmount: number, excludeId?: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2198,6 +2207,47 @@ export class DatabaseStorage implements IStorage {
   async getDepartment(internalId: number): Promise<Department | undefined> {
     const [dept] = await db.select().from(departments).where(eq(departments.internalId, internalId));
     return dept;
+  }
+
+  async getAllApprovalMatrixRules(): Promise<ApprovalMatrixRule[]> {
+    return await db.select().from(approvalMatrix).orderBy(asc(approvalMatrix.fromAmount));
+  }
+
+  async getApprovalMatrixRule(id: string): Promise<ApprovalMatrixRule | undefined> {
+    const [rule] = await db.select().from(approvalMatrix).where(eq(approvalMatrix.id, id));
+    return rule;
+  }
+
+  async createApprovalMatrixRule(rule: InsertApprovalMatrixRule): Promise<ApprovalMatrixRule> {
+    const [created] = await db.insert(approvalMatrix).values(rule).returning();
+    return created;
+  }
+
+  async updateApprovalMatrixRule(id: string, data: Partial<InsertApprovalMatrixRule>): Promise<ApprovalMatrixRule | undefined> {
+    const updatePayload: Record<string, unknown> = { ...data, updatedAt: new Date() };
+    const [updated] = await db.update(approvalMatrix)
+      .set(updatePayload)
+      .where(eq(approvalMatrix.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteApprovalMatrixRule(id: string): Promise<boolean> {
+    const result = await db.delete(approvalMatrix).where(eq(approvalMatrix.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async checkApprovalMatrixOverlap(fromAmount: number, toAmount: number, excludeId?: string): Promise<boolean> {
+    const allRules = await db.select().from(approvalMatrix);
+    for (const rule of allRules) {
+      if (excludeId && rule.id === excludeId) continue;
+      const ruleFrom = Number(rule.fromAmount);
+      const ruleTo = Number(rule.toAmount);
+      if (fromAmount <= ruleTo && toAmount >= ruleFrom) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 

@@ -1444,6 +1444,26 @@ export const azureTableRegistry = [
   { key: "ns_transaction_lines", label: "Transaction Lines", icon: "List" },
 ] as const;
 
+// Approval Matrix table
+export const approvalMatrix = pgTable("approval_matrix", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromAmount: decimal("from_amount").notNull(),
+  toAmount: decimal("to_amount").notNull(),
+  approverEmployeeCode: varchar("approver_employee_code"),
+  isAutoApprove: boolean("is_auto_approve").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertApprovalMatrixSchema = createInsertSchema(approvalMatrix).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertApprovalMatrixRule = z.infer<typeof insertApprovalMatrixSchema>;
+export type ApprovalMatrixRule = typeof approvalMatrix.$inferSelect;
+
 export const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")

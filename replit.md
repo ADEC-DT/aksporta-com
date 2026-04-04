@@ -192,6 +192,14 @@ All service pages use a unified architecture driven by backend-configured sectio
 - **Route Protection**: System management routes (blueprints, spaces, project-groups, project-tags, data-source settings) require `isAdmin`; DB operations (setUserServices, reorderPageSections) wrapped in transactions
 - **SQL Safety**: getDsRecords sortBy parameter sanitized (alphanumeric + underscore only)
 
+### Approval Matrix
+- **Table**: `approval_matrix` with id, from_amount (decimal), to_amount (decimal), approver_employee_code (nullable varchar), is_auto_approve (boolean), created_at, updated_at
+- **Route file**: `server/routes/approval-matrix.ts` with CRUD endpoints under `/api/admin/approval-matrix` (protected by isAuthenticated + isAdmin)
+- **Frontend**: `client/src/pages/approval-matrix.tsx` at route `/admin/approval-matrix`
+- **Sidebar**: Listed under Administration section with GitBranch icon
+- **Validation**: Server-side range overlap detection, from ≤ to constraint, auto-approve/approver mutual exclusivity
+- **Configuration only**: No workflow integration — purely for defining amount-range-to-approver mappings
+
 ### Database Integrity (added March 2026)
 - **Foreign Key Constraints**: All logical FK relationships now have `.references()` constraints in Drizzle schema with appropriate `onDelete` behavior (`cascade` for dependent data like comments/assignments, `set null` for optional references)
 - **Database Indexes**: Added indexes on all FK columns and frequently filtered columns (role, category, status, isActive) across all tables for query performance
