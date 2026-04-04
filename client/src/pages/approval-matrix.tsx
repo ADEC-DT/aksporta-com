@@ -121,8 +121,9 @@ export default function ApprovalMatrixPage() {
     mutationFn: async (data: { fromAmount: string; toAmount: string; approverEmployeeCode: string | null; isAutoApprove: boolean }) => {
       return apiRequest("POST", "/api/admin/approval-matrix", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/approval-matrix"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/approval-matrix"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/approval-matrix"] });
       setDialogOpen(false);
       resetForm();
       toast({ title: "Rule created successfully" });
@@ -136,8 +137,9 @@ export default function ApprovalMatrixPage() {
     mutationFn: async ({ id, data }: { id: string; data: { fromAmount: string; toAmount: string; approverEmployeeCode: string | null; isAutoApprove: boolean } }) => {
       return apiRequest("PATCH", `/api/admin/approval-matrix/${id}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/approval-matrix"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/approval-matrix"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/approval-matrix"] });
       setDialogOpen(false);
       resetForm();
       toast({ title: "Rule updated successfully" });
@@ -151,8 +153,9 @@ export default function ApprovalMatrixPage() {
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `/api/admin/approval-matrix/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/approval-matrix"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/approval-matrix"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/approval-matrix"] });
       setDeleteDialogOpen(false);
       setRuleToDelete(null);
       toast({ title: "Rule deleted successfully" });
