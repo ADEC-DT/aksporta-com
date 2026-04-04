@@ -121,17 +121,19 @@ const defaultRouter: WorkflowRouter = {
     return { userId: null, userName: "Budget Owner (Unassigned)" };
   },
   async getFinalApprovers(_req: Requisition, amount: number): Promise<ApproverAssignment[]> {
-    const admins = await getAdminUsers();
-    if (amount <= 50000_00) {
-      if (admins.length > 0) return [{ userId: admins[0].id, userName: admins[0].name }];
-      return [{ userId: null, userName: "Ibrahim (Unassigned)" }];
-    } else if (amount <= 200000_00) {
-      if (admins.length > 1) return [{ userId: admins[1].id, userName: admins[1].name }];
-      if (admins.length > 0) return [{ userId: admins[0].id, userName: admins[0].name }];
-      return [{ userId: null, userName: "Mattar (Unassigned)" }];
+    const matrixRule = await storage.findApprovalMatrixRuleForAmount(amount);
+    if (matrixRule && matrixRule.approverEmployeeCode) {
+      const approverUser = await storage.getManagedUserByEmployeeCode(matrixRule.approverEmployeeCode);
+      if (approverUser) {
+        const displayName = approverUser.displayName
+          || [approverUser.firstName, approverUser.lastName].filter(Boolean).join(" ")
+          || approverUser.username;
+        return [{ userId: String(approverUser.id), userName: displayName }];
+      }
     }
-    if (admins.length > 0) return admins.map(a => ({ userId: a.id, userName: a.name }));
-    return [{ userId: null, userName: "All Final Approvers (Unassigned)" }];
+    const admins = await getAdminUsers();
+    if (admins.length > 0) return [{ userId: admins[0].id, userName: admins[0].name }];
+    return [{ userId: null, userName: "Final Approver (Unassigned)" }];
   },
 };
 
@@ -177,16 +179,92 @@ export async function approveStep(
     throw new Error("Approval step not found or already decided");
   }
 
+  const requisition = await storage.getRequisition(step.requisitionId);
+  if (!requisition) throw new Error("Requisition not found");
+
+  const stage = step.stage as WorkflowStage;
+
+  if (stage === "Pending Budget Owner") {
+    if (!requisition.selectedQuotationId) {
+      throw new Error("Cannot approve: no quotation has been selected for this requisition. Please select a vendor quotation before approving.");
+    }
+    const quotation = await storage.getQuotation(requisition.selectedQuotationId);
+    if (!quotation) {
+      throw new Error(`Cannot approve: the selected quotation (${requisition.selectedQuotationId}) was not found. Please select a valid vendor quotation.`);
+    }
+    const amount = Number(quotation.amountAed);
+    if (isNaN(amount) || amount < 0) {
+      throw new Error("Cannot approve: the selected quotation has an invalid amount.");
+    }
+
+    const matrixRule = await storage.findApprovalMatrixRuleForAmount(amount);
+
+    type RoutingOutcome =
+      | { type: "auto"; newStatus: WorkflowStage }
+      | { type: "assign"; newStatus: WorkflowStage; assignedTo: string | null; assignedToName: string };
+
+    let outcome: RoutingOutcome;
+
+    if (!matrixRule) {
+      console.warn(`[workflow] No approval matrix rule found for amount ${amount} on requisition ${requisition.id} — falling back to admin assignment`);
+      const admins = await getAdminUsers();
+      if (admins.length === 0) {
+        throw new Error("No approval matrix rule found for this amount and no admin users available for fallback");
+      }
+      outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: admins[0].id, assignedToName: admins[0].name };
+    } else if (matrixRule.isAutoApprove) {
+      outcome = { type: "auto", newStatus: "Ready for Purchase" };
+    } else if (matrixRule.approverEmployeeCode) {
+      const approverUser = await storage.getManagedUserByEmployeeCode(matrixRule.approverEmployeeCode);
+      if (approverUser) {
+        const displayName = approverUser.displayName
+          || [approverUser.firstName, approverUser.lastName].filter(Boolean).join(" ")
+          || approverUser.username;
+        outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: String(approverUser.id), assignedToName: displayName };
+      } else {
+        console.warn(`[workflow] Approver employee code "${matrixRule.approverEmployeeCode}" does not match any user account — falling back to admin assignment`);
+        const admins = await getAdminUsers();
+        if (admins.length > 0) {
+          outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: admins[0].id, assignedToName: admins[0].name };
+        } else {
+          outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: null, assignedToName: `Approver (code: ${matrixRule.approverEmployeeCode})` };
+        }
+      }
+    } else {
+      console.warn(`[workflow] Approval matrix rule ${matrixRule.id} has no approver and is not auto-approve — falling back to admin`);
+      const admins = await getAdminUsers();
+      if (admins.length === 0) {
+        throw new Error("Approval matrix rule misconfigured and no admin users available for fallback");
+      }
+      outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: admins[0].id, assignedToName: admins[0].name };
+    }
+
+    await storage.updateApprovalStep(stepId, {
+      decision: "approved",
+      comments,
+      decidedAt: new Date(),
+    });
+
+    await updateStatus(requisition.id, outcome.newStatus);
+    if (outcome.type === "auto") {
+      return { nextSteps: [], newStatus: outcome.newStatus };
+    }
+    const ns = await storage.createApprovalStep({
+      requisitionId: requisition.id,
+      stage: outcome.newStatus,
+      assignedTo: outcome.assignedTo,
+      assignedToName: outcome.assignedToName,
+      decision: "pending",
+      comments: null,
+    });
+    return { nextSteps: [ns], newStatus: outcome.newStatus };
+  }
+
   await storage.updateApprovalStep(stepId, {
     decision: "approved",
     comments,
     decidedAt: new Date(),
   });
-
-  const requisition = await storage.getRequisition(step.requisitionId);
-  if (!requisition) throw new Error("Requisition not found");
-
-  const stage = step.stage as WorkflowStage;
 
   switch (stage) {
     case "Pending Line Manager": {
@@ -218,31 +296,6 @@ export async function approveStep(
         comments: null,
       });
       return { nextSteps: [nextStep], newStatus };
-    }
-
-    case "Pending Budget Owner": {
-      const amount = requisition.estimatedCostAed;
-      if (amount <= 5000_00) {
-        const newStatus: WorkflowStage = "Ready for Purchase";
-        await updateStatus(requisition.id, newStatus);
-        return { nextSteps: [], newStatus };
-      }
-      const assignments = await router.getFinalApprovers(requisition, amount);
-      const newStatus: WorkflowStage = "Pending Final Approval";
-      await updateStatus(requisition.id, newStatus);
-      const nextSteps: ApprovalStep[] = [];
-      for (const assignment of assignments) {
-        const ns = await storage.createApprovalStep({
-          requisitionId: requisition.id,
-          stage: newStatus,
-          assignedTo: assignment.userId,
-          assignedToName: assignment.userName,
-          decision: "pending",
-          comments: null,
-        });
-        nextSteps.push(ns);
-      }
-      return { nextSteps, newStatus };
     }
 
     case "Pending Final Approval": {

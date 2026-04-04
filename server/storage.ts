@@ -368,6 +368,7 @@ export interface IStorage {
   updateApprovalMatrixRule(id: string, data: Partial<InsertApprovalMatrixRule>): Promise<ApprovalMatrixRule | undefined>;
   deleteApprovalMatrixRule(id: string): Promise<boolean>;
   checkApprovalMatrixOverlap(fromAmount: number, toAmount: number, excludeId?: string): Promise<boolean>;
+  findApprovalMatrixRuleForAmount(amount: number): Promise<ApprovalMatrixRule | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2248,6 +2249,17 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return false;
+  }
+
+  async findApprovalMatrixRuleForAmount(amount: number): Promise<ApprovalMatrixRule | undefined> {
+    const [rule] = await db.select().from(approvalMatrix)
+      .where(and(
+        sql`${approvalMatrix.fromAmount}::numeric <= ${amount}`,
+        sql`${approvalMatrix.toAmount}::numeric >= ${amount}`,
+      ))
+      .orderBy(asc(approvalMatrix.fromAmount))
+      .limit(1);
+    return rule;
   }
 }
 
