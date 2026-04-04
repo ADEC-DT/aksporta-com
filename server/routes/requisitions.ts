@@ -27,6 +27,13 @@ async function getUserCostCenter(managedUser: ManagedUser): Promise<string | nul
   }
 }
 
+const PURCHASING_COST_CENTER = "118001003";
+
+async function isUserInPurchasingDepartment(managedUser: ManagedUser): Promise<boolean> {
+  const costCenter = await getUserCostCenter(managedUser);
+  return costCenter === PURCHASING_COST_CENTER;
+}
+
 async function isPurchasingReviewApprover(requisitionId: string, managedUser: ManagedUser): Promise<boolean> {
   const requisition = await storage.getRequisition(requisitionId);
   if (!requisition || requisition.status !== "Pending Purchasing Review") return false;
@@ -150,6 +157,14 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     }
   });
 
+  app.get("/api/requisitions/user-purchasing-status", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      const isPurchasing = await isUserInPurchasingDepartment(managedUser);
+      res.json({ isPurchasingDepartment: isPurchasing });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ========== Requisitions API Routes ==========
 
   app.get("/api/requisitions", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
@@ -163,19 +178,45 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         try {
           const pendingSteps = await storage.getPendingApprovalSteps(String(managedUser.id));
-          if (pendingSteps.length > 0) {
-            approverRequisitionIds = [...new Set(pendingSteps.map(s => s.requisitionId))];
+          const pendingIds = pendingSteps.map(s => s.requisitionId);
+
+          const allStepIds = await storage.getApprovalStepRequisitionIdsForUser(String(managedUser.id));
+
+          const combinedIds = [...new Set([...pendingIds, ...allStepIds])];
+          if (combinedIds.length > 0) {
+            approverRequisitionIds = combinedIds;
           }
         } catch (err) {
-          console.warn("[requisitions] Error fetching pending approval steps for user visibility:", err);
+          console.warn("[requisitions] Error fetching approval steps for user visibility:", err);
         }
       }
+
+      let purchasingRequisitionIds: string[] | undefined;
+      if (!isAdmin) {
+        try {
+          const isPurchasing = await isUserInPurchasingDepartment(managedUser);
+          if (isPurchasing) {
+            const readyReqs = await storage.getAllRequisitions({ status: "Ready for Purchase" });
+            if (readyReqs.length > 0) {
+              purchasingRequisitionIds = readyReqs.map(r => r.id);
+            }
+          }
+        } catch (err) {
+          console.warn("[requisitions] Error fetching purchasing department requisitions:", err);
+        }
+      }
+
+      const allExtraIds = [
+        ...(approverRequisitionIds || []),
+        ...(purchasingRequisitionIds || []),
+      ];
+      const mergedApproverIds = allExtraIds.length > 0 ? [...new Set(allExtraIds)] : undefined;
 
       res.json(await storage.getAllRequisitions({
         search,
         status,
         userId: isAdmin ? undefined : String(managedUser.id),
-        approverRequisitionIds,
+        approverRequisitionIds: mergedApproverIds,
       }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -188,7 +229,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!r) return res.status(404).json({ message: "Not found" });
       const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
       const wasPastApprover = !isApprover && await storage.hasAnyStepForUser(req.params.id, String(managedUser.id));
-      if (!isAdmin && r.userId !== String(managedUser.id) && !isApprover && !wasPastApprover) {
+      const isPurchasingWithAccess = (r.status === "Ready for Purchase" || r.status === "PO Created") && await isUserInPurchasingDepartment(managedUser);
+      if (!isAdmin && r.userId !== String(managedUser.id) && !isApprover && !wasPastApprover && !isPurchasingWithAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       res.json(r);
@@ -554,8 +596,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
   app.post("/api/requisitions/:id/mark-po-created", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
-      const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
-      if (!isAdmin) return res.status(403).json({ message: "Only administrators can mark PO as created" });
+      const isPurchasing = await isUserInPurchasingDepartment(managedUser);
+      if (!isPurchasing) return res.status(403).json({ message: "Only purchasing department users can mark PO as created" });
       await markPOCreated(req.params.id);
       const updated = await storage.getRequisition(req.params.id);
       res.json(updated);

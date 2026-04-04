@@ -289,6 +289,7 @@ export interface IStorage {
   hasAnyStepForUser(requisitionId: string, userId: string): Promise<boolean>;
   getPendingApprovalStepsByGroup(groupCostCenter: string, userId: string): Promise<ApprovalStep[]>;
   hasPendingGroupStepForUser(requisitionId: string, groupCostCenter: string): Promise<boolean>;
+  getApprovalStepRequisitionIdsForUser(userId: string): Promise<string[]>;
 
   // Requisition Quotations
   createQuotation(q: InsertRequisitionQuotation): Promise<RequisitionQuotation>;
@@ -1779,6 +1780,13 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     return steps.length > 0;
+  }
+
+  async getApprovalStepRequisitionIdsForUser(userId: string): Promise<string[]> {
+    const steps = await db.selectDistinct({ requisitionId: requisitionApprovalSteps.requisitionId })
+      .from(requisitionApprovalSteps)
+      .where(eq(requisitionApprovalSteps.assignedTo, userId));
+    return steps.map(s => s.requisitionId);
   }
 
   private async hasPendingGroupStepForUserInternal(requisitionId: string, userId: string): Promise<boolean> {

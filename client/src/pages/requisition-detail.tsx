@@ -107,6 +107,16 @@ export default function RequisitionDetailPage() {
   const [quotationFile, setQuotationFile] = useState<File | null>(null);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
 
+  const { data: purchasingStatus } = useQuery<{ isPurchasingDepartment: boolean }>({
+    queryKey: ["/api/requisitions/user-purchasing-status"],
+    queryFn: async () => {
+      const r = await fetch("/api/requisitions/user-purchasing-status", { credentials: "include" });
+      if (!r.ok) return { isPurchasingDepartment: false };
+      return r.json();
+    },
+  });
+  const isPurchasingUser = purchasingStatus?.isPurchasingDepartment ?? false;
+
   const { data: requisition, isLoading } = useQuery<Requisition>({
     queryKey: ["/api/requisitions", id],
     queryFn: async () => {
@@ -452,7 +462,7 @@ export default function RequisitionDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           <Badge className={getStatusBadgeClass(requisition.status)} data-testid="badge-detail-status">{requisition.status}</Badge>
-          {isAdmin && requisition.status === "Ready for Purchase" && (
+          {isPurchasingUser && requisition.status === "Ready for Purchase" && (
             <Button
               size="sm"
               onClick={() => markPOMutation.mutate()}
