@@ -774,7 +774,8 @@ export default function RequisitionDetailPage() {
                           onClick={() => window.open(`/api/quotations/${q.id}/download`, "_blank")}
                           data-testid={`button-download-quotation-${q.id}`}
                         >
-                          <Eye className="h-3.5 w-3.5" />
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          View
                         </Button>
                       )}
                       {isPurchasingStage && isCurrentApprover && (
