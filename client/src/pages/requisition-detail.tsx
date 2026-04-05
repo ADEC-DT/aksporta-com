@@ -875,16 +875,6 @@ export default function RequisitionDetailPage() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Request Information</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Position</p>
-              <p className="text-sm">{requisition.position || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Date of Request</p>
-              <p className="text-sm">{requisition.dateOfRequest}</p>
-            </div>
-          </div>
           {requisition.budgetOwnerName && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

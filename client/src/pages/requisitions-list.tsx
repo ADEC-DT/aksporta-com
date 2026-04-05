@@ -110,9 +110,7 @@ export default function RequisitionsListPage() {
       ["Title", req.requestTitle],
       ["Department", req.department],
       ["Requested By", req.requestedBy],
-      ["Position", req.position || "—"],
       ["Date", req.date],
-      ["Date of Request", req.dateOfRequest],
     ]);
 
     addSection("2. Description of Request", [
@@ -192,7 +190,7 @@ export default function RequisitionsListPage() {
                   <th className="p-3 text-left font-medium text-muted-foreground">Department</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Requested By</th>
                   <th className="p-3 text-right font-medium text-muted-foreground">Est. Cost (AED)</th>
-                  <th className="p-3 text-left font-medium text-muted-foreground">Date of Request</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">Date</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Required By</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Workflow Stage</th>
                   <th className="p-3 text-center font-medium text-muted-foreground">PDF</th>
@@ -225,7 +223,7 @@ export default function RequisitionsListPage() {
                       <td className="p-3 text-muted-foreground">{req.department}</td>
                       <td className="p-3 text-muted-foreground">{req.requestedBy}</td>
                       <td className="p-3 text-right font-medium">{formatCost(req.estimatedCostAed)}</td>
-                      <td className="p-3 text-muted-foreground">{req.dateOfRequest}</td>
+                      <td className="p-3 text-muted-foreground">{req.date}</td>
                       <td className="p-3 text-muted-foreground">{req.requiredByDate}</td>
                       <td className="p-3">
                         <Badge className={`${getStatusBadgeClass(req.status)} text-[10px]`} data-testid={`badge-status-${req.id}`}>

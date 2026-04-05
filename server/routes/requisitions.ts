@@ -241,6 +241,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
       const { attachments, ...data } = req.body;
+      if (!data.dateOfRequest && data.date) {
+        data.dateOfRequest = data.date;
+      }
+      data.position = null;
       const parsed = insertRequisitionSchema.safeParse(data);
       if (!parsed.success) return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
 

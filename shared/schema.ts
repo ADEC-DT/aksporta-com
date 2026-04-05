@@ -876,7 +876,7 @@ export const requisitions = pgTable("requisitions", {
   department: varchar("department").notNull(),
   requestedBy: varchar("requested_by").notNull(),
   position: varchar("position"),
-  dateOfRequest: varchar("date_of_request").notNull(),
+  dateOfRequest: varchar("date_of_request"),
   description: text("description").notNull(),
   justification: text("justification").notNull(),
   estimatedCostAed: integer("estimated_cost_aed").notNull(),

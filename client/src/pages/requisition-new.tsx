@@ -104,8 +104,6 @@ export default function RequisitionNewPage() {
     requestTitle: "",
     department: "",
     requestedBy: "",
-    position: "",
-    dateOfRequest: todayStr,
     description: "",
     justification: "",
     estimatedCostAed: "",
@@ -130,7 +128,6 @@ export default function RequisitionNewPage() {
     if (!form.requestTitle.trim()) e.requestTitle = "Request Title is required";
     if (!form.department.trim()) e.department = "Department is required";
     if ((profileNotFound || isProfileError) && !form.requestedBy.trim()) e.requestedBy = "Requested By is required";
-    if (!form.dateOfRequest) e.dateOfRequest = "Date of Request is required";
     if (!form.description.trim()) e.description = "Description is required";
     if (!form.justification.trim()) e.justification = "Justification is required";
     if (!form.estimatedCostAed || Number(form.estimatedCostAed) <= 0) e.estimatedCostAed = "Estimated Cost is required and must be > 0";
@@ -402,17 +399,6 @@ export default function RequisitionNewPage() {
                   {errors.requestedBy && <p className="text-xs text-destructive" data-testid="error-requested-by">{errors.requestedBy}</p>}
                 </div>
               )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="position">Position</Label>
-                <Input id="position" value={form.position} onChange={(e) => update("position", e.target.value)} placeholder="Job title" data-testid="input-position" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="dateOfRequest">Date of Request *</Label>
-                <Input id="dateOfRequest" type="date" value={form.dateOfRequest} onChange={(e) => update("dateOfRequest", e.target.value)} data-testid="input-date-of-request" />
-                {errors.dateOfRequest && <p className="text-xs text-destructive" data-testid="error-date-of-request">{errors.dateOfRequest}</p>}
-              </div>
             </div>
           </CardContent>
         </Card>
