@@ -383,6 +383,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       res.setHeader("Content-Type", att.fileType);
       res.setHeader("Content-Disposition", `${disposition}; filename="${att.filename}"`);
       res.setHeader("Content-Length", buffer.length.toString());
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.removeHeader("ETag");
       res.send(buffer);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -773,6 +775,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       res.setHeader("Content-Type", mimeType);
       res.setHeader("Content-Disposition", `${disposition}; filename="${quotation.fileName || "quotation"}"`);
       res.setHeader("Content-Length", buffer.length.toString());
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.removeHeader("ETag");
       res.send(buffer);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
