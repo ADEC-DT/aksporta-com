@@ -514,7 +514,11 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         const r = await storage.getRequisition(req.params.id);
         const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
-        if (!r || (r.userId !== String(managedUser.id) && !isApprover)) return res.status(403).json({ message: "Access denied" });
+        const allSteps = await storage.getApprovalSteps(req.params.id);
+        const wasApprover = allSteps.some(s => s.assignedTo === String(managedUser.id));
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !wasApprover)) return res.status(403).json({ message: "Access denied" });
+        res.json(allSteps);
+        return;
       }
       res.json(await storage.getApprovalSteps(req.params.id));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
