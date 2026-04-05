@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Plus, Search, Filter, FileDown } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, FileText } from "lucide-react";
 import type { Requisition } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { jsPDF } from "jspdf";
@@ -133,7 +133,7 @@ export default function RequisitionsListPage() {
       ["Project Start Date", req.projectStartDate || "—"],
     ]);
 
-    doc.save(`ARF-${req.id.slice(0, 8).toUpperCase()}.pdf`);
+    window.open(doc.output('bloburl'), '_blank');
   };
 
   return (
@@ -237,9 +237,9 @@ export default function RequisitionsListPage() {
                           className="h-7 w-7"
                           onClick={() => generatePdf(req)}
                           data-testid={`button-pdf-${req.id}`}
-                          title="Download PDF"
+                          title="View PDF"
                         >
-                          <FileDown className="h-4 w-4 text-red-500" />
+                          <FileText className="h-4 w-4 text-red-500" />
                         </Button>
                       </td>
                     </tr>
