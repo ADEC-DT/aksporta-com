@@ -385,6 +385,7 @@ export default function RequisitionDetailPage() {
       requisition &&
       requisition.status === "Pending Budget Owner" &&
       isCurrentApprover &&
+      currentStep?.stage === "Pending Budget Owner" &&
       quotations.length > 0 &&
       !requisition.selectedQuotationId &&
       preselectionDoneForId !== requisition.id &&
@@ -396,7 +397,7 @@ export default function RequisitionDetailPage() {
         selectQuotationMutation.mutate(recommended.id);
       }
     }
-  }, [requisition?.id, requisition?.status, requisition?.selectedQuotationId, isCurrentApprover, quotations.length, preselectionDoneForId, selectQuotationMutation.isPending]);
+  }, [requisition?.id, requisition?.status, requisition?.selectedQuotationId, isCurrentApprover, currentStep?.stage, quotations.length, preselectionDoneForId, selectQuotationMutation.isPending]);
 
   function startEditing() {
     if (!requisition) return;
