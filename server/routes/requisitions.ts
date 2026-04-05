@@ -246,7 +246,12 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       }
       data.position = null;
       const parsed = insertRequisitionSchema.safeParse(data);
-      if (!parsed.success) return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
+      if (!parsed.success) {
+        console.error("[requisitions] Validation errors:", JSON.stringify(parsed.error.flatten()));
+        console.error("[requisitions] Data keys:", Object.keys(data));
+        console.error("[requisitions] Data sample:", JSON.stringify({ date: data.date, requestTitle: data.requestTitle, department: data.department, requestedBy: data.requestedBy, estimatedCostAed: data.estimatedCostAed, isBudgeted: data.isBudgeted, requiredByDate: data.requiredByDate, dateOfRequest: data.dateOfRequest, position: data.position }));
+        return res.status(400).json({ message: "Invalid requisition data", errors: parsed.error.flatten() });
+      }
 
       if (parsed.data.budgetOwnerId) {
         const empDs = await storage.getDataSourceBySlug("employee-directory");
