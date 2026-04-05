@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Download, FileText, Image, Calendar, User, Building2, DollarSign, Pencil, X, Send, MessageSquare, CheckCircle2, XCircle, Clock, ArrowRight, Upload, Loader2, Star, Trash2, Plus, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Download, Eye, FileText, Image, Calendar, User, Building2, DollarSign, Pencil, X, Send, MessageSquare, CheckCircle2, XCircle, Clock, ArrowRight, Upload, Loader2, Star, Trash2, Plus, ShoppingCart } from "lucide-react";
 import type { Requisition, RequisitionAttachment, RequisitionComment, ApprovalStep, RequisitionQuotation } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useRef, useEffect } from "react";
@@ -1102,8 +1102,17 @@ export default function RequisitionDetailPage() {
                   onClick={() => window.open(`/api/requisition-attachments/${att.id}/download`, "_blank")}
                   data-testid={`button-download-${att.id}`}
                 >
-                  <Download className="h-4 w-4 mr-1" />
-                  Download
+                  {["application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"].includes(att.fileType) ? (
+                    <>
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </>
+                  )}
                 </Button>
               </div>
             ))

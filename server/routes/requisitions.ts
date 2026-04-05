@@ -378,8 +378,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       }
       const base64Data = att.fileData.includes(",") ? att.fileData.split(",")[1] : att.fileData;
       const buffer = Buffer.from(base64Data, "base64");
+      const inlineTypes = ["application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+      const disposition = inlineTypes.includes(att.fileType) ? "inline" : "attachment";
       res.setHeader("Content-Type", att.fileType);
-      res.setHeader("Content-Disposition", `attachment; filename="${att.filename}"`);
+      res.setHeader("Content-Disposition", `${disposition}; filename="${att.filename}"`);
       res.setHeader("Content-Length", buffer.length.toString());
       res.send(buffer);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -765,8 +767,11 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       }
       const base64Data = quotation.fileData.includes(",") ? quotation.fileData.split(",")[1] : quotation.fileData;
       const buffer = Buffer.from(base64Data, "base64");
-      res.setHeader("Content-Type", quotation.fileType || "application/octet-stream");
-      res.setHeader("Content-Disposition", `attachment; filename="${quotation.fileName || "quotation"}"`);
+      const mimeType = quotation.fileType || "application/octet-stream";
+      const inlineTypes = ["application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+      const disposition = inlineTypes.includes(mimeType) ? "inline" : "attachment";
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Content-Disposition", `${disposition}; filename="${quotation.fileName || "quotation"}"`);
       res.setHeader("Content-Length", buffer.length.toString());
       res.send(buffer);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
