@@ -445,6 +445,10 @@ export default function RequisitionDetailPage() {
   const isPurchasingStage = requisition.status === "Pending Purchasing Review";
   const isBudgetOwnerStage = requisition.status === "Pending Budget Owner";
   const isBudgetOwnerApprover = isBudgetOwnerStage && isCurrentApprover;
+  const isAtOrPastFinalApproval = ["Pending Final Approval", "Ready for Purchase", "PO Created"].includes(requisition.status);
+  const displayedQuotations = isAtOrPastFinalApproval
+    ? quotations.filter((q) => q.id === requisition.selectedQuotationId)
+    : quotations;
   const hasQuotations = quotations.length > 0;
   const needsQuotationSelection = isBudgetOwnerApprover && (!hasQuotations || !requisition.selectedQuotationId);
 
@@ -587,7 +591,9 @@ export default function RequisitionDetailPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5" />
-                Vendor Quotations {quotations.length > 0 && `(${quotations.length})`}
+                {isAtOrPastFinalApproval
+                  ? "Selected Quotation"
+                  : <>Vendor Quotations {quotations.length > 0 && `(${quotations.length})`}</>}
               </CardTitle>
               {isPurchasingStage && isCurrentApprover && (
                 <Button
@@ -707,11 +713,11 @@ export default function RequisitionDetailPage() {
               </div>
             )}
 
-            {quotations.length === 0 ? (
+            {displayedQuotations.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-quotations">No quotations added yet</p>
             ) : (
               <div className="space-y-2">
-                {quotations.map((q) => {
+                {displayedQuotations.map((q) => {
                   const isSelected = requisition.selectedQuotationId === q.id;
                   return (
                   <div
