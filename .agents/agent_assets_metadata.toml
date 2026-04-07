@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "hqGaZMzic-f6BhiNGLJt3"
+uri = "file://docs/approval-workflow-logic.md"
+type = "text"
+title = "Логика процесса одобрения заявок (My Approvals)"
