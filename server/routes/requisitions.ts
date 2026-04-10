@@ -47,7 +47,7 @@ async function isBudgetOwnerApprover(requisitionId: string, managedUser: Managed
 }
 
 async function isFinanceReviewer(requisitionId: string, managedUser: ManagedUser): Promise<boolean> {
-  if (managedUser.role !== "finance" && managedUser.role !== "admin" && managedUser.role !== "superadmin") return false;
+  if (managedUser.role !== "finance") return false;
   return storage.hasPendingGroupStepForUser(requisitionId, "finance");
 }
 
@@ -211,9 +211,22 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         }
       }
 
+      let financeRequisitionIds: string[] | undefined;
+      if (!isAdmin && managedUser.role === "finance") {
+        try {
+          const financeSteps = await storage.getPendingApprovalStepsByGroup("finance", String(managedUser.id));
+          if (financeSteps.length > 0) {
+            financeRequisitionIds = financeSteps.map(s => s.requisitionId);
+          }
+        } catch (err) {
+          console.warn("[requisitions] Error fetching finance review requisitions:", err);
+        }
+      }
+
       const allExtraIds = [
         ...(approverRequisitionIds || []),
         ...(purchasingRequisitionIds || []),
+        ...(financeRequisitionIds || []),
       ];
       const mergedApproverIds = allExtraIds.length > 0 ? [...new Set(allExtraIds)] : undefined;
 
@@ -478,7 +491,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const steps = await storage.getPendingApprovalSteps(userId);
       console.log(`[my-approvals] Found ${steps.length} pending steps for user=${userId}. Direct/group breakdown logged in storage layer.`);
 
-      const isFinanceUser = managedUser.role === "finance" || managedUser.role === "admin" || managedUser.role === "superadmin";
+      const isFinanceUser = managedUser.role === "finance";
       let financeSteps: ApprovalStep[] = [];
       if (isFinanceUser) {
         financeSteps = await storage.getPendingApprovalStepsByGroup("finance", userId);
@@ -507,7 +520,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
         console.log(`[my-pending-step] Found direct step ${directStep.id} (assignedTo=${directStep.assignedTo})`);
         return res.json(directStep);
       }
-      if (managedUser.role === "finance" || managedUser.role === "admin" || managedUser.role === "superadmin") {
+      if (managedUser.role === "finance") {
         const allStepsForFinance = await storage.getApprovalSteps(req.params.id);
         const financeStep = allStepsForFinance.find(s => s.decision === "pending" && s.assignedToGroup === "finance");
         if (financeStep) {
@@ -643,7 +656,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
   app.post("/api/approval-steps/:id/finance-review", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
-      if (managedUser.role !== "finance" && managedUser.role !== "admin" && managedUser.role !== "superadmin") {
+      if (managedUser.role !== "finance") {
         return res.status(403).json({ message: "Only finance users can complete a finance review" });
       }
       const step = await storage.getApprovalStep(req.params.id);
