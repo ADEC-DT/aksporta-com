@@ -23,7 +23,7 @@ function getStatusBadgeClass(status: string) {
     case "Pending Line Manager": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-0";
     case "Pending Purchasing Review": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0";
     case "Pending Budget Owner": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
-    case "Pending Final Approval": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
+    case "Pending Finance Review": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
     case "Ready for Purchase": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0";
     case "PO Created": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
     case "Rejected": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0";
@@ -95,6 +95,8 @@ export default function RequisitionDetailPage() {
   });
   const [commentBody, setCommentBody] = useState("");
   const [approvalComment, setApprovalComment] = useState("");
+  const [financeReviewFlag, setFinanceReviewFlag] = useState<"available" | "not_available">("available");
+  const [financeReviewComment, setFinanceReviewComment] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const quotationFileInputRef = useRef<HTMLInputElement>(null);
   const [quotationForm, setQuotationForm] = useState({
@@ -251,6 +253,25 @@ export default function RequisitionDetailPage() {
     },
     onError: (err: any) => {
       toast({ title: "Failed to reject", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const financeReviewMutation = useMutation({
+    mutationFn: async ({ budgetFlag, comments }: { budgetFlag: string; comments: string }) => {
+      if (!currentUserPendingStep) throw new Error("No pending step");
+      await apiRequest("POST", `/api/approval-steps/${currentUserPendingStep.id}/finance-review`, { budgetFlag, comments: comments || null });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "approval-steps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "my-pending-step"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-approvals"] });
+      setFinanceReviewComment("");
+      setFinanceReviewFlag("available");
+      toast({ title: "Finance Review Completed", description: "The requisition has been moved to Ready for Purchase." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to complete finance review", description: err.message, variant: "destructive" });
     },
   });
 
@@ -446,7 +467,8 @@ export default function RequisitionDetailPage() {
   const isPurchasingStage = requisition.status === "Pending Purchasing Review";
   const isBudgetOwnerStage = requisition.status === "Pending Budget Owner";
   const isBudgetOwnerApprover = isBudgetOwnerStage && isCurrentApprover;
-  const isAtOrPastFinalApproval = ["Pending Final Approval", "Ready for Purchase", "PO Created"].includes(requisition.status);
+  const isFinanceReviewStage = currentStep?.stage === "Pending Finance Review";
+  const isAtOrPastFinalApproval = ["Pending Finance Review", "Ready for Purchase", "PO Created"].includes(requisition.status);
   const displayedQuotations = isAtOrPastFinalApproval
     ? quotations.filter((q) => q.id === requisition.selectedQuotationId)
     : quotations;
@@ -519,7 +541,75 @@ export default function RequisitionDetailPage() {
         </Card>
       </div>
 
-      {isCurrentApprover && currentStep && (
+      {isCurrentApprover && currentStep && isFinanceReviewStage && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Finance Review Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Review the requisition and flag budget availability. Both outcomes will move the request to "Ready for Purchase".
+            </p>
+            <div className="space-y-2">
+              <Label>Budget Availability</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer" data-testid="radio-budget-available">
+                  <input
+                    type="radio"
+                    name="budgetFlag"
+                    value="available"
+                    checked={financeReviewFlag === "available"}
+                    onChange={() => setFinanceReviewFlag("available")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm font-medium">Budget Available</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" data-testid="radio-budget-not-available">
+                  <input
+                    type="radio"
+                    name="budgetFlag"
+                    value="not_available"
+                    checked={financeReviewFlag === "not_available"}
+                    onChange={() => setFinanceReviewFlag("not_available")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm font-medium">Budget Not Available</span>
+                </label>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="finance-review-comment">Comments (optional)</Label>
+              <Textarea
+                id="finance-review-comment"
+                placeholder="Add any comments about budget availability..."
+                value={financeReviewComment}
+                onChange={(e) => setFinanceReviewComment(e.target.value)}
+                rows={3}
+                data-testid="textarea-finance-review-comment"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => financeReviewMutation.mutate({ budgetFlag: financeReviewFlag, comments: financeReviewComment })}
+                disabled={financeReviewMutation.isPending}
+                data-testid="button-complete-finance-review"
+              >
+                {financeReviewMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Complete Review
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isCurrentApprover && currentStep && !isFinanceReviewStage && (
         <Card className="border-primary/50 bg-primary/5">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -828,7 +918,7 @@ export default function RequisitionDetailPage() {
                 const isLast = idx === approvalSteps.length - 1;
                 let icon;
                 let iconColor;
-                if (step.decision === "approved") {
+                if (step.decision === "approved" || step.decision === "completed") {
                   icon = <CheckCircle2 className="h-5 w-5" />;
                   iconColor = "text-green-600";
                 } else if (step.decision === "rejected") {
@@ -850,15 +940,24 @@ export default function RequisitionDetailPage() {
                         <span className="font-medium text-sm">{step.stage}</span>
                         <Badge
                           className={
-                            step.decision === "approved"
+                            step.decision === "approved" || step.decision === "completed"
                               ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0"
                               : step.decision === "rejected"
                               ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"
                               : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0"
                           }
                         >
-                          {step.decision === "pending" ? "Pending" : step.decision === "approved" ? "Approved" : "Rejected"}
+                          {step.decision === "pending" ? "Pending" : step.decision === "approved" ? "Approved" : step.decision === "completed" ? "Completed" : "Rejected"}
                         </Badge>
+                        {step.decision === "completed" && step.budgetFlag && (
+                          <Badge className={
+                            step.budgetFlag === "available"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0"
+                              : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0"
+                          }>
+                            {step.budgetFlag === "available" ? "Budget Available" : "Budget Not Available"}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Assigned to: {step.assignedToName || "Unassigned"}

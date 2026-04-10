@@ -11,7 +11,6 @@ export interface WorkflowRouter {
   getLineManager(requisition: Requisition): Promise<ApproverAssignment>;
   getPurchasingReviewer(requisition: Requisition): Promise<ApproverAssignment>;
   getBudgetOwner(requisition: Requisition): Promise<ApproverAssignment>;
-  getFinalApprovers(requisition: Requisition, amount: number): Promise<ApproverAssignment[]>;
 }
 
 async function resolveDirectManager(requisition: Requisition): Promise<ApproverAssignment | null> {
@@ -120,21 +119,6 @@ const defaultRouter: WorkflowRouter = {
     if (admins.length > 0) return { userId: admins[0].id, userName: admins[0].name };
     return { userId: null, userName: "Budget Owner (Unassigned)" };
   },
-  async getFinalApprovers(_req: Requisition, amount: number): Promise<ApproverAssignment[]> {
-    const matrixRule = await storage.findApprovalMatrixRuleForAmount(amount);
-    if (matrixRule && matrixRule.approverEmployeeCode) {
-      const approverUser = await storage.getManagedUserByEmployeeCode(matrixRule.approverEmployeeCode);
-      if (approverUser) {
-        const displayName = approverUser.displayName
-          || [approverUser.firstName, approverUser.lastName].filter(Boolean).join(" ")
-          || approverUser.username;
-        return [{ userId: String(approverUser.id), userName: displayName }];
-      }
-    }
-    const admins = await getAdminUsers();
-    if (admins.length > 0) return [{ userId: admins[0].id, userName: admins[0].name }];
-    return [{ userId: null, userName: "Final Approver (Unassigned)" }];
-  },
 };
 
 async function getAdminUsers() {
@@ -197,67 +181,24 @@ export async function approveStep(
       throw new Error("Cannot approve: the selected quotation has an invalid amount.");
     }
 
-    const matrixRule = await storage.findApprovalMatrixRuleForAmount(amount);
-
-    type RoutingOutcome =
-      | { type: "auto"; newStatus: WorkflowStage }
-      | { type: "assign"; newStatus: WorkflowStage; assignedTo: string | null; assignedToName: string };
-
-    let outcome: RoutingOutcome;
-
-    if (!matrixRule) {
-      console.warn(`[workflow] No approval matrix rule found for amount ${amount} on requisition ${requisition.id} — falling back to admin assignment`);
-      const admins = await getAdminUsers();
-      if (admins.length === 0) {
-        throw new Error("No approval matrix rule found for this amount and no admin users available for fallback");
-      }
-      outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: admins[0].id, assignedToName: admins[0].name };
-    } else if (matrixRule.isAutoApprove) {
-      outcome = { type: "auto", newStatus: "Ready for Purchase" };
-    } else if (matrixRule.approverEmployeeCode) {
-      const approverUser = await storage.getManagedUserByEmployeeCode(matrixRule.approverEmployeeCode);
-      if (approverUser) {
-        const displayName = approverUser.displayName
-          || [approverUser.firstName, approverUser.lastName].filter(Boolean).join(" ")
-          || approverUser.username;
-        outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: String(approverUser.id), assignedToName: displayName };
-      } else {
-        console.warn(`[workflow] Approver employee code "${matrixRule.approverEmployeeCode}" does not match any user account — falling back to admin assignment`);
-        const admins = await getAdminUsers();
-        if (admins.length > 0) {
-          outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: admins[0].id, assignedToName: admins[0].name };
-        } else {
-          outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: null, assignedToName: `Approver (code: ${matrixRule.approverEmployeeCode})` };
-        }
-      }
-    } else {
-      console.warn(`[workflow] Approval matrix rule ${matrixRule.id} has no approver and is not auto-approve — falling back to admin`);
-      const admins = await getAdminUsers();
-      if (admins.length === 0) {
-        throw new Error("Approval matrix rule misconfigured and no admin users available for fallback");
-      }
-      outcome = { type: "assign", newStatus: "Pending Final Approval", assignedTo: admins[0].id, assignedToName: admins[0].name };
-    }
-
     await storage.updateApprovalStep(stepId, {
       decision: "approved",
       comments,
       decidedAt: new Date(),
     });
 
-    await updateStatus(requisition.id, outcome.newStatus);
-    if (outcome.type === "auto") {
-      return { nextSteps: [], newStatus: outcome.newStatus };
-    }
+    const newStatus: WorkflowStage = "Pending Finance Review";
+    await updateStatus(requisition.id, newStatus);
     const ns = await storage.createApprovalStep({
       requisitionId: requisition.id,
-      stage: outcome.newStatus,
-      assignedTo: outcome.assignedTo,
-      assignedToName: outcome.assignedToName,
+      stage: newStatus,
+      assignedTo: null,
+      assignedToName: "Finance Department",
+      assignedToGroup: "finance",
       decision: "pending",
       comments: null,
     });
-    return { nextSteps: [ns], newStatus: outcome.newStatus };
+    return { nextSteps: [ns], newStatus };
   }
 
   await storage.updateApprovalStep(stepId, {
@@ -296,19 +237,6 @@ export async function approveStep(
         comments: null,
       });
       return { nextSteps: [nextStep], newStatus };
-    }
-
-    case "Pending Final Approval": {
-      const allSteps = await storage.getApprovalSteps(step.requisitionId);
-      const pendingFinalSteps = allSteps.filter(
-        s => s.stage === "Pending Final Approval" && s.decision === "pending"
-      );
-      if (pendingFinalSteps.length === 0) {
-        const newStatus: WorkflowStage = "Ready for Purchase";
-        await updateStatus(requisition.id, newStatus);
-        return { nextSteps: [], newStatus };
-      }
-      return { nextSteps: [], newStatus: "Pending Final Approval" };
     }
 
     default:
@@ -356,6 +284,35 @@ export async function rejectStep(
     authorName: "Workflow System",
     body: `Requisition rejected by ${step.assignedToName} at stage "${step.stage}"${rejectionReason}. The requisition status has been set to Rejected.`,
   });
+
+  return { newStatus };
+}
+
+export async function completeFinanceReview(
+  stepId: string,
+  budgetFlag: "available" | "not_available",
+  comments: string | null,
+): Promise<{ newStatus: WorkflowStage }> {
+  const step = await storage.getApprovalStep(stepId);
+  if (!step || step.decision !== "pending") {
+    throw new Error("Approval step not found or already decided");
+  }
+  if (step.stage !== "Pending Finance Review") {
+    throw new Error("This step is not a Finance Review step");
+  }
+
+  const requisition = await storage.getRequisition(step.requisitionId);
+  if (!requisition) throw new Error("Requisition not found");
+
+  await storage.updateApprovalStep(stepId, {
+    decision: "completed",
+    comments,
+    budgetFlag,
+    decidedAt: new Date(),
+  });
+
+  const newStatus: WorkflowStage = "Ready for Purchase";
+  await updateStatus(requisition.id, newStatus);
 
   return { newStatus };
 }

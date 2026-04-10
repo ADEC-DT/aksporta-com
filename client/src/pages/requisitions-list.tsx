@@ -19,7 +19,7 @@ const statusOptions = [
   "Pending Line Manager",
   "Pending Purchasing Review",
   "Pending Budget Owner",
-  "Pending Final Approval",
+  "Pending Finance Review",
   "Ready for Purchase",
   "PO Created",
   "Rejected",
@@ -31,7 +31,7 @@ function getStatusBadgeClass(status: string) {
     case "Pending Line Manager": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-0";
     case "Pending Purchasing Review": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0";
     case "Pending Budget Owner": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
-    case "Pending Final Approval": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
+    case "Pending Finance Review": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
     case "Ready for Purchase": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0";
     case "PO Created": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0";
     case "Rejected": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0";

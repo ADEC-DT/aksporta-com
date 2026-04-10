@@ -13,7 +13,7 @@ function getStageBadgeClass(stage: string) {
   if (stage.includes("Line Manager")) return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0";
   if (stage.includes("Purchasing")) return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0";
   if (stage.includes("Budget")) return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0";
-  if (stage.includes("Final")) return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
+  if (stage.includes("Finance")) return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0";
   return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400 border-0";
 }
 

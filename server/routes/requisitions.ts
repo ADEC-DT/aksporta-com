@@ -5,7 +5,7 @@ import { isAuthenticated } from "../auth";
 import { checkSubmoduleAccess } from "./helpers";
 import { type ManagedUser, insertRequisitionSchema, insertRequisitionCommentSchema, type ApprovalStep, type Requisition, type RequisitionQuotation } from "@shared/schema";
 import { z } from "zod";
-import { initializeWorkflow, approveStep, rejectStep, markPOCreated } from "../workflow";
+import { initializeWorkflow, approveStep, rejectStep, markPOCreated, completeFinanceReview } from "../workflow";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 
@@ -44,6 +44,11 @@ async function isBudgetOwnerApprover(requisitionId: string, managedUser: Managed
   const requisition = await storage.getRequisition(requisitionId);
   if (!requisition || requisition.status !== "Pending Budget Owner") return false;
   return storage.hasPendingStepForUser(requisitionId, String(managedUser.id));
+}
+
+async function isFinanceReviewer(requisitionId: string, managedUser: ManagedUser): Promise<boolean> {
+  if (managedUser.role !== "finance" && managedUser.role !== "admin" && managedUser.role !== "superadmin") return false;
+  return storage.hasPendingGroupStepForUser(requisitionId, "finance");
 }
 
 export async function registerRequisitionRoutes(app: Express, _httpServer: Server) {
@@ -228,9 +233,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const r = await storage.getRequisition(req.params.id);
       if (!r) return res.status(404).json({ message: "Not found" });
       const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
-      const wasPastApprover = !isApprover && await storage.hasAnyStepForUser(req.params.id, String(managedUser.id));
+      const isFinanceApprover = !isApprover && await isFinanceReviewer(req.params.id, managedUser);
+      const wasPastApprover = !isApprover && !isFinanceApprover && await storage.hasAnyStepForUser(req.params.id, String(managedUser.id));
       const isPurchasingWithAccess = (r.status === "Ready for Purchase" || r.status === "PO Created") && await isUserInPurchasingDepartment(managedUser);
-      if (!isAdmin && r.userId !== String(managedUser.id) && !isApprover && !wasPastApprover && !isPurchasingWithAccess) {
+      if (!isAdmin && r.userId !== String(managedUser.id) && !isApprover && !isFinanceApprover && !wasPastApprover && !isPurchasingWithAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       res.json(r);
@@ -326,7 +332,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       }
 
       const isCurrentApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
-      if (!isCurrentApprover) {
+      const isFinanceApprover = !isCurrentApprover && await isFinanceReviewer(req.params.id, managedUser);
+      if (!isCurrentApprover && !isFinanceApprover) {
         return res.status(403).json({ message: "Only administrators or assigned approvers can update requisitions" });
       }
       const parsed = approverUpdateSchema.safeParse(req.body);
@@ -359,7 +366,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         const r = await storage.getRequisition(req.params.id);
         const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
-        if (!r || (r.userId !== String(managedUser.id) && !isApprover)) return res.status(403).json({ message: "Access denied" });
+        const isFinanceApprover = !isApprover && await isFinanceReviewer(req.params.id, managedUser);
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !isFinanceApprover)) return res.status(403).json({ message: "Access denied" });
       }
       res.json(await storage.getRequisitionAttachments(req.params.id));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -374,7 +382,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         const r = await storage.getRequisition(att.requisitionId);
         const isApprover = await storage.hasPendingStepForUser(att.requisitionId, String(managedUser.id));
-        if (!r || (r.userId !== String(managedUser.id) && !isApprover)) return res.status(403).json({ message: "Access denied" });
+        const isFinanceApprover = !isApprover && await isFinanceReviewer(att.requisitionId, managedUser);
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !isFinanceApprover)) return res.status(403).json({ message: "Access denied" });
       }
       const base64Data = att.fileData.includes(",") ? att.fileData.split(",")[1] : att.fileData;
       const buffer = Buffer.from(base64Data, "base64");
@@ -431,7 +440,8 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const managedUser = (req as any).managedUser as ManagedUser;
       const isAdmin = managedUser.role === "admin" || managedUser.role === "superadmin";
       const isCurrentApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
-      if (!isAdmin && !isCurrentApprover) {
+      const isFinanceApprover = !isCurrentApprover && await isFinanceReviewer(req.params.id, managedUser);
+      if (!isAdmin && !isCurrentApprover && !isFinanceApprover) {
         return res.status(403).json({ message: "Access denied" });
       }
       const { filename, fileType, fileSize, fileData } = req.body;
@@ -468,8 +478,17 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const steps = await storage.getPendingApprovalSteps(userId);
       console.log(`[my-approvals] Found ${steps.length} pending steps for user=${userId}. Direct/group breakdown logged in storage layer.`);
 
+      const isFinanceUser = managedUser.role === "finance" || managedUser.role === "admin" || managedUser.role === "superadmin";
+      let financeSteps: ApprovalStep[] = [];
+      if (isFinanceUser) {
+        financeSteps = await storage.getPendingApprovalStepsByGroup("finance", userId);
+        const existingIds = new Set(steps.map(s => s.id));
+        financeSteps = financeSteps.filter(s => !existingIds.has(s.id));
+      }
+
+      const allSteps = [...steps, ...financeSteps];
       const results: (ApprovalStep & { requisition?: Requisition })[] = [];
-      for (const step of steps) {
+      for (const step of allSteps) {
         const requisition = await storage.getRequisition(step.requisitionId);
         results.push({ ...step, requisition: requisition || undefined });
       }
@@ -487,6 +506,14 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (directStep) {
         console.log(`[my-pending-step] Found direct step ${directStep.id} (assignedTo=${directStep.assignedTo})`);
         return res.json(directStep);
+      }
+      if (managedUser.role === "finance" || managedUser.role === "admin" || managedUser.role === "superadmin") {
+        const allStepsForFinance = await storage.getApprovalSteps(req.params.id);
+        const financeStep = allStepsForFinance.find(s => s.decision === "pending" && s.assignedToGroup === "finance");
+        if (financeStep) {
+          console.log(`[my-pending-step] Found finance group step ${financeStep.id} for finance-role user`);
+          return res.json(financeStep);
+        }
       }
       const costCenter = await getUserCostCenter(managedUser);
       if (costCenter) {
@@ -514,9 +541,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         const r = await storage.getRequisition(req.params.id);
         const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
+        const isFinanceApprover = !isApprover && await isFinanceReviewer(req.params.id, managedUser);
         const allSteps = await storage.getApprovalSteps(req.params.id);
         const wasApprover = allSteps.some(s => s.assignedTo === String(managedUser.id));
-        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !wasApprover)) return res.status(403).json({ message: "Access denied" });
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !isFinanceApprover && !wasApprover)) return res.status(403).json({ message: "Access denied" });
         res.json(allSteps);
         return;
       }
@@ -530,6 +558,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
+      if (step.assignedToGroup === "finance") return res.status(400).json({ message: "Finance Review steps must be completed via the finance-review endpoint" });
       const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
       let isDirectAssignee = step.assignedTo === String(managedUser.id);
       if (!isDirectAssignee && !step.assignedTo && step.assignedToName?.trim().toLowerCase() === userName.trim().toLowerCase()) {
@@ -580,6 +609,7 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       const step = await storage.getApprovalStep(req.params.id);
       if (!step) return res.status(404).json({ message: "Approval step not found" });
       if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
+      if (step.assignedToGroup === "finance") return res.status(400).json({ message: "Finance Review steps must be completed via the finance-review endpoint" });
       const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
       let isDirectAssignee = step.assignedTo === String(managedUser.id);
       if (!isDirectAssignee && !step.assignedTo && step.assignedToName?.trim().toLowerCase() === userName.trim().toLowerCase()) {
@@ -610,6 +640,33 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/approval-steps/:id/finance-review", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
+    try {
+      const managedUser = (req as any).managedUser as ManagedUser;
+      if (managedUser.role !== "finance" && managedUser.role !== "admin" && managedUser.role !== "superadmin") {
+        return res.status(403).json({ message: "Only finance users can complete a finance review" });
+      }
+      const step = await storage.getApprovalStep(req.params.id);
+      if (!step) return res.status(404).json({ message: "Approval step not found" });
+      if (step.decision !== "pending") return res.status(400).json({ message: "This step has already been decided" });
+      if (step.stage !== "Pending Finance Review" || step.assignedToGroup !== "finance") return res.status(400).json({ message: "This step is not a Finance Review step" });
+
+      const { budgetFlag, comments } = req.body;
+      if (!budgetFlag || (budgetFlag !== "available" && budgetFlag !== "not_available")) {
+        return res.status(400).json({ message: "budgetFlag must be 'available' or 'not_available'" });
+      }
+
+      const userName = managedUser.displayName || [managedUser.firstName, managedUser.lastName].filter(Boolean).join(" ") || managedUser.username;
+      await storage.updateApprovalStep(step.id, {
+        assignedTo: String(managedUser.id),
+        assignedToName: userName,
+      });
+
+      const result = await completeFinanceReview(req.params.id, budgetFlag, comments?.trim() || null);
+      res.json({ success: true, newStatus: result.newStatus });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.post("/api/requisitions/:id/mark-po-created", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;
@@ -630,9 +687,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         const r = await storage.getRequisition(req.params.id);
         const isApprover = await storage.hasPendingStepForUser(req.params.id, String(managedUser.id));
+        const isFinanceApprover = !isApprover && await isFinanceReviewer(req.params.id, managedUser);
         const allSteps = await storage.getApprovalSteps(req.params.id);
         const wasApprover = allSteps.some(s => s.assignedTo === String(managedUser.id));
-        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !wasApprover)) {
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !isFinanceApprover && !wasApprover)) {
           return res.status(403).json({ message: "Access denied" });
         }
       }
@@ -765,9 +823,10 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
       if (!isAdmin) {
         const r = await storage.getRequisition(quotation.requisitionId);
         const isApprover = await storage.hasPendingStepForUser(quotation.requisitionId, String(managedUser.id));
+        const isFinanceApprover = !isApprover && await isFinanceReviewer(quotation.requisitionId, managedUser);
         const allSteps = await storage.getApprovalSteps(quotation.requisitionId);
         const wasApprover = allSteps.some(s => s.assignedTo === String(managedUser.id));
-        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !wasApprover)) {
+        if (!r || (r.userId !== String(managedUser.id) && !isApprover && !isFinanceApprover && !wasApprover)) {
           return res.status(403).json({ message: "Access denied" });
         }
       }

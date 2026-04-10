@@ -951,14 +951,14 @@ export const WORKFLOW_STAGES = [
   "Pending Line Manager",
   "Pending Purchasing Review",
   "Pending Budget Owner",
-  "Pending Final Approval",
+  "Pending Finance Review",
   "Ready for Purchase",
   "PO Created",
   "Rejected",
 ] as const;
 export type WorkflowStage = typeof WORKFLOW_STAGES[number];
 
-export const APPROVAL_DECISIONS = ["approved", "rejected", "pending"] as const;
+export const APPROVAL_DECISIONS = ["approved", "rejected", "pending", "completed"] as const;
 export type ApprovalDecision = typeof APPROVAL_DECISIONS[number];
 
 export const requisitionApprovalSteps = pgTable("requisition_approval_steps", {
@@ -970,6 +970,7 @@ export const requisitionApprovalSteps = pgTable("requisition_approval_steps", {
   assignedToGroup: varchar("assigned_to_group"),
   decision: varchar("decision").notNull().default("pending"),
   comments: text("comments"),
+  budgetFlag: varchar("budget_flag"),
   decidedAt: timestamp("decided_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
