@@ -213,7 +213,7 @@ export default function RequisitionNewPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold font-outfit" data-testid="text-form-title">Approval Request Form V2</h1>
+          <h1 className="text-2xl font-bold font-outfit" data-testid="text-form-title">Approval Request Form</h1>
           <p className="text-muted-foreground">Submit a new procurement requisition</p>
         </div>
       </div>
