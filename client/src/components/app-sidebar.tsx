@@ -23,7 +23,6 @@ import {
   CreditCard,
   Fence,
   Loader2,
-  ClipboardCheck,
   GitBranch,
 } from "lucide-react";
 import {
@@ -442,29 +441,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-            Workflow
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location === "/my-approvals"}
-                  className="h-9 px-3 rounded-md"
-                  data-testid="nav-item-my-approvals"
-                  tooltip="My Approvals"
-                >
-                  <Link href="/my-approvals">
-                    <ClipboardCheck className="h-4 w-4" />
-                    <span className="text-sm">My Approvals</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
 
         {isAdmin && (
           <SidebarGroup className="mt-4">

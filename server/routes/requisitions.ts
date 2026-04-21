@@ -482,33 +482,6 @@ export async function registerRequisitionRoutes(app: Express, _httpServer: Serve
 
   // ========== Approval Workflow Routes ==========
 
-  app.get("/api/my-approvals", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
-    try {
-      const managedUser = (req as any).managedUser as ManagedUser;
-      const userId = String(managedUser.id);
-      console.log(`[my-approvals] Fetching approvals for user=${userId} (${managedUser.username || managedUser.email}), employeeCode=${managedUser.employeeCode || "none"}`);
-
-      const steps = await storage.getPendingApprovalSteps(userId);
-      console.log(`[my-approvals] Found ${steps.length} pending steps for user=${userId}. Direct/group breakdown logged in storage layer.`);
-
-      const isFinanceUser = managedUser.role === "finance";
-      let financeSteps: ApprovalStep[] = [];
-      if (isFinanceUser) {
-        financeSteps = await storage.getPendingApprovalStepsByGroup("finance", userId);
-        const existingIds = new Set(steps.map(s => s.id));
-        financeSteps = financeSteps.filter(s => !existingIds.has(s.id));
-      }
-
-      const allSteps = [...steps, ...financeSteps];
-      const results: (ApprovalStep & { requisition?: Requisition })[] = [];
-      for (const step of allSteps) {
-        const requisition = await storage.getRequisition(step.requisitionId);
-        results.push({ ...step, requisition: requisition || undefined });
-      }
-      res.json(results);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
   app.get("/api/requisitions/:id/my-pending-step", isAuthenticated, checkSubmoduleAccess("erp", "procurement"), async (req, res) => {
     try {
       const managedUser = (req as any).managedUser as ManagedUser;

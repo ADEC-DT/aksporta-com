@@ -229,7 +229,6 @@ export default function RequisitionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "approval-steps"] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "my-pending-step"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/my-approvals"] });
       setApprovalComment("");
       toast({ title: "Approved", description: "The requisition has been approved and moved to the next stage." });
     },
@@ -247,7 +246,6 @@ export default function RequisitionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "approval-steps"] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "my-pending-step"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/my-approvals"] });
       setApprovalComment("");
       toast({ title: "Rejected", description: "The requisition has been rejected." });
     },
@@ -265,7 +263,6 @@ export default function RequisitionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "approval-steps"] });
       queryClient.invalidateQueries({ queryKey: ["/api/requisitions", id, "my-pending-step"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/my-approvals"] });
       setFinanceReviewComment("");
       setFinanceReviewFlag("available");
       toast({ title: "Finance Review Completed", description: "The requisition has been moved to Ready for Purchase." });
